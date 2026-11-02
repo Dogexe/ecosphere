@@ -1,0 +1,121 @@
+{
+  "animationCount": 1,
+  "categories": [],
+  "commentCount": 0,
+  "createdAt": "2023-07-20T05:51:50.064915",
+  "embedUrl": "https://sketchfab.com/models/4f27bcd63caf4dae837cfaeb70e1bf3a/embed",
+  "faceCount": 33044,
+  "isAgeRestricted": false,
+  "license": {
+    "uri": "https://api.sketchfab.com/v3/licenses/322a749bcfa841b29dff1e8a1bb74b0b",
+    "label": "CC Attribution",
+    "fullName": "Creative Commons Attribution",
+    "requirements": "Author must be credited. Commercial use is allowed.",
+    "url": "http://creativecommons.org/licenses/by/4.0/",
+    "slug": "by"
+  },
+  "likeCount": 8,
+  "name": "Daphnia",
+  "publishedAt": "2023-07-20T06:03:58.166922",
+  "soundCount": 0,
+  "staffpickedAt": null,
+  "tags": [],
+  "thumbnails": {
+    "images": [
+      {
+        "uid": "09a78fdd0c48484cac194918ffbcbf97",
+        "width": 1920,
+        "height": 1080,
+        "size": 62857,
+        "url": "https://media.sketchfab.com/models/4f27bcd63caf4dae837cfaeb70e1bf3a/thumbnails/09d6a401ab034fb4974f794076505a38/48fe3e7e6ff34e0ca85601e29fd40bec.jpeg"
+      },
+      {
+        "uid": "d73828ec9a3540659453abf615cab119",
+        "width": 1024,
+        "height": 576,
+        "size": 22053,
+        "url": "https://media.sketchfab.com/models/4f27bcd63caf4dae837cfaeb70e1bf3a/thumbnails/09d6a401ab034fb4974f794076505a38/71be62ee207a4fc5877a3cda905789ce.jpeg"
+      },
+      {
+        "uid": "a00cf14fe1a249db8f9f5b0bbfd6b65e",
+        "width": 720,
+        "height": 405,
+        "size": 13132,
+        "url": "https://media.sketchfab.com/models/4f27bcd63caf4dae837cfaeb70e1bf3a/thumbnails/09d6a401ab034fb4974f794076505a38/06522fe4a388450ca0e0a4368c187594.jpeg"
+      },
+      {
+        "uid": "84bded613e10449fade146abd775f978",
+        "width": 256,
+        "height": 144,
+        "size": 2990,
+        "url": "https://media.sketchfab.com/models/4f27bcd63caf4dae837cfaeb70e1bf3a/thumbnails/09d6a401ab034fb4974f794076505a38/23328166bb074697b76a3f2423ec3ee0.jpeg"
+      },
+      {
+        "uid": "2b125e152b3841deb14fdd86fdbd22cf",
+        "width": 64,
+        "height": 36,
+        "size": 919,
+        "url": "https://media.sketchfab.com/models/4f27bcd63caf4dae837cfaeb70e1bf3a/thumbnails/09d6a401ab034fb4974f794076505a38/5335f395cc934bedaa2fdf354fd09517.jpeg"
+      }
+    ]
+  },
+  "uid": "4f27bcd63caf4dae837cfaeb70e1bf3a",
+  "uri": "https://api.sketchfab.com/v3/models/4f27bcd63caf4dae837cfaeb70e1bf3a",
+  "user": {
+    "uid": "c7b7801b78e14198a5dc621f047acbc1",
+    "username": "ucdavisterc",
+    "displayName": "ucdavisterc",
+    "account": "pro",
+    "profileUrl": "https://sketchfab.com/ucdavisterc",
+    "avatar": {
+      "uid": "0e25978f2ac145d3a1933f535508c8be",
+      "uri": "https://api.sketchfab.com/v3/avatars/0e25978f2ac145d3a1933f535508c8be",
+      "images": [
+        {
+          "width": 32,
+          "height": 32,
+          "size": 978,
+          "url": "https://media.sketchfab.com/avatars/0e25978f2ac145d3a1933f535508c8be/2b279aecaff94a3894b05d04b8f8d469.jpeg"
+        },
+        {
+          "width": 48,
+          "height": 48,
+          "size": 1192,
+          "url": "https://media.sketchfab.com/avatars/0e25978f2ac145d3a1933f535508c8be/9994adfb1fb0442cad1aaff0b98033c2.jpeg"
+        },
+        {
+          "width": 90,
+          "height": 90,
+          "size": 2168,
+          "url": "https://media.sketchfab.com/avatars/0e25978f2ac145d3a1933f535508c8be/7a7305e7c7f745a097955168b265bd3c.jpeg"
+        },
+        {
+          "width": 100,
+          "height": 100,
+          "size": 2515,
+          "url": "https://media.sketchfab.com/avatars/0e25978f2ac145d3a1933f535508c8be/68eb1a3aec93416492d210c900025912.jpeg"
+        }
+      ]
+    },
+    "uri": "https://api.sketchfab.com/v3/users/c7b7801b78e14198a5dc621f047acbc1"
+  },
+  "vertexCount": 16776,
+  "viewCount": 373,
+  "viewerUrl": "https://sketchfab.com/3d-models/daphnia-4f27bcd63caf4dae837cfaeb70e1bf3a",
+  "isDownloadable": true,
+  "isProtected": false,
+  "description": "",
+  "price": null,
+  "downloadCount": 83,
+  "editorUrl": "https://sketchfab.com/models/4f27bcd63caf4dae837cfaeb70e1bf3a/edit",
+  "status": {
+    "warning": {},
+    "processing": "SUCCEEDED"
+  },
+  "source": "website",
+  "hasCommentsDisabled": false,
+  "updatedAt": "2023-08-18T15:01:18.182908",
+  "pbrType": null,
+  "textureCount": 4,
+  "materialCount": 8
+}

@@ -1,0 +1,164 @@
+{
+  "animationCount": 1,
+  "categories": [
+    {
+      "uid": "ed9e048550b2478eb1ab2faaba192832",
+      "name": "Animals & Pets",
+      "slug": "animals-pets",
+      "uri": "https://api.sketchfab.com/v3/categories/ed9e048550b2478eb1ab2faaba192832",
+      "icon": "https://static.sketchfab.com/static/builds/web/dist/static/assets/images/icons/categories/926733e187aa5a479aedd2581bffb3ea-v2.svg",
+      "thumbnails": [
+        {
+          "width": "512",
+          "height": "288",
+          "url": "https://static.sketchfab.com/categories/ed9e048550b2478eb1ab2faaba192832/512x288.png"
+        },
+        {
+          "width": "800",
+          "height": "450",
+          "url": "https://static.sketchfab.com/categories/ed9e048550b2478eb1ab2faaba192832/800x450.png"
+        }
+      ]
+    },
+    {
+      "uid": "17d20ca7b35243d4a45171838b50704c",
+      "name": "Science & Technology",
+      "slug": "science-technology",
+      "uri": "https://api.sketchfab.com/v3/categories/17d20ca7b35243d4a45171838b50704c",
+      "icon": "https://static.sketchfab.com/static/builds/web/dist/static/assets/images/icons/categories/86b1bae49e0ed3f43b2d59b26700234e-v2.svg",
+      "thumbnails": [
+        {
+          "width": "512",
+          "height": "288",
+          "url": "https://static.sketchfab.com/categories/17d20ca7b35243d4a45171838b50704c/512x288.png"
+        },
+        {
+          "width": "800",
+          "height": "450",
+          "url": "https://static.sketchfab.com/categories/17d20ca7b35243d4a45171838b50704c/800x450.png"
+        }
+      ]
+    }
+  ],
+  "commentCount": 16,
+  "createdAt": "2023-03-29T13:14:54.124760",
+  "embedUrl": "https://sketchfab.com/models/361a99c7afdd470d99fc1269ebf56044/embed",
+  "faceCount": 159798,
+  "isAgeRestricted": false,
+  "license": {},
+  "likeCount": 62,
+  "name": "Animated Daphnia",
+  "publishedAt": "2023-03-29T14:02:09.726166",
+  "soundCount": 0,
+  "staffpickedAt": "2023-04-12T13:00:09.680113",
+  "tags": [
+    {
+      "name": "anatomy",
+      "slug": "anatomy",
+      "uri": "https://api.sketchfab.com/v3/tags/anatomy"
+    },
+    {
+      "name": "daphnia",
+      "slug": "daphnia",
+      "uri": "https://api.sketchfab.com/v3/tags/daphnia"
+    }
+  ],
+  "thumbnails": {
+    "images": [
+      {
+        "uid": "a71e9ae45df94a8f9cc33c0806e39b06",
+        "width": 1920,
+        "height": 1080,
+        "size": 75647,
+        "url": "https://media.sketchfab.com/models/361a99c7afdd470d99fc1269ebf56044/thumbnails/b5a278af4c6f4c75a40cad5ffaea7cc5/740986fcf3d846a8b02a775477ea05e3.jpeg"
+      },
+      {
+        "uid": "2c2ceeecdd9844a2a3f8c587d4811fd1",
+        "width": 1024,
+        "height": 576,
+        "size": 21768,
+        "url": "https://media.sketchfab.com/models/361a99c7afdd470d99fc1269ebf56044/thumbnails/b5a278af4c6f4c75a40cad5ffaea7cc5/12b0d31901a349339b9d65a14d42a90c.jpeg"
+      },
+      {
+        "uid": "52d4d48fb3c447c4a364f2f602b08abc",
+        "width": 720,
+        "height": 405,
+        "size": 11870,
+        "url": "https://media.sketchfab.com/models/361a99c7afdd470d99fc1269ebf56044/thumbnails/b5a278af4c6f4c75a40cad5ffaea7cc5/2f53ca7a33d045da877f7c6d8a98240f.jpeg"
+      },
+      {
+        "uid": "144f1b6e76a44fdf8976333312d4b97d",
+        "width": 256,
+        "height": 144,
+        "size": 2352,
+        "url": "https://media.sketchfab.com/models/361a99c7afdd470d99fc1269ebf56044/thumbnails/b5a278af4c6f4c75a40cad5ffaea7cc5/df4a6ba67eca49148da8f0252444635d.jpeg"
+      },
+      {
+        "uid": "9b5218b6f2ac4c388794f7155dc52e37",
+        "width": 64,
+        "height": 36,
+        "size": 814,
+        "url": "https://media.sketchfab.com/models/361a99c7afdd470d99fc1269ebf56044/thumbnails/b5a278af4c6f4c75a40cad5ffaea7cc5/0209fde4960342ed868d90ebeaef4161.jpeg"
+      }
+    ]
+  },
+  "uid": "361a99c7afdd470d99fc1269ebf56044",
+  "uri": "https://api.sketchfab.com/v3/models/361a99c7afdd470d99fc1269ebf56044",
+  "user": {
+    "uid": "ee9184962a7242799f8a57ca58d21cde",
+    "username": "miekeroth",
+    "displayName": "Mieke Roth",
+    "account": "ent",
+    "profileUrl": "https://sketchfab.com/miekeroth",
+    "avatar": {
+      "uid": "48d9f1e90bd14badbb2c59b9ce863072",
+      "uri": "https://api.sketchfab.com/v3/avatars/48d9f1e90bd14badbb2c59b9ce863072",
+      "images": [
+        {
+          "width": 32,
+          "height": 32,
+          "size": 1062,
+          "url": "https://media.sketchfab.com/avatars/48d9f1e90bd14badbb2c59b9ce863072/58c64809b67f4a89808ceca3a12fda24.jpeg"
+        },
+        {
+          "width": 48,
+          "height": 48,
+          "size": 1511,
+          "url": "https://media.sketchfab.com/avatars/48d9f1e90bd14badbb2c59b9ce863072/787c9135e6694f2d9a00e84375f20082.jpeg"
+        },
+        {
+          "width": 90,
+          "height": 90,
+          "size": 3300,
+          "url": "https://media.sketchfab.com/avatars/48d9f1e90bd14badbb2c59b9ce863072/e38cd1c6d37343f8a91cfcccd39b16be.jpeg"
+        },
+        {
+          "width": 100,
+          "height": 100,
+          "size": 3816,
+          "url": "https://media.sketchfab.com/avatars/48d9f1e90bd14badbb2c59b9ce863072/911e0b4bfa2d49ecba66505fa87c0e21.jpeg"
+        }
+      ]
+    },
+    "uri": "https://api.sketchfab.com/v3/users/ee9184962a7242799f8a57ca58d21cde"
+  },
+  "vertexCount": 80393,
+  "viewCount": 1737,
+  "viewerUrl": "https://sketchfab.com/3d-models/animated-daphnia-361a99c7afdd470d99fc1269ebf56044",
+  "isDownloadable": false,
+  "isProtected": false,
+  "description": "A golden oldy that I am revisiting for 3d printing and other purposes. I changed the background color to white so I can use it on my website. And the second thing I did is adjusting the animation. Still not completely realistic, but a bit beter now",
+  "price": null,
+  "downloadCount": 0,
+  "editorUrl": "https://sketchfab.com/models/361a99c7afdd470d99fc1269ebf56044/edit",
+  "status": {
+    "warning": {},
+    "processing": "SUCCEEDED"
+  },
+  "source": "website",
+  "hasCommentsDisabled": false,
+  "updatedAt": "2023-04-03T14:41:16.224025",
+  "pbrType": null,
+  "textureCount": 34,
+  "materialCount": 25
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "habitat": "garden",
+    "seed": 17,
+    "sha256": "d7a949d76c897f19bd879c372dd16a2ea902494cf2db32094ecd588d1659010c"
+  },
+  {
+    "habitat": "garden",
+    "seed": 183,
+    "sha256": "21b3080f943c4d7bd161fad7161617fb8660fe6979ff0ee606ae3ff80abaf792"
+  },
+  {
+    "habitat": "garden",
+    "seed": 2217,
+    "sha256": "a3683a14476c5d96f4965d35f8c53467c0519ba384c6fa165c33231555811202"
+  },
+  {
+    "habitat": "woodland",
+    "seed": 17,
+    "sha256": "fff8e72eb2ff740d359a5a63f7781ca7d99931139f0d44be629a00c7edbc76e0"
+  },
+  {
+    "habitat": "woodland",
+    "seed": 183,
+    "sha256": "ce79ff99c80c65a2995630c0e425d7bf1db98c3e8987e296fc99c07e6a956b71"
+  },
+  {
+    "habitat": "woodland",
+    "seed": 2217,
+    "sha256": "32e5a5035983851059c98853df03754553eeddcc6ff97fde908d4551d5f49782"
+  },
+  {
+    "habitat": "meadow",
+    "seed": 17,
+    "sha256": "a4e62f1aff0ca14628c8a5e116bc2c77d88ed0f467771146c71e56e7f9807e9a"
+  },
+  {
+    "habitat": "meadow",
+    "seed": 183,
+    "sha256": "e2c70f073dda39536c20778bcd479af46afe0c9938ef2a67b3ae486fc5d4f9f9"
+  },
+  {
+    "habitat": "meadow",
+    "seed": 2217,
+    "sha256": "62f52db5db91e5abd25b44da21fc9c76b491bd9b4d7f0963c62cc9b53e2c8ac7"
+  },
+  {
+    "habitat": "wetland",
+    "seed": 17,
+    "sha256": "ebf30276053208306114c97f820a4a56f65ec8b876a6f01eb1e7e4c561b9eea6"
+  },
+  {
+    "habitat": "wetland",
+    "seed": 183,
+    "sha256": "007debcf79b2fab1c8b6a9106a926eea88e1d2eb7f697a3a2508432fb85e09be"
+  },
+  {
+    "habitat": "wetland",
+    "seed": 2217,
+    "sha256": "323db3bc917a63871d3c18a11097049f1fe51d02dfded50590511c47a10e96d8"
+  }
+]

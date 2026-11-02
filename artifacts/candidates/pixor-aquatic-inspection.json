@@ -1,0 +1,64 @@
+[
+  {
+    "file": "Pixor_water-lily.glb",
+    "bounds_blender": [
+      [
+        -0.33821922540664673,
+        -0.33536970615386963,
+        0.0
+      ],
+      [
+        0.3392784893512726,
+        0.3397928774356842,
+        0.1551813781261444
+      ]
+    ],
+    "meshes": [
+      {
+        "name": "Water lily flower",
+        "vertices": 908,
+        "faces": 876,
+        "materials": [
+          "Pink paint",
+          "Blossom",
+          "Yellow flower"
+        ]
+      },
+      {
+        "name": "Water lily pad",
+        "vertices": 102,
+        "faces": 64,
+        "materials": [
+          "Leaf"
+        ]
+      }
+    ]
+  },
+  {
+    "file": "Pixor_reeds.glb",
+    "bounds_blender": [
+      [
+        -0.48734766244888306,
+        -0.48605090379714966,
+        -0.00018746647401712835
+      ],
+      [
+        0.5833808779716492,
+        0.4427253305912018,
+        1.3996223211288452
+      ]
+    ],
+    "meshes": [
+      {
+        "name": "Reeds",
+        "vertices": 876,
+        "faces": 920,
+        "materials": [
+          "Grass",
+          "Olive leaf",
+          "Cattail"
+        ]
+      }
+    ]
+  }
+]

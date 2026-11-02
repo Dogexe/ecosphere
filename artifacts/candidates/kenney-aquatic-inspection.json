@@ -1,0 +1,80 @@
+[
+  {
+    "file": "Kenney_lily_large.glb",
+    "bounds_blender": [
+      [
+        -0.1359313428401947,
+        -0.15696001052856445,
+        -0.05000000074505806
+      ],
+      [
+        0.1359313428401947,
+        0.15696001052856445,
+        0.047999996691942215
+      ]
+    ],
+    "meshes": [
+      {
+        "name": "lily_large",
+        "vertices": 146,
+        "faces": 86,
+        "materials": [
+          "leafsGreen",
+          "colorRed",
+          "leafsDark"
+        ]
+      }
+    ]
+  },
+  {
+    "file": "Kenney_lily_small.glb",
+    "bounds_blender": [
+      [
+        -0.09439677000045776,
+        -0.10899999737739563,
+        -0.05000000074505806
+      ],
+      [
+        0.09439677000045776,
+        0.10899999737739563,
+        -0.010000001639127731
+      ]
+    ],
+    "meshes": [
+      {
+        "name": "lily_small",
+        "vertices": 98,
+        "faces": 52,
+        "materials": [
+          "leafsGreen.001",
+          "leafsDark.001"
+        ]
+      }
+    ]
+  },
+  {
+    "file": "Kenney_hanging_moss.glb",
+    "bounds_blender": [
+      [
+        -0.07991679757833481,
+        -0.5,
+        -0.05000000074505806
+      ],
+      [
+        0.07991679757833481,
+        -0.4650000035762787,
+        0.4284800887107849
+      ]
+    ],
+    "meshes": [
+      {
+        "name": "hanging_moss",
+        "vertices": 84,
+        "faces": 52,
+        "materials": [
+          "grass"
+        ]
+      }
+    ]
+  }
+]

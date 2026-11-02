@@ -1,0 +1,141 @@
+{
+  "animationCount": 0,
+  "categories": [],
+  "commentCount": 0,
+  "createdAt": "2016-01-21T08:14:27.636918",
+  "embedUrl": "https://sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/embed",
+  "faceCount": 9812,
+  "isAgeRestricted": false,
+  "license": {
+    "uri": "https://api.sketchfab.com/v3/licenses/322a749bcfa841b29dff1e8a1bb74b0b",
+    "label": "CC Attribution",
+    "fullName": "Creative Commons Attribution",
+    "requirements": "Author must be credited. Commercial use is allowed.",
+    "url": "http://creativecommons.org/licenses/by/4.0/",
+    "slug": "by"
+  },
+  "likeCount": 37,
+  "name": "waterflea + guts + eye",
+  "publishedAt": "2016-01-21T08:15:03.458229",
+  "soundCount": 0,
+  "staffpickedAt": null,
+  "tags": [
+    {
+      "name": "smoothie-3D",
+      "slug": "smoothie-3d",
+      "uri": "https://api.sketchfab.com/v3/tags/smoothie-3d"
+    }
+  ],
+  "thumbnails": {
+    "images": [
+      {
+        "uid": "c0513a424d444587992c056e1cd7f1d0",
+        "width": 50,
+        "height": 50,
+        "size": 907,
+        "url": "https://media.sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/thumbnails/add81ef541f6468e87ac71140b5a91b6/50x50.jpeg"
+      },
+      {
+        "uid": "cabaa181158c45d89e9411fdb946ba59",
+        "width": 100,
+        "height": 100,
+        "size": 1976,
+        "url": "https://media.sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/thumbnails/add81ef541f6468e87ac71140b5a91b6/100x100.jpeg"
+      },
+      {
+        "uid": "6df5ea9d968b411c80739492e606b4a5",
+        "width": 200,
+        "height": 200,
+        "size": 4902,
+        "url": "https://media.sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/thumbnails/add81ef541f6468e87ac71140b5a91b6/200x200.jpeg"
+      },
+      {
+        "uid": "a0956f5af8fa428d8b6ac4c81f9f7236",
+        "width": 448,
+        "height": 252,
+        "size": 8249,
+        "url": "https://media.sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/thumbnails/add81ef541f6468e87ac71140b5a91b6/448.jpeg"
+      },
+      {
+        "uid": "65edb05f923846bb896813ab2b064808",
+        "width": 640,
+        "height": 360,
+        "size": 14017,
+        "url": "https://media.sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/thumbnails/add81ef541f6468e87ac71140b5a91b6/640.jpeg"
+      },
+      {
+        "uid": "066f180b350944daba1694a182789756",
+        "width": 854,
+        "height": 480,
+        "size": 21425,
+        "url": "https://media.sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/thumbnails/add81ef541f6468e87ac71140b5a91b6/854.jpeg"
+      },
+      {
+        "uid": "7e99395fc646439e854323d0caa0bc2e",
+        "width": 1024,
+        "height": 576,
+        "size": 28093,
+        "url": "https://media.sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/thumbnails/add81ef541f6468e87ac71140b5a91b6/1024.jpeg"
+      }
+    ]
+  },
+  "uid": "2c84a31e3bd847988ccf27efcfb4c89a",
+  "uri": "https://api.sketchfab.com/v3/models/2c84a31e3bd847988ccf27efcfb4c89a",
+  "user": {
+    "uid": "04cab04daecc4be3b715c5bf93c5fb08",
+    "username": "nicolamoo",
+    "displayName": "nicolamoo",
+    "account": "basic",
+    "profileUrl": "https://sketchfab.com/nicolamoo",
+    "avatar": {
+      "uid": "36ea379b6774444ea612daeda03f90e6",
+      "uri": "https://api.sketchfab.com/v3/avatars/36ea379b6774444ea612daeda03f90e6",
+      "images": [
+        {
+          "width": 100,
+          "height": 100,
+          "size": 5175,
+          "url": "https://media.sketchfab.com/avatars/36ea379b6774444ea612daeda03f90e6/99f5d906310d4ff9aef0fa4828bc6fb0.jpeg"
+        },
+        {
+          "width": 90,
+          "height": 90,
+          "size": 4384,
+          "url": "https://media.sketchfab.com/avatars/36ea379b6774444ea612daeda03f90e6/472026afdb3841e2b17e0d9f10ef780a.jpeg"
+        },
+        {
+          "width": 48,
+          "height": 48,
+          "size": 1470,
+          "url": "https://media.sketchfab.com/avatars/36ea379b6774444ea612daeda03f90e6/4e3d2afb4142476d9b50578102ef3205.jpeg"
+        },
+        {
+          "width": 32,
+          "height": 32,
+          "size": 819,
+          "url": "https://media.sketchfab.com/avatars/36ea379b6774444ea612daeda03f90e6/dbc7ad6656be47bcbcab5b04154b99bb.jpeg"
+        }
+      ]
+    },
+    "uri": "https://api.sketchfab.com/v3/users/04cab04daecc4be3b715c5bf93c5fb08"
+  },
+  "vertexCount": 4940,
+  "viewCount": 1089,
+  "viewerUrl": "https://sketchfab.com/3d-models/waterflea-guts-eye-2c84a31e3bd847988ccf27efcfb4c89a",
+  "isDownloadable": true,
+  "isProtected": false,
+  "description": "based on daphnia created in Smoothie-3D",
+  "price": null,
+  "downloadCount": 243,
+  "editorUrl": "https://sketchfab.com/models/2c84a31e3bd847988ccf27efcfb4c89a/edit",
+  "status": {
+    "warning": {},
+    "processing": "SUCCEEDED"
+  },
+  "source": "smoothie-3d",
+  "hasCommentsDisabled": false,
+  "updatedAt": "2022-07-11T15:21:38.427891",
+  "pbrType": null,
+  "textureCount": null,
+  "materialCount": 1
+}
