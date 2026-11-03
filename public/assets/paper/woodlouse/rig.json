@@ -1,13 +1,102 @@
 {
-  "canvas": [1280, 560],
-  "length": { "from": 140, "to": 1000, "units": 0.64 },
+  "canvas": [
+    1280,
+    560
+  ],
+  "length": {
+    "from": 170,
+    "to": 1010,
+    "units": 0.64
+  },
   "ground": 505,
   "parts": [
-    { "file": "leg-far.png", "motion": "leg", "side": "far", "order": 0, "pivot": [330, 372],
-      "repeat": [[410, 372], [490, 372], [570, 372], [650, 372], [730, 372], [810, 372]] },
-    { "file": "body.png", "motion": "body", "pivot": [570, 458] },
-    { "file": "leg-near.png", "motion": "leg", "side": "near", "order": 0, "pivot": [310, 380],
-      "repeat": [[390, 380], [470, 380], [550, 380], [630, 380], [710, 380], [790, 380]] },
-    { "file": "antenna.png", "motion": "antenna", "pivot": [965, 290] }
+    {
+      "file": "leg-far.png",
+      "motion": "leg",
+      "side": "far",
+      "order": 0,
+      "pivot": [
+        359,
+        385
+      ],
+      "repeat": [
+        [
+          438,
+          384
+        ],
+        [
+          518,
+          380
+        ],
+        [
+          597,
+          379
+        ],
+        [
+          676,
+          383
+        ],
+        [
+          755,
+          375
+        ],
+        [
+          834,
+          375
+        ]
+      ]
+    },
+    {
+      "file": "body.png",
+      "motion": "body",
+      "pivot": [
+        570,
+        427
+      ]
+    },
+    {
+      "file": "leg-near.png",
+      "motion": "leg",
+      "side": "near",
+      "order": 0,
+      "pivot": [
+        341,
+        389
+      ],
+      "repeat": [
+        [
+          420,
+          388
+        ],
+        [
+          500,
+          384
+        ],
+        [
+          579,
+          383
+        ],
+        [
+          658,
+          387
+        ],
+        [
+          737,
+          379
+        ],
+        [
+          816,
+          379
+        ]
+      ]
+    },
+    {
+      "file": "antenna.png",
+      "motion": "antenna",
+      "pivot": [
+        940,
+        298
+      ]
+    }
   ]
 }

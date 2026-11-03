@@ -28,7 +28,7 @@ test('canvas pixels map to the body middle and the ground line', () => {
 test('repeated legs keep their own pivots and offsets', () => {
   const rig = parseRig(woodlouse)
   const near = placements(rig).filter((item) => item.part.file === 'leg-near.png')
-  assert.deepEqual(near[3].offset, [near[3].pivot[0] - near[0].pivot[0], 0])
+  assert.deepEqual(near[3].offset, [near[3].pivot[0] - near[0].pivot[0], near[3].pivot[1] - near[0].pivot[1]])
 })
 
 test('broken rigs are refused with a reason', () => {
