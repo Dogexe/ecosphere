@@ -572,3 +572,50 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .app-shell.cozy::after { background: radial-gradient(ellipse at 56% 40%, #f6d3a6 0%, #d9a07c 42%, #93707a 78%, #6b5a6e 100%); }
 .app-shell.cozy::before { background: radial-gradient(ellipse at 56% 42%, #4a4256 0%, #2f2a3d 60%, #1f1b2a 100%); }
 .cozy.is-night .scene-halo { background: #ffcf8a; opacity: .12; }
+
+/* Cozy HUD: game overlay instead of a landing page. The jar is the stage; UI hugs the corners. */
+.cozy .intro, .cozy .header-note, .cozy .ambient { display: none; }
+.cozy .scene-hint:not(.placing-hint) { opacity: .55; font-size: 8px; }
+.cozy .brand {
+  padding: 7px 14px 7px 10px; border: 1px solid #eadcc2; border-radius: 12px; font-size: 13px; letter-spacing: .14em;
+  background: var(--grain), #fbf5e8; box-shadow: 0 4px 12px rgba(110, 80, 40, .12); color: var(--ink) !important;
+}
+.cozy .brand-mark { transform: scale(.7); margin: -4px -6px -4px -4px; }
+.cozy .header-actions { gap: 8px; }
+.app-shell.cozy .header-actions .text-button {
+  min-height: 36px; padding: 7px 13px; border: 1px solid #eadcc2; border-radius: 99px; font-size: 11px;
+  background: var(--grain), #fbf5e8ee; color: var(--ink); box-shadow: 0 3px 0 #e3d1b0, 0 6px 12px rgba(110, 80, 40, .1);
+}
+.app-shell.cozy .header-actions .text-button:hover { background: #fffaf0; color: var(--ink); }
+.app-shell.cozy .header-actions .text-button:active { transform: translateY(2px); box-shadow: 0 1px 0 #e3d1b0; }
+.cozy .day-indicator {
+  padding: 6px 8px 6px 14px; border: 1px solid #eadcc2; border-radius: 99px; gap: 7px; font-size: 9px; letter-spacing: .12em;
+  background: var(--grain), #fbf5e8ee; box-shadow: 0 4px 12px rgba(110, 80, 40, .12); color: var(--ink-soft) !important;
+}
+.cozy .day-indicator strong { font-size: 18px; color: var(--ink) !important; }
+.cozy .step-hour { min-height: 30px; min-width: 30px; }
+.cozy .pulse-panel p { font-size: 12px; }
+.cozy .action-button small { display: none; }
+@media (min-width: 761px) {
+  .cozy .site-header { top: 18px; left: 22px; right: 22px; }
+  .cozy .day-indicator { left: 22px; top: 74px; bottom: auto; }
+  .cozy .scene-view-tools { top: 20px; }
+  .cozy .pulse-panel { top: 74px; right: 22px; width: 228px; min-height: 0; max-height: calc(100dvh - 210px); padding: 16px 17px 14px; }
+  .cozy .pulse-panel h2 { margin: 6px 0 14px; font-size: 21px; }
+  .cozy .panel-kicker { margin-top: 12px; }
+  .cozy .meter-stack { gap: 10px; }
+  .cozy .panel-foot { margin-top: 14px; padding-top: 10px; }
+  .cozy .control-dock { bottom: 16px; width: min(780px, calc(100% - 300px)); padding: 10px 14px 12px; }
+  .cozy .dock-heading { padding-bottom: 7px; }
+  .cozy .dock-content { gap: 14px; grid-template-columns: minmax(250px, 1.6fr) minmax(140px, 1fr) minmax(120px, .7fr); }
+  .cozy .action-button { height: 48px; }
+  .cozy .action-symbol { width: 30px; height: 30px; flex-basis: 30px; font-size: 15px; }
+  .cozy .speed-buttons button { height: 28px; }
+  .cozy .scene-hint { bottom: 112px; }
+}
+@media (max-width: 760px) {
+  .cozy .site-header { margin: 12px 14px 0; }
+  .cozy .scene-wrap { margin-top: 4px; height: 52vh; }
+  .cozy .day-indicator { align-self: center; margin: -10px auto 0; }
+  .app-shell.cozy .header-actions .text-button { min-height: 36px; padding: 6px 10px; font-size: 10px; }
+}
