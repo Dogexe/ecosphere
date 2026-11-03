@@ -18,6 +18,7 @@ import { plantStage, woodlouseLife } from './sim/life'
 import { createHabitatWorld, habitatStarts } from './sim/habitats'
 import type { HabitatStart } from './sim/habitats'
 import { createStressWorld } from './dev/stressWorld'
+import { paperLook } from './scene/PaperCritter'
 import { autosaveInterval, browserStore, readAutosave, writeAutosave } from './sim/autosave'
 import { applySoilInput, beetleIsHunting, dominantLimit, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
@@ -430,6 +431,7 @@ export function App() {
           onSelectPond={() => { clearSelection(); setSelectedPond(true) }}
           onClearSelection={clearSelection}
         />
+        {paperLook && !underwater && !underground && <><div className="diorama-blur top" aria-hidden="true" /><div className="diorama-blur bottom" aria-hidden="true" /><div className="window-light" aria-hidden="true" /></>}
         {sealed && !underwater && !underground && <div className="jar-fog" aria-hidden="true" style={{ opacity: fogLevel(world) * 0.6 }} />}
         <div className="scene-view-tools"><button className="scene-view-button" type="button" onClick={underground ? changeNestView : changeView} disabled={!underwater && !underground && pond.water < 8}>{underwater || underground ? '↑ Return to surface' : '↓ Explore the pond'}</button>{world.colony && !underwater && !underground && <button className="scene-view-button" type="button" onClick={changeNestView}>↓ Inside the nest</button>}</div>
         <div className={`scene-hint ${tool ? 'placing-hint' : ''}`}>{tool ? `PLACING ${tool.toUpperCase()} · TAP ${tool !== 'colony' && isAquatic(tool) ? 'WATER' : 'OPEN GROUND'}` : <>{underground ? 'SOIL CUTAWAY · DRAG TO LOOK' : underwater ? 'UNDER THE SURFACE · DRAG TO LOOK' : 'DRAG TO ORBIT'} <span>·</span> PINCH TO ZOOM <span>·</span> TWO FINGERS TO PAN</>}</div>

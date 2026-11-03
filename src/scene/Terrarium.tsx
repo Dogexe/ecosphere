@@ -6,6 +6,7 @@ import { Color, CylinderGeometry, DoubleSide, FrontSide, Group, InstancedMesh, M
 import { Vector3 } from 'three'
 import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
+import { PaperWoodlouse, paperLook } from './PaperCritter'
 import { modelUnavailable, OrganismAsset, PlantAsset } from './OrganismAsset'
 import { worldPickRadius, animalTargetPixels } from './picking'
 import { terrainGeometry } from './terrainGeometry'
@@ -503,6 +504,7 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
   const legTransform = useRef(new Object3D())
   const mouth = useRef<Group>(null)
   const isMoving = useRef(false)
+  const yaw = useRef(creature.heading)
   const startPosition = useRef<[number, number, number]>([creature.x, 0.145, creature.z])
   const startRotation = useRef<[number, number, number]>([0, creature.heading, 0])
   const feeding = creatureIsFeeding(world, creature, events)
@@ -522,6 +524,7 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
     group.current.position.z = MathUtils.lerp(group.current.position.z, creature.z, factor)
     const turn = Math.atan2(Math.sin(creature.heading - group.current.rotation.y), Math.cos(creature.heading - group.current.rotation.y))
     group.current.rotation.y += turn * factor
+    yaw.current = group.current.rotation.y
     group.current.scale.setScalar(MathUtils.lerp(group.current.scale.x, size, factor))
     group.current.position.y = animalGroundY(creature)
     if (legs.current) {
@@ -548,7 +551,7 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={startScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      <OrganismAsset file="woodlouse" shape={{ length: 0.64, base: -0.09 }} moving={isMoving} feeding={feeding} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} fallback={<group>
+      {paperLook ? <PaperWoodlouse heading={yaw} moving={isMoving} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} /> : <OrganismAsset file="woodlouse" shape={{ length: 0.64, base: -0.09 }} moving={isMoving} feeding={feeding} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} fallback={<group>
       <instancedMesh ref={legs} args={[undefined, undefined, 28]}><primitive object={woodlouseLeg} attach="geometry" /><meshStandardMaterial color="#7c8071" roughness={1} /></instancedMesh>
       {Array.from({ length: 7 }, (_, index) => (
         <mesh key={index} position={[0, 0.035, index * 0.066 - 0.2]} scale={[0.16 + Math.sin(index / 6 * Math.PI) * 0.045, 0.09, 0.063]} castShadow>
@@ -563,9 +566,9 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
         <mesh position={[side * 0.068, 0.055, 0.34]}><sphereGeometry args={[0.022, 6, 4]} /><meshStandardMaterial color="#2e4140" roughness={0.7} /></mesh>
         <mesh position={[side * 0.095, 0.06, 0.385]} rotation={[0.8, 0, side * 0.65]}><cylinderGeometry args={[0.009, 0.012, 0.15, 4]} /><meshStandardMaterial color="#71837a" roughness={1} /></mesh>
       </group>)}
-      </group>} />
-      {feeding && <group ref={mouth} position={[0, -0.005, 0.37]}><mesh scale={[0.055, 0.02, 0.08]}><icosahedronGeometry args={[1, 0]} /><meshStandardMaterial color="#bc9870" roughness={1} flatShading /></mesh></group>}
-      {life.brood > 0 && <mesh position={[0, -0.055, 0.03]} scale={[0.12, 0.045, 0.18]}><sphereGeometry args={[1, 8, 5]} /><meshStandardMaterial color="#bcbca0" roughness={1} flatShading /></mesh>}
+      </group>} />}
+      {feeding && !paperLook && <group ref={mouth} position={[0, -0.005, 0.37]}><mesh scale={[0.055, 0.02, 0.08]}><icosahedronGeometry args={[1, 0]} /><meshStandardMaterial color="#bc9870" roughness={1} flatShading /></mesh></group>}
+      {life.brood > 0 && !paperLook && <mesh position={[0, -0.055, 0.03]} scale={[0.12, 0.045, 0.18]}><sphereGeometry args={[1, 8, 5]} /><meshStandardMaterial color="#bcbca0" roughness={1} flatShading /></mesh>}
     </group>
   )
 }

@@ -449,3 +449,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 
 /* Condensation on the jar glass while sealed; never blocks clicks. */
 .jar-fog { position: absolute; inset: 0; pointer-events: none; transition: opacity 1.2s ease; background: radial-gradient(ellipse 70% 62% at 50% 55%, rgba(244, 248, 246, 0) 38%, rgba(236, 242, 240, .55) 72%, rgba(230, 238, 236, .85) 100%); }
+
+/* Prototype paper look (?look=paper): tilt-shift blur bands and warm window light over the 3D view. */
+.diorama-blur { position: absolute; left: 0; right: 0; height: 34%; pointer-events: none; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.diorama-blur.top { top: 0; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 25%, transparent 100%); mask-image: linear-gradient(to bottom, #000 0%, #000 25%, transparent 100%); }
+.diorama-blur.bottom { bottom: 0; -webkit-mask-image: linear-gradient(to top, #000 0%, #000 25%, transparent 100%); mask-image: linear-gradient(to top, #000 0%, #000 25%, transparent 100%); }
+.window-light { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light; background: linear-gradient(115deg, rgba(255, 214, 150, .55) 0%, rgba(255, 200, 140, .18) 45%, rgba(40, 30, 60, .12) 100%); }
