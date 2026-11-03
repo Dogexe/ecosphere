@@ -117,7 +117,7 @@ function LitterPatch({ patch }: { patch: SoilPatch }) {
       {Array.from({ length: count }, (_, index) => {
         const angle = index * 2.4 + patch.id
         return (
-          <mesh key={index} position={[Math.sin(angle) * (0.12 + index * 0.025) * size, index % 2 * 0.012, Math.cos(angle) * (0.12 + index * 0.025) * size]} rotation={[0.1, angle, 0.08]} scale={[environmentScale.litterLength / 2 * (0.85 + index % 3 * 0.1), 0.012, 0.05]} receiveShadow>
+          <mesh key={index} position={[Math.sin(angle) * (0.12 + index * 0.025) * size, index % 2 * 0.012 + groundShape.offset(patch.x + Math.sin(angle) * (0.12 + index * 0.025) * size, patch.z + Math.cos(angle) * (0.12 + index * 0.025) * size), Math.cos(angle) * (0.12 + index * 0.025) * size]} rotation={[0.1, angle, 0.08]} scale={[environmentScale.litterLength / 2 * (0.85 + index % 3 * 0.1), 0.012, 0.05]} receiveShadow>
             <icosahedronGeometry args={[1, 0]} />
             <meshStandardMaterial color={index % 2 ? '#b6986f' : '#c4aa7b'} roughness={1} flatShading />
           </mesh>
@@ -202,7 +202,7 @@ function FungalPatch({ patch }: { patch: SoilPatch }) {
         const radius = 0.19 + index * 0.13
         const height = Math.min(environmentScale.mushroomMax, environmentScale.mushroomMin + index % 3 * 0.04 + Math.min(0.05, patch.fungi * 0.01))
         return (
-          <group key={index} position={[Math.cos(angle) * radius, 0, Math.sin(angle) * radius]}>
+          <group key={index} position={[Math.cos(angle) * radius, groundShape.offset(patch.x + Math.cos(angle) * radius, patch.z + Math.sin(angle) * radius), Math.sin(angle) * radius]}>
             <NatureAsset file="mushroom_tan" height={height} accent={patch.id % 2 ? '#b98164' : '#cba77a'} fallback={<group><mesh position={[0, height * 0.38, 0]} castShadow>
               <cylinderGeometry args={[0.022, 0.03, height * 0.76, 5]} />
               <meshStandardMaterial color="#e9d7b5" roughness={1} flatShading />
@@ -648,7 +648,8 @@ function RemainsField({ world }: { world: World }) {
       const size = Math.min(0.45, 0.12 + Math.cbrt(item.initial) * 0.18) * Math.sqrt(ratio)
       const animal = ['grazer', 'woodlouse', 'beetle', 'springtail', 'flea', 'fish', 'ant'].includes(item.kind)
       for (let part = 0; part < 3; part += 1) {
-        pose.position.set(item.x + Math.sin(item.id * 2.4) * part * size * 0.6, 0.06 + part * 0.004, item.z + Math.cos(item.id * 2.4) * part * size * 0.6)
+        const px = item.x + Math.sin(item.id * 2.4) * part * size * 0.6, pz = item.z + Math.cos(item.id * 2.4) * part * size * 0.6
+        pose.position.set(px, 0.06 + part * 0.004 + groundShape.offset(px, pz), pz)
         pose.rotation.set(0, item.id * 2.4 + part, 0.12)
         pose.scale.set(size * (animal ? 0.7 : 1), size * 0.15, size * (animal ? 0.45 : 0.55))
         pose.updateMatrix()

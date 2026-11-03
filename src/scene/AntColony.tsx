@@ -10,6 +10,7 @@ import { antModelUnavailable, OrganismAsset } from './OrganismAsset'
 import { animalTargetPixels, worldPickRadius } from './picking'
 import { chamberRadius, nestFrame, prepareField } from './nestGeometry'
 import { antSupportTranslation } from './antSupport'
+import { groundShape } from './scale'
 import { useNestGeometry } from './useNestGeometry'
 import type { Remains } from '../sim/life'
 import { antRemainsInView } from './AntRemains'
@@ -54,8 +55,10 @@ function AntModel({ colony, ant, speed, selected, feeding, onPick, field, center
   const lastPose = useRef('')
   const measure = useCallback((bounds: Box3) => { envelope.current = bounds.clone().expandByScalar(0.012); bounds.getCenter(localCenter.current); lastPose.current = '' }, [])
   const bornScale = ant.caste === 'worker' ? Math.cbrt(ant.body / 0.04) : 1
-  const initial = useRef(antPosition(colony, ant)), previous = useRef(new Vector3(initial.current.x, initial.current.y, initial.current.z))
-  const target = antPosition(colony, ant)
+  // Surface ants walk on the jar's ground, which is uneven in a poured jar.
+  const placed = (point: ReturnType<typeof antPosition>) => ant.location.kind === 'surface' ? { ...point, y: point.y + groundShape.offset(point.x, point.z) } : point
+  const initial = useRef(placed(antPosition(colony, ant))), previous = useRef(new Vector3(initial.current.x, initial.current.y, initial.current.z))
+  const target = placed(antPosition(colony, ant))
   const frame = useMemo(() => nestFrame(colony), [colony.nodes])
   const orientation = (forward: Vector3) => {
     forward.normalize()
@@ -178,7 +181,7 @@ export function AntColonyScene({ colony, underground, speed, events, selected, c
       {grains.map((position, i) => <mesh key={i} position={position} scale={[0.012, 0.008, 0.018]}><sphereGeometry args={[1, 7, 5]} /><meshStandardMaterial color="#c9aa74" roughness={1} /></mesh>)}
       {colony.brood.map((cohort, index) => <BroodModel key={`${revision}:${cohort.id}:${cohort.stage}`} {...{ colony, cohort, index, field }} rotation={broodRotation} selected={selectedBrood === cohort.id} center={broodCenters.get(cohort.id)!} onPick={(ray) => pick(ray, { kind: 'brood', id: cohort.id })} />)}
     </>}
-    {!underground && <group position={[colony.entrance.x, 0.047, colony.entrance.z]} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onColony() }}>
+    {!underground && <group position={[colony.entrance.x, 0.047 + groundShape.offset(colony.entrance.x, colony.entrance.z), colony.entrance.z]} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onColony() }}>
       {(colony.construction?.removed ?? 0) > 0 && <mesh position={[0, -0.025, 0]} scale={[0.09 + Math.cbrt(colony.construction!.removed) * 0.35, 0.025 + Math.cbrt(colony.construction!.removed) * 0.1, 0.09 + Math.cbrt(colony.construction!.removed) * 0.35]}><sphereGeometry args={[1, 14, 7]} /><meshStandardMaterial color="#a6845c" roughness={1} /></mesh>}
       <mesh rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.037, 0.072, 12]} /><meshStandardMaterial color="#aa8c61" roughness={1} side={DoubleSide} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]}><circleGeometry args={[0.038, 12]} /><meshBasicMaterial color="#302b21" /></mesh>

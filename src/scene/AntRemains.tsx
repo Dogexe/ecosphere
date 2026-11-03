@@ -7,6 +7,7 @@ import type { AntColony } from '../sim/colony'
 import { nestContains } from '../sim/colony'
 import { antModelUnavailable, OrganismAsset } from './OrganismAsset'
 import { worldPickRadius } from './picking'
+import { groundShape } from './scale'
 
 const target = new SphereGeometry(1, 10, 6)
 export function antRemainsInView(remains: Remains[], colony: AntColony | undefined | null, underground: boolean, selected: number | null = null) {
@@ -25,12 +26,13 @@ function Carcass({ item, selected, onSelect }: { item: Remains; selected: boolea
   const normalBody = ant.form === 'queen' ? 0.22 : ant.form === 'egg' ? 0.004 : 0.04
   const scale = Math.cbrt(ant.body / normalBody * ratio)
   const base = ant.y < 0 ? -0.055 : 0
+  const y = ant.y + (ant.y >= 0 ? groundShape.offset(item.x, item.z) : 0)
   useFrame(() => {
     if (!hit.current) return
-    position.current.set(item.x, ant.y + base + 0.01, item.z)
+    position.current.set(item.x, y + base + 0.01, item.z)
     hit.current.scale.setScalar(worldPickRadius(camera.position.distanceTo(position.current), camera instanceof PerspectiveCamera ? camera.fov : 38, size.height))
   })
-  return <group position={[item.x, ant.y, item.z]} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(item.id) }}>
+  return <group position={[item.x, y, item.z]} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(item.id) }}>
     <group rotation={[0, item.id * 2.399, 0]}>
       {Array.from({ length: ant.count }, (_, i) => <group key={i} position={[(i - (ant.count - 1) / 2) * 0.025, base, 0]} scale={scale}>
         {ant.form === 'egg' ? <mesh scale={[0.007, 0.008, 0.012]}><sphereGeometry args={[1, 10, 7]} /><meshStandardMaterial color="#b9ae89" roughness={1} /></mesh>
