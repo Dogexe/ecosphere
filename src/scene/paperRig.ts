@@ -53,7 +53,7 @@ export function parseRig(value: unknown): PaperRig {
   const parts = source.parts.map((raw, index): PaperPart => {
     if (!raw || typeof raw !== 'object') throw fail(`part ${index} is not an object`)
     const part = raw as Record<string, unknown>
-    if (typeof part.file !== 'string' || !/^[\w-]+\.png$/.test(part.file)) throw fail(`part ${index} needs a plain .png file name`)
+    if (typeof part.file !== 'string' || !/^([\w-]+\.png|#[\w-]+)$/.test(part.file)) throw fail(`part ${index} needs a plain .png file name or an SVG #id`)
     const motion = (part.motion ?? 'static') as PaperMotion
     if (!motions.includes(motion)) throw fail(`part ${index} has unknown motion "${String(part.motion)}"`)
     const repeat = part.repeat === undefined ? [] : Array.isArray(part.repeat) ? part.repeat.map((item, copy) => point(item, width, height, `part ${index} repeat ${copy}`)) : null
@@ -92,4 +92,34 @@ export function placements(rig: PaperRig) {
 export function legSwing(time: number, order: number, side: 'near' | 'far', walking: boolean, stride = 19) {
   if (!walking) return Math.sin(time * 1.3 + order) * 0.03
   return Math.sin(time * stride - order * 0.9 + (side === 'far' ? Math.PI : 0)) * 0.45
+}
+
+/**
+ * Vector rigs: one `<animal>.svg` holds the whole animal. The root carries
+ * data-length="from to units" and data-ground="y"; each moving part is a
+ * `<g id data-motion data-pivot="x y">` (legs add data-side and data-order).
+ * Coordinates are viewBox units. Groups without data-motion are ignored.
+ */
+export type SvgMeta = { viewBox: [number, number]; attrs: Record<string, string | undefined>; parts: { id: string; attrs: Record<string, string | undefined> }[] }
+
+const numbers = (text: string | undefined) => (text ?? '').trim().split(/[\s,]+/).filter(Boolean).map(Number)
+
+export function rigFromSvg(meta: SvgMeta): PaperRig {
+  const [from, to, units] = numbers(meta.attrs['data-length'])
+  const [width, height] = meta.viewBox.map((n) => Math.round(n)) as [number, number]
+  return parseRig({
+    canvas: [width, height],
+    length: { from, to, units },
+    ground: Number(meta.attrs['data-ground']),
+    parts: meta.parts.map(({ id, attrs }) => {
+      const pivot = numbers(attrs['data-pivot'])
+      return {
+        file: `#${id}`,
+        motion: attrs['data-motion'],
+        pivot: pivot.length === 2 ? pivot : undefined,
+        side: attrs['data-side'],
+        order: attrs['data-order'] === undefined ? undefined : Number(attrs['data-order']),
+      }
+    }),
+  })
 }

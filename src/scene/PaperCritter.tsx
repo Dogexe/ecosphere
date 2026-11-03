@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CanvasTexture, Color, DoubleSide, Group, MathUtils, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three'
-import { legSwing, parseRig, placements, toLocal, unitsPerPixel } from './paperRig'
+import { legSwing, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
 import type { PaperMotion, PaperRig } from './paperRig'
 
 /**
@@ -29,7 +29,8 @@ async function loadImage(url: string) {
   return image
 }
 
-function crop(image: HTMLImageElement): Sheet {
+/** `scale` = raster pixels per rig pixel (vector parts are drawn sharper than their rig grid). */
+function crop(image: HTMLImageElement, scale = 1): Sheet {
   const full = document.createElement('canvas')
   full.width = image.naturalWidth
   full.height = image.naturalHeight
@@ -57,7 +58,34 @@ function crop(image: HTMLImageElement): Sheet {
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
   texture.anisotropy = 4
-  return { texture, left, top, width: canvas.width, height: canvas.height }
+  return { texture, left: left / scale, top: top / scale, width: canvas.width / scale, height: canvas.height / scale }
+}
+
+/** Raster pixels per SVG unit: high enough for the magnifier view to stay crisp. */
+const vectorScale = 2
+
+/** One vector file: each `g[data-motion]` part is drawn alone at `vectorScale`. */
+async function loadSvgAnimal(url: string): Promise<Loaded | null> {
+  const response = await fetch(url)
+  if (!response.ok) return null
+  const doc = new DOMParser().parseFromString(await response.text(), 'image/svg+xml')
+  const root = doc.documentElement
+  if (root.nodeName !== 'svg') throw new Error('not an SVG')
+  const box = (root.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number)
+  const groups = [...root.querySelectorAll('g[data-motion][id]')]
+  const attrs = (element: Element) => Object.fromEntries([...element.attributes].map((a) => [a.name, a.value]))
+  const rig = rigFromSvg({ viewBox: [box[2], box[3]], attrs: attrs(root), parts: groups.map((group) => ({ id: group.id, attrs: attrs(group) })) })
+  const serializer = new XMLSerializer()
+  const sheets = new Map<string, Sheet>()
+  await Promise.all(groups.map(async (group) => {
+    const copy = root.cloneNode(true) as Element
+    copy.querySelectorAll('g[data-motion][id]').forEach((other) => { if (other.id !== group.id) other.remove() })
+    copy.setAttribute('width', String(box[2] * vectorScale))
+    copy.setAttribute('height', String(box[3] * vectorScale))
+    const blob = URL.createObjectURL(new Blob([serializer.serializeToString(copy)], { type: 'image/svg+xml' }))
+    try { sheets.set(`#${group.id}`, crop(await loadImage(blob), vectorScale)) } finally { URL.revokeObjectURL(blob) }
+  }))
+  return { rig, sheets }
 }
 
 const cache = new Map<string, Promise<Loaded | null>>()
@@ -67,6 +95,9 @@ function loadPaperAnimal(animal: string) {
     const folder = `${import.meta.env.BASE_URL}assets/paper/${animal}/`
     pending = (async () => {
       try {
+        // A vector rig (animal.svg) wins over PNG layers + rig.json.
+        const vector = await loadSvgAnimal(`${folder}${animal}.svg`).catch(() => null)
+        if (vector) return vector
         const response = await fetch(`${folder}rig.json`)
         if (!response.ok) return null
         const rig = parseRig(await response.json())

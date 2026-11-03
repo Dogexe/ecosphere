@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { legSwing, parseRig, placements, toLocal, unitsPerPixel } from '../src/scene/paperRig.ts'
+import { legSwing, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from '../src/scene/paperRig.ts'
 
 const woodlouse = JSON.parse(readFileSync(new URL('../public/assets/paper/woodlouse/rig.json', import.meta.url), 'utf8'))
 
@@ -43,4 +43,24 @@ test('legs step in a back-to-front wave with far legs half a step behind', () =>
   assert.ok(Math.abs(legSwing(1, 0, 'near', true) + legSwing(1, 0, 'far', true)) < 1e-12)
   assert.notEqual(legSwing(1, 0, 'near', true), legSwing(1, 1, 'near', true))
   assert.ok(Math.abs(legSwing(1, 2, 'near', false)) <= 0.03)
+})
+
+test('vector rigs read lengths, pivots and leg order from SVG attributes', () => {
+  const rig = rigFromSvg({
+    viewBox: [640, 280],
+    attrs: { 'data-length': '80 560 0.64', 'data-ground': '250' },
+    parts: [
+      { id: 'leg-far-0', attrs: { 'data-motion': 'leg', 'data-side': 'far', 'data-order': '0', 'data-pivot': '200 190' } },
+      { id: 'body', attrs: { 'data-motion': 'body', 'data-pivot': '320 210' } },
+      { id: 'antenna', attrs: { 'data-motion': 'antenna', 'data-pivot': '540 150' } },
+    ],
+  })
+  assert.deepEqual(rig.canvas, [640, 280])
+  assert.equal(rig.ground, 250)
+  assert.deepEqual(rig.length, { from: 80, to: 560, units: 0.64 })
+  assert.equal(rig.parts[0].file, '#leg-far-0')
+  assert.equal(rig.parts[0].side, 'far')
+  assert.equal(rig.parts[0].order, 0)
+  assert.deepEqual(rig.parts[2].pivot, [540, 150])
+  assert.throws(() => rigFromSvg({ viewBox: [640, 280], attrs: { 'data-length': '80 560 0.64', 'data-ground': '250' }, parts: [{ id: 'x', attrs: { 'data-motion': 'wiggle' } }] }), /unknown motion/)
 })
