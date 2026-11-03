@@ -139,8 +139,8 @@ test('predators use the approved species extension in snapshots, with strict cap
 test('a controlled predator addition changes herbivory and producer recovery without a scripted bonus', () => {
   const run = (predators) => {
     let world = createWorld(17)
-    for (const [x, z] of [[0, -0.5], [-2.5, 1.5], [2.4, -0.3]]) world = introduceLife(world, 'grazer', x, z)
-    for (const [x, z] of [[0.4, 1], [0, -2]].slice(0, predators)) world = introduceLife(world, 'beetle', x, z)
+    for (const [x, z] of [[0.3, -0.6], [-2.8, 0.3], [2.4, -0.3]]) world = introduceLife(world, 'grazer', x, z)
+    for (const [x, z] of [[0.7, 0.9], [0, -2]].slice(0, predators)) world = introduceLife(world, 'beetle', x, z)
     let catches = 0
     for (let tick = 0; tick < 360; tick += 1) {
       if (world.water < 45) world = intervene(world, { type: 'water' })

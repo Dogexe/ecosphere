@@ -25,7 +25,7 @@ export function createHabitatWorld(start: HabitatStart, seed = 2217): World {
     let world = createHabitatWorld('meadow', seed)
     world = { ...world, light: 0.78, climate: { temperatureC: 22, rainfall: 0.55 }, pond: { water: 85, nutrients: 12, organic: 6, oxygen: 68, algae: 4 }, plants: world.plants.slice(0, 9), creatures: [] }
     for (const [kind, x, z] of [['lily', -1.45, 0.3], ['lily', -0.65, 0.78], ['reed', -1.3, 1.3]] as const) world = introduceLife(world, kind, x, z)
-    for (const [kind, x, z] of [['woodlouse', -1.95, 1.6], ['woodlouse', 1.85, 1.35], ['flea', -1.1, 0.35], ['flea', -1.55, 0.85], ['flea', -0.7, 0.6], ['flea', -1.1, 1.2], ['fish', -1.4, 1.1]] as const) world = introduceLife(world, kind, x, z)
+    for (const [kind, x, z] of [['woodlouse', -2.5, -1.5], ['woodlouse', 1.85, 1.35], ['flea', -1.1, 0.35], ['flea', -1.55, 0.85], ['flea', -0.7, 0.6], ['flea', -1.1, 1.2], ['fish', -1.4, 1.1]] as const) world = introduceLife(world, kind, x, z)
     return { ...world, plants: world.plants.map((plant) => ({ ...plant, age: 90, development: 90, biomass: Math.max(plant.biomass, plant.capacity * 0.45) })), creatures: world.creatures.map((creature) => ({ ...creature, energy: creature.kind === 'fish' ? 85 : creature.kind === 'flea' ? 68 : creature.energy })) }
   }
   const shaded = start === 'woodland'
@@ -38,7 +38,7 @@ export function createHabitatWorld(start: HabitatStart, seed = 2217): World {
   }))
   const mean = (key: 'water' | 'nutrients' | 'organic') => soil.reduce((sum, patch) => sum + patch[key], 0) / soil.length
   let world: World = { ...base, soil, water: mean('water'), nutrients: mean('nutrients'), organic: mean('organic'), light: shaded ? 0.42 : 0.92, plants: [], creatures: [] }
-  const positions = [...base.plants.map(({ x, z }) => [x, z]), [-0.3, -1], [0.8, -1.15], [0.65, 0.55], [0.1, 1.55]]
+  const positions = [...base.plants.map(({ x, z }) => [x, z]), [-0.3, -1], [0.8, -1.15], [0.65, 0.55], [0.5, 1.32]]
   planting[start].forEach((kind, index) => {
     const [x, z] = positions[index]
     // Fail visibly during development if a starter ever breaks placement rules.
@@ -49,8 +49,8 @@ export function createHabitatWorld(start: HabitatStart, seed = 2217): World {
   // These are imported established plants at setup, not free growth in a step.
   world = { ...world, plants: world.plants.map((plant, index) => ({ ...plant, age: 90, development: 90, biomass: plant.capacity * (base.plants[index % base.plants.length].biomass / base.plants[index % base.plants.length].capacity) })) }
   const animals: [CreatureKind, number, number][] = shaded
-    ? [['grazer', 2.5, 0.7], ['woodlouse', -1.95, 1.6], ['woodlouse', 1.85, 1.35], ['woodlouse', -1.65, -1.7], ['springtail', 1.55, -1.6], ['springtail', -1.15, -1.7]]
-    : [['grazer', -2.05, -0.75], ['grazer', 1.7, -1.2], ['grazer', 0.95, 1.62], ['woodlouse', -1.95, 1.6]]
+    ? [['grazer', 2.5, 0.7], ['woodlouse', 1.3, 2.3], ['woodlouse', 1.85, 1.35], ['woodlouse', -1.65, -1.7], ['springtail', 1.55, -1.6], ['springtail', -1.15, -1.7]]
+    : [['grazer', -2.05, -0.75], ['grazer', 1.7, -1.2], ['grazer', 0.95, 1.62], ['woodlouse', -2.5, -1.5]]
   for (const [kind, x, z] of animals) {
     const issue = placementIssue(world, kind, x, z)
     if (issue) throw new Error(`Invalid ${start} animal: ${issue}`)

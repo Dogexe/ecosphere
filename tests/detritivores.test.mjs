@@ -4,7 +4,7 @@ import { createWorld, creatureCounts, creatureIsFeeding, introduceLife, interven
 
 function habitat({ water = 75, organic = 12, energy = 40 } = {}) {
   const base = createWorld()
-  return { ...base, plants: [], creatures: [{ id: 0, kind: 'woodlouse', x: -1.7, z: 1.7, heading: 0, energy }],
+  return { ...base, plants: [], creatures: [{ id: 0, kind: 'woodlouse', x: -1.4, z: 2.5, heading: 0, energy }],
     soil: base.soil.map((patch) => ({ ...patch, water, organic, fungi: 0 })), water, organic,
   }
 }
@@ -32,13 +32,13 @@ test('woodlice ingest local litter into the gut without instant energy or consum
 test('woodlice navigate to moist litter and stay out of the pond', () => {
   let world = habitat({ energy: 95 })
   world = { ...world, creatures: [{ ...world.creatures[0], x: 1.7, z: -1.7 }], soil: world.soil.map((patch) => ({ ...patch, water: patch.id === 2 ? 75 : 1 })) }
-  const initialDistance = Math.hypot(world.creatures[0].x + 1.7, world.creatures[0].z - 1.7)
+  const initialDistance = Math.hypot(world.creatures[0].x + 1.4, world.creatures[0].z - 2.5)
   for (let tick = 0; tick < 110; tick += 1) {
     world = stepWorld(world)
     assert.ok(world.creatures.every((creature) => isLand(creature.x, creature.z)))
   }
   assert.ok(world.creatures.length > 0)
-  assert.ok(Math.hypot(world.creatures[0].x + 1.7, world.creatures[0].z - 1.7) < initialDistance / 3)
+  assert.ok(Math.hypot(world.creatures[0].x + 1.4, world.creatures[0].z - 2.5) < initialDistance / 3)
   assert.ok(world.soil[2].nutrients > 42)
 })
 
@@ -76,7 +76,7 @@ test('a tended litter food web can persist after living producers are absent', (
 test('each animal role has its own cap', () => {
   const base = habitat()
   const grazers = Array.from({ length: 7 }, (_, id) => ({ id, kind: 'grazer', x: 1, z: -1, energy: 50, heading: 0 }))
-  const introduced = introduceLife({ ...base, creatures: grazers }, 'woodlouse', -1.7, 1.7)
+  const introduced = introduceLife({ ...base, creatures: grazers }, 'woodlouse', -1.4, 2.5)
   assert.deepEqual(creatureCounts(introduced.creatures), { grazer: 7, woodlouse: 1, beetle: 0, springtail: 0, flea: 0, fish: 0 })
   const full = { ...base, creatures: Array.from({ length: 4 }, (_, id) => ({ ...base.creatures[0], id, energy: 95 })) }
   assert.equal(stepWorld(full).creatures.length, 4)

@@ -13,7 +13,7 @@ function habitat() {
     soil: world.soil.map((patch) => ({ ...patch, water: 70, organic: 30, fungi: 0 })) }
 }
 function animal(id, changes = {}) {
-  const creature = { id, kind: 'woodlouse', x: -1.7 + id * 0.15, z: 1.7, heading: 0, energy: 76, age: 60, stage: 'adult', materialReserve: 0, ...changes }
+  const creature = { id, kind: 'woodlouse', x: -1.4 + id * 0.15, z: 2.5, heading: 0, energy: 76, age: 60, stage: 'adult', materialReserve: 0, ...changes }
   return { ...creature, life: woodlouseLife(creature) }
 }
 const advance = (world, n) => Array.from({ length: n }).reduce(stepWorld, world)
@@ -128,7 +128,7 @@ test('the playable forest start supports an observable brooded generation growin
 test('fleeing does not suspend gestation or hydration and death retains body, brood and undigested food', () => {
   const parent = animal(0)
   parent.life = { ...parent.life, brood: 0.11, gestation: 10, gut: 0.1, hydration: 30 }
-  const hunter = { id: 7, kind: 'beetle', x: -1.2, z: 1.7, heading: 0, energy: 40, age: 72, stage: 'adult' }
+  const hunter = { id: 7, kind: 'beetle', x: -0.9, z: 2.5, heading: 0, energy: 40, age: 72, stage: 'adult' }
   const fled = stepWorld({ ...habitat(), creatures: [parent, hunter] }).creatures.find((c) => c.id === 0)
   assert.equal(fled.life.activity, 'fleeing')
   assert.equal(fled.life.gestation, 9)

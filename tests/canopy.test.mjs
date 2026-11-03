@@ -70,7 +70,7 @@ test('dryness/absent fungi cannot sustain springtails and deaths return local bo
 
 test('springtails have their own cap and can enter the predator food web', () => {
   let world = habitat()
-  for (const [x, z] of [[0, -2], [1, -2], [2, -2], [0, 2], [1, 2], [2, 2]]) world = introduceLife(world, 'springtail', x, z)
+  for (const [x, z] of [[0, -2], [1, -2], [2, -2], [0, 2.6], [1, 2], [2, 2]]) world = introduceLife(world, 'springtail', x, z)
   assert.equal(creatureCounts(world.creatures).springtail, 6)
   assert.match(placementIssue(world, 'springtail', 0, -1), /6 springtails/)
   const caught = simulateStep({ ...habitat(), creatures: [springtail, { id: 1, kind: 'beetle', x: 1.65, z: -1.7, heading: 0, energy: 55 }] })

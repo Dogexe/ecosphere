@@ -210,7 +210,9 @@ const plantTraits: Record<PlantKind, {
   reed: { moisture: 0.85, moistureRange: 0.8, light: 0.85, lightRange: 0.8, nutrientNeed: 14, growth: 0.19, palatability: 0.04, dispersal: 0.85, spread: 0.018 },
 }
 
-const soilCenters = [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]] as const
+// Pocket 2 sat at (-1.7, 1.7) until the pond grew over it; its litter
+// heart is now on the far bank so woodlice and springtails can reach it.
+export const soilCenters = [[-1.7, -1.7], [1.7, -1.7], [-1.6, 2.45], [1.7, 1.7]] as const
 
 function soilFor(world: World): SoilPatch[] {
   // A world kept alive through Vite hot reload may predate spatial soil.
@@ -377,7 +379,7 @@ function random(seed: number): [number, number] {
 
 const locations = [
   [-2.45, -0.85], [-1.36, -2.15], [0.28, -2.42], [1.85, -1.58],
-  [2.48, 0.45], [1.15, 1.98], [-0.48, 2.27], [-2.31, 1.05],
+  [2.48, 0.45], [1.15, 1.98], [0.25, 2.6], [-2.8, -0.05],
 ] as const
 
 export function createWorld(seed = 2217): World {
@@ -400,7 +402,7 @@ export function createWorld(seed = 2217): World {
     { id: 0, kind: 'grazer', x: -2.05, z: -0.75, heading: 0.5, energy: 58 },
     { id: 1, kind: 'grazer', x: 1.7, z: -1.2, heading: 2.5, energy: 62 },
     { id: 2, kind: 'grazer', x: 0.95, z: 1.62, heading: 4.1, energy: 55 },
-    { id: 3, kind: 'woodlouse', x: -1.95, z: 1.6, heading: 0.8, energy: 56 },
+    { id: 3, kind: 'woodlouse', x: -2.5, z: -1.5, heading: 0.8, energy: 56 },
     { id: 4, kind: 'woodlouse', x: 1.85, z: 1.35, heading: 2.2, energy: 52 },
   ]
 
@@ -459,6 +461,25 @@ export function interveneAt(world: World, type: 'water' | 'compost', patchId: nu
   return applySoilInput(world, { water: type === 'water' ? 18 : 0, organic: type === 'compost' ? 16 : 0, nutrients: 0 }, patchId).world
 }
 
+/**
+ * Soil water creeps sideways by capillary action from wet pockets into dry
+ * ones; in potting mix it takes a day or two to even out across a 7 cm jar
+ * (about 2% of the difference per hour). Total water is unchanged. Without
+ * this, water that condenses onto a pocket with few roots, such as the one
+ * under the pond, would stay trapped there while the planted pockets dried.
+ */
+export const soilWaterSpread = 0.02
+/** Dissolved minerals ride along with that water, more slowly, since some stay bound to the soil. */
+export const soilNutrientSpread = 0.01
+function spreadSoilWater(soil: SoilPatch[]) {
+  // Pockets that are already level stay exactly as they are (no rounding drift).
+  for (const [key, spread] of [['water', soilWaterSpread], ['nutrients', soilNutrientSpread]] as const) {
+    if (soil.every((patch) => patch[key] === soil[0][key])) continue
+    const mean = soilMean(soil, key)
+    for (const patch of soil) patch[key] += (mean - patch[key]) * spread
+  }
+}
+
 export function simulateStep(world: World): StepResult {
   const opening = world
   let seed = world.seed
@@ -474,6 +495,7 @@ export function simulateStep(world: World): StepResult {
   soil = decay.soil
   pond = decay.pond
   const remains = decay.remains
+  spreadSoilWater(soil)
   const depositBody = (creature: Creature, x = creature.x, z = creature.z) => addRemains(remains, creatureKind(creature), x, z, bodyStock(creature, bodyMaterial[creatureKind(creature)]), isAquatic(creature.kind) ? 4 : nearestSoil(soil, x, z).id)
   const ageSurvivors: Creature[] = []
   for (const original of world.creatures) {

@@ -7,8 +7,9 @@ import { parseSave, serializeSave } from '../src/sim/saves.ts'
 
 function boundaryWorld() {
   const world = antFixture(), colony = world.colony
-  colony.nodes = colony.nodes.map((node) => ({ ...node, x: node.x - 1.5, z: node.z + 0.3 }))
-  colony.entrance = { x: 0.2, z: 2 }
+  // Straddles the x = 0 soil-column boundary on the far bank of the (6 cm) pond.
+  colony.nodes = colony.nodes.map((node) => ({ ...node, x: node.x - 1.5, z: node.z + 0.9 }))
+  colony.entrance = { x: 0.2, z: 2.6 }
   colony.patchId = antSoilAt(world.soil, colony.entrance).id
   world.soil.forEach((patch) => { patch.water = 55 })
   world.water = 55
@@ -102,7 +103,7 @@ test('queen egg costs and real nurse deliveries are returned beside their respec
 test('the real advancing excavation face uses its local soil after crossing a column boundary', () => {
   const world = boundaryWorld(); delete world.colony
   world.seed = 2217
-  world.colony = introduceColony(world, 0.02, 2).colony
+  world.colony = introduceColony(world, 0.02, -2).colony
   const colony = world.colony
   colony.ledger.introduced += 2 - colony.food; colony.food = 2
   planExcavation(colony, 55, world.seed)

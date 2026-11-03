@@ -8,6 +8,8 @@ import { parseSave, serializeSave } from './saves.ts'
  * history. It sits beside (never inside) the A/B experiment slots.
  */
 export const autosaveKey = 'ecosphere.autosave'
+/** Where an autosave this version cannot read is kept instead of being lost. */
+export const unreadableKey = 'ecosphere.autosave.unreadable'
 /** Minimum real time between routine autosaves while the world is running. */
 export const autosaveInterval = 5000
 
@@ -77,10 +79,14 @@ export function writeAutosave(store: Store | null, world: World, history: readon
 /** Reads the autosave; a missing, blocked or damaged save gives null. */
 export function readAutosave(store: Store | null): Autosave | null {
   if (!store) return null
+  let text: string | null = null
   try {
-    const text = store.getItem(autosaveKey)
+    text = store.getItem(autosaveKey)
     return text ? decodeAutosave(text) : null
   } catch {
+    // Keep an unreadable save aside before the next autosave replaces it,
+    // so a future version can still recover it. The first copy is never overwritten.
+    try { if (text && store.getItem(unreadableKey) === null) store.setItem(unreadableKey, text) } catch { /* storage full or blocked */ }
     return null
   }
 }

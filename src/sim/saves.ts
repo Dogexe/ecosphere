@@ -4,6 +4,7 @@ import { defaultClimate, defaultPond, isAquatic, isPondPosition, maturity } from
 import { woodlouseLife } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
 import { parseColony } from './colonySave.ts'
+import { movePondPocket, settleOutOfWidePond } from './widePond.ts'
 import type { Seal } from './seal'
 import { startingCO2, startingO2 } from './seal.ts'
 
@@ -38,21 +39,32 @@ export function serializeSave(world: World): string {
   return JSON.stringify({ version: 3, world: { ...world, colony: world.colony ?? null, climate: world.climate ?? defaultClimate(), pond: world.pond ?? defaultPond(), creatures: world.creatures.map((creature) => ({ ...creature, age: creature.age ?? maturity[creature.kind ?? 'grazer'], stage: creature.stage ?? 'adult', materialReserve: creature.materialReserve ?? 0 })) } })
 }
 
+/**
+ * Reads a save. A world written before the pond grew is read a second time
+ * with its flooded land moved onto the bank (see widePond.ts); anything that
+ * is still invalid after that is rejected as before.
+ */
 export function parseSave(text: string): World {
+  try { return parseWorld(text, false) } catch (error) {
+    try { return parseWorld(text, true) } catch { throw error }
+  }
+}
+
+function parseWorld(text: string, settle: boolean): World {
   if (text.length > 200_000) throw damaged()
   let decoded: unknown
   try { decoded = JSON.parse(text) } catch { throw damaged() }
   const envelope = record(decoded)
   if (envelope.version !== 1 && envelope.version !== 2 && envelope.version !== 3) throw new Error('This experiment uses an unsupported save version.')
-  const source = record(envelope.world)
-  const soil = array(source, 'soil', 4).map((value): SoilPatch => {
+  const source = settle ? settleOutOfWidePond(record(envelope.world)) : record(envelope.world)
+  const soil = movePondPocket(array(source, 'soil', 4).map((value): SoilPatch => {
     const patch = record(value)
     return {
       id: number(patch, 'id', 0, 3, true), x: number(patch, 'x', -3.15, 3.15), z: number(patch, 'z', -3.15, 3.15),
       water: number(patch, 'water', 0, 100), nutrients: number(patch, 'nutrients', 0, 1e9),
       organic: number(patch, 'organic', 0, 1e9), fungi: number(patch, 'fungi', 0, 1e9),
     }
-  })
+  }))
   if (soil.length !== 4) throw damaged()
   unique(soil)
   const plants = array(source, 'plants', 32).map((value): Plant => {

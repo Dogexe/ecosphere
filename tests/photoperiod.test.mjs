@@ -40,6 +40,8 @@ test('constant mode retains the twelve explicit living-jar-correction trajectori
     // perennial plant and real woodlouse/springtail lifespans) changes paths.
     // Soft contact changes actual woodlouse positions and subsequent ecological
     // paths; stock-flow/contact tests validate the cause independently.
+    // Regenerated for the 6 cm pond (2026-11-03): less land, moved starter
+    // positions and pocket 2, and sideways soil water/mineral seepage.
     let world = createHabitatWorld(item.habitat, item.seed)
     for (let i = 0; i < 240; i++) world = stepWorld(world)
     assert.equal(createHash('sha256').update(JSON.stringify(world)).digest('hex'), item.sha256)

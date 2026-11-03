@@ -8,7 +8,8 @@ export const defaultPond = (): Pond => ({ water: 60, nutrients: 5, organic: 4, o
 export const maturity = { grazer: 36, woodlouse: 60, beetle: 72, springtail: 24, flea: 12, fish: 96 } as const
 export const lifespan = { grazer: 960, woodlouse: 17520, beetle: 1920, springtail: 4320, flea: 480, fish: 2880 } as const
 export const rateAt = (temperature: number) => Math.max(0.25, Math.min(2.4, 2 ** ((temperature - 22) / 10)))
-export const pondCenter = { x: -1.1, z: 0.72, radius: 0.93 }
+export { pondCenter } from './pondShape.ts'
+import { pondCenter } from './pondShape.ts'
 export const isAquatic = (kind: string) => kind === 'flea' || kind === 'fish' || kind === 'lily' || kind === 'reed'
 export const isPondPosition = (x: number, z: number) => Number.isFinite(x) && Number.isFinite(z) && Math.hypot(x - pondCenter.x, z - pondCenter.z) <= pondCenter.radius + 1e-9
 // Conservative adult physics hulls, independent of meshes, growth and hit targets.

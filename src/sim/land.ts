@@ -1,7 +1,27 @@
 // Shared pure navigation. Existing animals use zero hull clearance; tap/mesh
 // dimensions are never inputs. Preserve the original center-only trajectories.
+import { pondCenter } from './pondShape.ts'
+
 export type LandPose = { id: number; x: number; z: number; heading: number }
-const pond = { x: -1.1, z: 0.72, radius: 1.05 }
+/** Dry ground starts a 0.12 (about 2 mm) bank outside the open water. */
+const pond = { x: pondCenter.x, z: pondCenter.z, radius: pondCenter.radius + 0.12 }
+
+/**
+ * Moves a point that sits in the water or on the bank to the nearest dry
+ * ground with `clearance`, walking around the pond if the straight push would
+ * leave the jar. Used only when loading worlds saved before the pond grew.
+ */
+export function settleOnLand(x: number, z: number, clearance = 0): { x: number; z: number } {
+  if (isLand(x, z, clearance)) return { x, z }
+  const fromPond = Math.atan2(z - pond.z, x - pond.x)
+  const reach = pond.radius + clearance + 0.01
+  for (let step = 0; step <= 64; step += 1) {
+    const angle = fromPond + (step % 2 ? 1 : -1) * Math.ceil(step / 2) * 0.05
+    const point = { x: pond.x + Math.cos(angle) * reach, z: pond.z + Math.sin(angle) * reach }
+    if (isLand(point.x, point.z, clearance)) return point
+  }
+  return { x, z }
+}
 
 export function isLand(x: number, z: number, clearance = 0): boolean {
   return Number.isFinite(x) && Number.isFinite(z) && Math.hypot(x, z) <= 3.15 - clearance + 1e-9 && Math.hypot(x - pond.x, z - pond.z) >= pond.radius + clearance - 1e-9

@@ -107,26 +107,26 @@ test('wet substrate supports fungi, while dry soil cannot decompose it', () => {
   assert.ok(wetResult.soil[0].fungi > initial.soil[0].fungi)
   assert.ok(dryResult.soil[0].fungi < dry.soil[0].fungi)
   assert.ok(wetResult.nutrients > initial.nutrients)
-  assert.equal(dryResult.nutrients, dry.nutrients)
+  assert.ok(Math.abs(dryResult.nutrients - dry.nutrients) < 1e-9)
   assert.ok(wetResult.organic < initial.organic)
 })
 
 test('decomposition recycles tracked dry material with an open respiration loss', () => {
   let world = { ...createWorld(), plants: [], creatures: [] }
   const stock = (patch) => patch.organic + patch.nutrients + patch.fungi
+  // Dissolved minerals seep between pockets, so the check is on the whole soil.
+  const total = (soil) => soil.reduce((sum, patch) => sum + stock(patch), 0)
   for (let tick = 0; tick < 100; tick += 1) {
     const next = stepWorld(world)
-    for (let index = 0; index < world.soil.length; index += 1) {
-      assert.ok(stock(next.soil[index]) <= stock(world.soil[index]) + 1e-9)
-      assert.ok(stock(next.soil[index]) > 0)
-    }
+    assert.ok(total(next.soil) <= total(world.soil) + 1e-9)
+    for (const patch of next.soil) assert.ok(stock(patch) > 0)
     world = next
   }
 })
 
 test('four plants have distinct habitat and food roles', () => {
   const base = createWorld()
-  const plants = ['clover', 'fern', 'bloom', 'moss'].map((kind, id) => ({ id, kind, x: -1.7, z: 1.7, biomass: 2, capacity: 8 }))
+  const plants = ['clover', 'fern', 'bloom', 'moss'].map((kind, id) => ({ id, kind, x: -1.4, z: 2.5, biomass: 2, capacity: 8 }))
   const habitat = (water, nutrients, light) => withSoil({ ...base, light, plants, creatures: [] }, (patch) => ({ ...patch, water, nutrients }))
   const vigor = (world, kind) => advance(world, 40).plants.find((plant) => plant.kind === kind)?.biomass ?? 0
   const shadedWet = habitat(75, 60, 0.35)

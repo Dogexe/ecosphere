@@ -34,7 +34,7 @@ test('coincident mixed-mass woodlice separate gradually without changing funded 
 })
 
 test('crowded actors at banks and the island edge remain on land with bounded corrections', () => {
-  for (const [x, z] of [[1.7, 1.7], [3.14, 0], [-2.16, 0.72]]) {
+  for (const [x, z] of [[1.7, 1.7], [3.14, 0], [-2.81, 0.72]]) {
     assert.ok(isLand(x, z), 'fixture must begin on valid land')
     let actors = [2, 5, 8, 11].map((id) => actor(id, x, z))
     for (let step = 0; step < 20; step++) {

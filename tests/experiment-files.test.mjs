@@ -9,7 +9,8 @@ import { serializeSave, parseSave } from '../src/sim/saves.ts'
 
 test('a native world file retains funded brood, daylight and the exact next ecological step', async () => {
   let world = beginDaylitWorld(createHabitatWorld('woodland', 2217))
-  while (world.tick < 80) world = stepWorld(world)
+  // Save mid-gestation, whenever the first brood is being carried.
+  while (world.tick < 200 && !world.creatures.some((c) => c.life?.brood > 0)) world = stepWorld(world)
   assert.ok(world.creatures.some((c) => c.life?.brood > 0))
   const file = new File([serializeSave(world)], 'brood.json', { type: 'application/json' })
   const loaded = await readWorldFile(file)
