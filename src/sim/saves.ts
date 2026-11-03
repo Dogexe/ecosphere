@@ -5,6 +5,7 @@ import { woodlouseLife } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
 import { parseColony } from './colonySave.ts'
 import { movePondPocket, settleOutOfWidePond } from './widePond.ts'
+import { loadSubstrate, saveSubstrate } from './substrate.ts'
 import type { Seal } from './seal'
 import { startingCO2, startingO2 } from './seal.ts'
 
@@ -162,9 +163,12 @@ function parseWorld(text: string, settle: boolean): World {
     sealed = { since: number(seal, 'since', 0, tick, true), goalDays: number(seal, 'goalDays', 1, 365, true), vapor: number(seal, 'vapor', -1e-6, 1e6), co2: optional('co2', startingCO2, -1e3, 1e6), o2: optional('o2', startingO2, -1e3, 1e6), airings: optional('airings', 0, 0, 1e6, true) }
     if (climate.rainfall !== 0) throw damaged()
   }
+  // Optional built substrate (2026-11-03); worlds made from a habitat starter have none.
+  if (source.substrate != null && envelope.version !== 3) throw damaged()
+  const substrate = source.substrate == null ? null : saveSubstrate(loadSubstrate(source.substrate))
   return {
     tick, seed: number(source, 'seed', 0, 4294967295, true),
     light: number(source, 'light', 0.15, 1), grazed: number(source, 'grazed', 0, 1e12),
-    water: mean('water'), nutrients: mean('nutrients'), organic: mean('organic'), soil, plants, creatures, climate, pond, remains, nextCreatureId: storedNextCreatureId, nextPlantId: storedNextPlantId, ...(colony ? { colony } : {}), ...(sealed ? { sealed } : {}),
+    water: mean('water'), nutrients: mean('nutrients'), organic: mean('organic'), soil, plants, creatures, climate, pond, remains, nextCreatureId: storedNextCreatureId, nextPlantId: storedNextPlantId, ...(colony ? { colony } : {}), ...(sealed ? { sealed } : {}), ...(substrate ? { substrate } : {}),
   }
 }

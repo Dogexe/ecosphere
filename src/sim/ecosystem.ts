@@ -8,6 +8,7 @@ import type { AntColony } from './colony'
 import { clearMissingAntGoals, stepAntColony } from './colony.ts'
 import type { AntEvent } from './colony'
 import { carbonFit, carbonShare, closeJar, mineralShare, oxygenFit } from './seal.ts'
+import type { SavedSubstrate } from './substrate.ts'
 import type { Seal } from './seal'
 export { isLand } from './land.ts'
 export type PlantKind = 'clover' | 'fern' | 'bloom' | 'moss' | 'grass' | 'tree' | 'lily' | 'reed'
@@ -54,6 +55,8 @@ export interface World {
   colony?: AntColony | null
   /** Present only while Seal Mode is on; see seal.ts. */
   sealed?: Seal | null
+  /** The layers and decorations the player poured in when building the jar (2026-11-03). Shape only; the sim's soil pockets hold the water. */
+  substrate?: SavedSubstrate
   tick: number
   seed: number
   water: number
