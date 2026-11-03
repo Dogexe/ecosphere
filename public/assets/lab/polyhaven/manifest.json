@@ -138,6 +138,31 @@
         "artist_workshop_1k.hdr"
       ],
       "bytes": 1719663
+    },
+    {
+      "id": "dry_branches_medium_01",
+      "type": "model",
+      "name": "Dry Branches Medium 01",
+      "purpose": "twig on the jar floor (piece c)",
+      "license": "CC0",
+      "authors": [
+        "Rico Cilliers"
+      ],
+      "source": "https://polyhaven.com/a/dry_branches_medium_01",
+      "resolution": "1k"
+    },
+    {
+      "id": "dry_quiver_leaf",
+      "type": "model",
+      "name": "Dry Quiver Leaf",
+      "purpose": "dry fallen leaf (piece a)",
+      "license": "CC0",
+      "authors": [
+        "Greg Zaal",
+        "Rico Cilliers"
+      ],
+      "source": "https://polyhaven.com/a/dry_quiver_leaf",
+      "resolution": "1k"
     }
   ]
 }

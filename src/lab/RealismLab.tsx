@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { BrightnessContrast, DepthOfField, EffectComposer, HueSaturation, Vignette } from '@react-three/postprocessing'
 import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
-import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, Matrix3, SRGBColorSpace, Vector2, Vector3 } from 'three'
+import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, Matrix3, SRGBColorSpace, Vector2, Vector3 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PaperAnimal } from '../scene/PaperCritter'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
@@ -384,74 +384,26 @@ function Fern({ x, z }: { x: number; z: number }) {
   </group>
 }
 
-function leafTexture() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 256; canvas.height = 128
-  const context = canvas.getContext('2d')!
-  const fill = context.createLinearGradient(0, 0, 256, 0)
-  fill.addColorStop(0, '#b98457'); fill.addColorStop(1, '#d3a57a')
-  context.fillStyle = fill
-  context.beginPath(); context.moveTo(8, 64); context.quadraticCurveTo(110, -6, 240, 64); context.quadraticCurveTo(110, 134, 8, 64); context.fill()
-  context.strokeStyle = '#94643c'; context.lineWidth = 2.5
-  context.beginPath(); context.moveTo(0, 66); context.lineTo(240, 64); context.stroke()
-  context.lineWidth = 1.4
-  for (let vein = 40; vein < 220; vein += 28) for (const side of [-1, 1]) { context.beginPath(); context.moveTo(vein, 65); context.lineTo(vein + 22, 65 + side * 30); context.stroke() }
-  const texture = new CanvasTexture(canvas)
-  texture.colorSpace = SRGBColorSpace
-  return texture
-}
-
-function Leaf({ x, z, turn }: { x: number; z: number; turn: number }) {
-  const texture = useMemo(leafTexture, [])
-  // A dry leaf curls: lift the tip and both edges a little.
-  const geometry = useMemo(() => {
-    const plane = new PlaneGeometry(0.9, 0.45, 16, 8)
-    const position = plane.getAttribute('position') as BufferAttribute
-    for (let index = 0; index < position.count; index += 1) {
-      const u = position.getX(index) / 0.45, v = position.getY(index) / 0.225
-      position.setZ(index, v * v * 0.06 + Math.max(0, u) ** 2 * 0.07)
-    }
-    plane.computeVertexNormals()
-    return plane
-  }, [])
-  return <mesh geometry={geometry} position={[x, soilTop(x, z) + 0.02, z]} rotation={[-Math.PI / 2, 0, turn]} receiveShadow castShadow>
-    <meshStandardMaterial map={texture} transparent alphaTest={0.3} side={DoubleSide} roughness={0.9} />
-  </mesh>
-}
-
-/** Painted bark: soft lengthwise streaks and a few knots. */
-const bark = (() => {
-  const canvas = document.createElement('canvas')
-  canvas.width = 64; canvas.height = 256
-  const context = canvas.getContext('2d')!
-  context.fillStyle = '#86603f'; context.fillRect(0, 0, 64, 256)
-  let seed = 3
-  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
-  for (let index = 0; index < 40; index += 1) {
-    const tone = rand() > 0.5 ? 'rgba(60,38,22,0.35)' : 'rgba(180,140,100,0.3)'
-    context.fillStyle = tone; context.fillRect(rand() * 64, rand() * 256, 1.5 + rand() * 3, 20 + rand() * 60)
-  }
-  const texture = new CanvasTexture(canvas)
-  texture.colorSpace = SRGBColorSpace
-  return texture
-})()
-
-function Twig({ from, to }: { from: [number, number]; to: [number, number] }) {
-  const a = new Vector3(from[0], soilTop(...from) + 0.05, from[1]), b = new Vector3(to[0], soilTop(...to) + 0.05, to[1])
-  const middle = a.clone().add(b).multiplyScalar(0.5), length = a.distanceTo(b)
-  const direction = b.clone().sub(a).normalize()
-  const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), direction)
-  return <group position={middle} quaternion={quaternion}>
-    <mesh castShadow receiveShadow>
-      <cylinderGeometry args={[0.035, 0.05, length, 8]} />
-      <meshStandardMaterial map={bark} roughness={0.9} />
-    </mesh>
-    {/* a short side shoot, like the twig in the reference */}
-    <mesh position={[0.08, length * 0.12, 0]} rotation={[0, 0, -0.7]} castShadow>
-      <cylinderGeometry args={[0.018, 0.028, length * 0.3, 6]} />
-      <meshStandardMaterial map={bark} roughness={0.9} />
-    </mesh>
-  </group>
+/** A Poly Haven CC0 scan placed on the soil: one node, painted like the rest of the set, scaled to `length` units. */
+function ScannedProp({ file, node, x, z, length, turn, lift = 0 }: { file: string; node: string; x: number; z: number; length: number; turn: number; lift?: number }) {
+  const { nodes } = useGLTF(`${ph}${file}`)
+  const mesh = nodes[node] as Mesh
+  const { geometry, material, scale } = useMemo(() => {
+    const geometry = mesh.geometry.clone()
+    geometry.computeBoundingBox()
+    // Scans of branches stand upright; lay anything taller than it is wide down on the soil.
+    const upright = geometry.boundingBox!.getSize(new Vector3())
+    if (upright.y > Math.max(upright.x, upright.z)) { geometry.rotateZ(Math.PI / 2); geometry.computeBoundingBox() }
+    const box = geometry.boundingBox!
+    const size = box.getSize(new Vector3()), centre = box.getCenter(new Vector3())
+    geometry.translate(-centre.x, -box.min.y, -centre.z)
+    const source = mesh.material as MeshStandardMaterial
+    const material = source.clone()
+    if (source.map) { material.map = paintify(source.map, 'saturate(0.9)', 1.5); material.map.repeat.set(1, 1); material.map.flipY = source.map.flipY }
+    material.normalScale = new Vector2(0.6, 0.6)
+    return { geometry, material, scale: length / Math.max(size.x, size.y, size.z) }
+  }, [mesh])
+  return <mesh geometry={geometry} material={material} position={[x, soilTop(x, z) - 0.02 + lift, z]} rotation={[0, turn, 0]} scale={scale} castShadow receiveShadow />
 }
 
 function ScannedSill() {
@@ -466,7 +418,11 @@ function Jar() {
   return <group>
     <mesh position={[0, 4.6, 0]}>
       <cylinderGeometry args={[R + 0.15, R + 0.15, 9.2, 96, 1, true]} />
-      <MeshTransmissionMaterial thickness={0.2} roughness={0} ior={1.5} chromaticAberration={0.01} anisotropicBlur={0} distortion={0.02} distortionScale={0.2} backside={false} samples={4} resolution={512} side={DoubleSide} />
+      {/* Clear glass: owner asked for it to read see-through. Low opacity with sharp
+          reflections instead of a low-resolution refraction pass, which blurred the jar contents. */}
+      {semi
+        ? <meshPhysicalMaterial color="#ffffff" transparent opacity={0.08} roughness={0.02} metalness={0} clearcoat={1} clearcoatRoughness={0.02} envMapIntensity={1.4} side={DoubleSide} depthWrite={false} />
+        : <MeshTransmissionMaterial thickness={0.2} roughness={0} ior={1.5} chromaticAberration={0.01} anisotropicBlur={0} distortion={0.02} distortionScale={0.2} backside={false} samples={4} resolution={512} side={DoubleSide} />}
     </mesh>
     <mesh position={[0, 9.25, 0]} rotation={[Math.PI / 2, 0, 0]}>
       <torusGeometry args={[R + 0.12, 0.12, 12, 96]} />
@@ -474,7 +430,7 @@ function Jar() {
     </mesh>
     <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
       <circleGeometry args={[R + 0.15, 96]} />
-      <meshStandardMaterial color="#b7c3be" transparent opacity={0.35} roughness={0.1} />
+      <meshStandardMaterial color="#b7c3be" transparent opacity={semi ? 0.15 : 0.35} roughness={0.1} />
     </mesh>
   </group>
 }
@@ -584,10 +540,11 @@ function Lab() {
         <Moss x={-2.7} z={-1.4} radius={0.8} count={4000} />
         <MossSprigs x={0} z={0} radius={3.5} count={260} flat scale={0.6} />
         <Fern x={0.1} z={-0.3} />
-        <Leaf x={0.15} z={1.05} turn={0.4} />
-        <Leaf x={2.0} z={0.75} turn={-1.1} />
-        <Leaf x={1.9} z={-1.6} turn={-0.9} />
-        <Twig from={[-0.1, 0.35]} to={[0.85, 0.05]} />
+        {/* Owner: the hand-drawn leaf and twig did not match the scanned set, so these are Poly Haven CC0 scans too. */}
+        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={0.15} z={1.05} length={0.95} turn={0.4} />
+        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={2.0} z={0.75} length={0.8} turn={-1.6} />
+        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={1.9} z={-1.6} length={0.8} turn={-0.9} />
+        <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={0.4} z={0.2} length={1.3} turn={0.3} />
       </>}
     </Suspense>
     {!scanned && <Grit count={260} />}
