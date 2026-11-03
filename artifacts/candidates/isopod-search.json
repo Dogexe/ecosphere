@@ -1,0 +1,457 @@
+[
+  {
+    "uri": "https://api.sketchfab.com/v3/models/015611d10a1a42efaac3f0b2256a7088",
+    "uid": "015611d10a1a42efaac3f0b2256a7088",
+    "name": "Low-Fi Isopod",
+    "staffpickedAt": null,
+    "viewCount": 9108,
+    "likeCount": 387,
+    "animationCount": 1,
+    "viewerUrl": "https://sketchfab.com/3d-models/none-015611d10a1a42efaac3f0b2256a7088",
+    "embedUrl": "https://sketchfab.com/models/015611d10a1a42efaac3f0b2256a7088/embed",
+    "commentCount": 19,
+    "isDownloadable": false,
+    "publishedAt": "2021-09-16T13:25:45.003669",
+    "tags": [
+      {
+        "name": "insect",
+        "slug": "insect",
+        "uri": "https://api.sketchfab.com/v3/tags/insect"
+      },
+      {
+        "name": "bug",
+        "slug": "bug",
+        "uri": "https://api.sketchfab.com/v3/tags/bug"
+      },
+      {
+        "name": "pixeltexture",
+        "slug": "pixeltexture",
+        "uri": "https://api.sketchfab.com/v3/tags/pixeltexture"
+      },
+      {
+        "name": "blender-3d",
+        "slug": "blender-3d",
+        "uri": "https://api.sketchfab.com/v3/tags/blender-3d"
+      },
+      {
+        "name": "low-poly-model",
+        "slug": "low-poly-model",
+        "uri": "https://api.sketchfab.com/v3/tags/low-poly-model"
+      },
+      {
+        "name": "low-fi",
+        "slug": "low-fi",
+        "uri": "https://api.sketchfab.com/v3/tags/low-fi"
+      },
+      {
+        "name": "lowfi",
+        "slug": "lowfi",
+        "uri": "https://api.sketchfab.com/v3/tags/lowfi"
+      },
+      {
+        "name": "pixel-art",
+        "slug": "pixel-art",
+        "uri": "https://api.sketchfab.com/v3/tags/pixel-art"
+      },
+      {
+        "name": "aseprite",
+        "slug": "aseprite",
+        "uri": "https://api.sketchfab.com/v3/tags/aseprite"
+      },
+      {
+        "name": "slater",
+        "slug": "slater",
+        "uri": "https://api.sketchfab.com/v3/tags/slater"
+      },
+      {
+        "name": "pillbug",
+        "slug": "pillbug",
+        "uri": "https://api.sketchfab.com/v3/tags/pillbug"
+      },
+      {
+        "name": "pixel-texture",
+        "slug": "pixel-texture",
+        "uri": "https://api.sketchfab.com/v3/tags/pixel-texture"
+      },
+      {
+        "name": "low-poly",
+        "slug": "low-poly",
+        "uri": "https://api.sketchfab.com/v3/tags/low-poly"
+      },
+      {
+        "name": "blender",
+        "slug": "blender",
+        "uri": "https://api.sketchfab.com/v3/tags/blender"
+      },
+      {
+        "name": "lowpoly",
+        "slug": "lowpoly",
+        "uri": "https://api.sketchfab.com/v3/tags/lowpoly"
+      },
+      {
+        "name": "blender3d",
+        "slug": "blender3d",
+        "uri": "https://api.sketchfab.com/v3/tags/blender3d"
+      },
+      {
+        "name": "pixelart",
+        "slug": "pixelart",
+        "uri": "https://api.sketchfab.com/v3/tags/pixelart"
+      },
+      {
+        "name": "isopod",
+        "slug": "isopod",
+        "uri": "https://api.sketchfab.com/v3/tags/isopod"
+      },
+      {
+        "name": "rolypoly",
+        "slug": "rolypoly",
+        "uri": "https://api.sketchfab.com/v3/tags/rolypoly"
+      },
+      {
+        "name": "roly-poly",
+        "slug": "roly-poly",
+        "uri": "https://api.sketchfab.com/v3/tags/roly-poly"
+      }
+    ],
+    "categories": [
+      {
+        "name": "animals-pets"
+      },
+      {
+        "name": "characters-creatures"
+      }
+    ],
+    "thumbnails": {
+      "images": [
+        {
+          "uid": "4a045161703647e2ba26366327d5ff6a",
+          "size": 126157,
+          "width": 1920,
+          "url": "https://media.sketchfab.com/models/015611d10a1a42efaac3f0b2256a7088/thumbnails/c0eafee13c5346dfba82a7a011c9fdb7/cb8448ab6ada4294be0e2799d9e688e3.jpeg",
+          "height": 1080
+        },
+        {
+          "uid": "f8b4e3e17df644cc886eaeb6e5689f5a",
+          "size": 42790,
+          "width": 1024,
+          "url": "https://media.sketchfab.com/models/015611d10a1a42efaac3f0b2256a7088/thumbnails/c0eafee13c5346dfba82a7a011c9fdb7/18a46ff6315942d5a4d00ccfe549043a.jpeg",
+          "height": 576
+        },
+        {
+          "uid": "a7c10943e8204b0590f0bd92f3ea95b1",
+          "size": 25996,
+          "width": 720,
+          "url": "https://media.sketchfab.com/models/015611d10a1a42efaac3f0b2256a7088/thumbnails/c0eafee13c5346dfba82a7a011c9fdb7/e0d0dd45948946d1bd018af25f778730.jpeg",
+          "height": 405
+        },
+        {
+          "uid": "872043dde4114feda99669383987a7b1",
+          "size": 5421,
+          "width": 256,
+          "url": "https://media.sketchfab.com/models/015611d10a1a42efaac3f0b2256a7088/thumbnails/c0eafee13c5346dfba82a7a011c9fdb7/e941206ff832484f8bff1b4698fb6e0a.jpeg",
+          "height": 144
+        },
+        {
+          "uid": "8c4d3203e28d483998ed8ba6e6c24fa4",
+          "size": 1134,
+          "width": 64,
+          "url": "https://media.sketchfab.com/models/015611d10a1a42efaac3f0b2256a7088/thumbnails/c0eafee13c5346dfba82a7a011c9fdb7/0b08325346854501948db10783f9e08b.jpeg",
+          "height": 36
+        }
+      ]
+    },
+    "user": {
+      "uid": "e9f995e32fe344c585792a59ad8bf6c4",
+      "username": "bevanmckechnie",
+      "displayName": "NotDead",
+      "profileUrl": "https://sketchfab.com/bevanmckechnie",
+      "account": "basic",
+      "avatar": {
+        "uri": "https://api.sketchfab.com/v3/avatars/e6cfdaf2fea445dc951f25c41f97470f",
+        "images": [
+          {
+            "size": 2407,
+            "width": 32,
+            "url": "https://media.sketchfab.com/avatars/e6cfdaf2fea445dc951f25c41f97470f/195a2efdd07944e693d0c9d30ec17dd9.png",
+            "height": 32
+          },
+          {
+            "size": 4653,
+            "width": 48,
+            "url": "https://media.sketchfab.com/avatars/e6cfdaf2fea445dc951f25c41f97470f/f94d00d797dc4bf69a7d916dc53c5583.png",
+            "height": 48
+          },
+          {
+            "size": 12700,
+            "width": 90,
+            "url": "https://media.sketchfab.com/avatars/e6cfdaf2fea445dc951f25c41f97470f/d9508cc2fd0b41b2b1b1c562ee67e9fa.png",
+            "height": 90
+          },
+          {
+            "size": 14897,
+            "width": 100,
+            "url": "https://media.sketchfab.com/avatars/e6cfdaf2fea445dc951f25c41f97470f/eeb677df662347b8ba9d9480e7eccba3.png",
+            "height": 100
+          }
+        ]
+      },
+      "uri": "https://api.sketchfab.com/v3/users/e9f995e32fe344c585792a59ad8bf6c4"
+    },
+    "description": "A quick little model for a friend as a thank you for his help. Ended up having lots of fun making it. 32x32 pixel texture, 124 triangles, DB32 palette.",
+    "faceCount": 248,
+    "createdAt": "2021-09-16T13:11:35.8913",
+    "vertexCount": 188,
+    "isAgeRestricted": false,
+    "archives": {},
+    "license": null
+  },
+  {
+    "uri": "https://api.sketchfab.com/v3/models/9ba424289b03414ab7c181deb7371233",
+    "uid": "9ba424289b03414ab7c181deb7371233",
+    "name": "Levithan Isopod Low-Poly Free",
+    "staffpickedAt": null,
+    "viewCount": 113,
+    "likeCount": 2,
+    "animationCount": 0,
+    "viewerUrl": "https://sketchfab.com/3d-models/none-9ba424289b03414ab7c181deb7371233",
+    "embedUrl": "https://sketchfab.com/models/9ba424289b03414ab7c181deb7371233/embed",
+    "commentCount": 1,
+    "isDownloadable": true,
+    "publishedAt": "2025-04-30T13:21:47.154681",
+    "tags": [
+      {
+        "name": "underwater",
+        "slug": "underwater",
+        "uri": "https://api.sketchfab.com/v3/tags/underwater"
+      },
+      {
+        "name": "deepsea",
+        "slug": "deepsea",
+        "uri": "https://api.sketchfab.com/v3/tags/deepsea"
+      },
+      {
+        "name": "ocean",
+        "slug": "ocean",
+        "uri": "https://api.sketchfab.com/v3/tags/ocean"
+      },
+      {
+        "name": "scary",
+        "slug": "scary",
+        "uri": "https://api.sketchfab.com/v3/tags/scary"
+      },
+      {
+        "name": "deep",
+        "slug": "deep",
+        "uri": "https://api.sketchfab.com/v3/tags/deep"
+      },
+      {
+        "name": "alien",
+        "slug": "alien",
+        "uri": "https://api.sketchfab.com/v3/tags/alien"
+      },
+      {
+        "name": "leviathan",
+        "slug": "leviathan",
+        "uri": "https://api.sketchfab.com/v3/tags/leviathan"
+      },
+      {
+        "name": "abyss",
+        "slug": "abyss",
+        "uri": "https://api.sketchfab.com/v3/tags/abyss"
+      },
+      {
+        "name": "crustacean",
+        "slug": "crustacean",
+        "uri": "https://api.sketchfab.com/v3/tags/crustacean"
+      },
+      {
+        "name": "subnatica",
+        "slug": "subnatica",
+        "uri": "https://api.sketchfab.com/v3/tags/subnatica"
+      },
+      {
+        "name": "levithan",
+        "slug": "levithan",
+        "uri": "https://api.sketchfab.com/v3/tags/levithan"
+      },
+      {
+        "name": "sci-fi",
+        "slug": "sci-fi",
+        "uri": "https://api.sketchfab.com/v3/tags/sci-fi"
+      },
+      {
+        "name": "creature",
+        "slug": "creature",
+        "uri": "https://api.sketchfab.com/v3/tags/creature"
+      },
+      {
+        "name": "free",
+        "slug": "free",
+        "uri": "https://api.sketchfab.com/v3/tags/free"
+      },
+      {
+        "name": "monster",
+        "slug": "monster",
+        "uri": "https://api.sketchfab.com/v3/tags/monster"
+      },
+      {
+        "name": "3dmodel",
+        "slug": "3dmodel",
+        "uri": "https://api.sketchfab.com/v3/tags/3dmodel"
+      },
+      {
+        "name": "sea",
+        "slug": "sea",
+        "uri": "https://api.sketchfab.com/v3/tags/sea"
+      },
+      {
+        "name": "horror",
+        "slug": "horror",
+        "uri": "https://api.sketchfab.com/v3/tags/horror"
+      },
+      {
+        "name": "isopod",
+        "slug": "isopod",
+        "uri": "https://api.sketchfab.com/v3/tags/isopod"
+      },
+      {
+        "name": "creaturemodel",
+        "slug": "creaturemodel",
+        "uri": "https://api.sketchfab.com/v3/tags/creaturemodel"
+      },
+      {
+        "name": "scarycreature",
+        "slug": "scarycreature",
+        "uri": "https://api.sketchfab.com/v3/tags/scarycreature"
+      }
+    ],
+    "categories": [
+      {
+        "name": "animals-pets"
+      },
+      {
+        "name": "nature-plants"
+      }
+    ],
+    "thumbnails": {
+      "images": [
+        {
+          "uid": "32ca2f05d80a4c4b9dce1a7077154e47",
+          "size": 67587,
+          "width": 1920,
+          "url": "https://media.sketchfab.com/models/9ba424289b03414ab7c181deb7371233/thumbnails/874236b5d95445329fda82db3ed50594/6fc9c942dd5b4166936f5c5d06950cdb.jpeg",
+          "height": 1080
+        },
+        {
+          "uid": "afe6860837614dbfaa09f517cf6abe18",
+          "size": 22710,
+          "width": 1024,
+          "url": "https://media.sketchfab.com/models/9ba424289b03414ab7c181deb7371233/thumbnails/874236b5d95445329fda82db3ed50594/a6382bc0706b46fca5dec454dc0abbc1.jpeg",
+          "height": 576
+        },
+        {
+          "uid": "9817914be8c148f5a807564d86bde539",
+          "size": 13242,
+          "width": 720,
+          "url": "https://media.sketchfab.com/models/9ba424289b03414ab7c181deb7371233/thumbnails/874236b5d95445329fda82db3ed50594/872e2d01677e408b86ab673decdb6b9d.jpeg",
+          "height": 405
+        },
+        {
+          "uid": "86dfffc3ab3b45a3b3a6f0bb58eb7502",
+          "size": 2937,
+          "width": 256,
+          "url": "https://media.sketchfab.com/models/9ba424289b03414ab7c181deb7371233/thumbnails/874236b5d95445329fda82db3ed50594/1da751fd1f174232a684246a1df4f043.jpeg",
+          "height": 144
+        },
+        {
+          "uid": "d8d1ff1fc0c94f5c85958d80ec3a1210",
+          "size": 906,
+          "width": 64,
+          "url": "https://media.sketchfab.com/models/9ba424289b03414ab7c181deb7371233/thumbnails/874236b5d95445329fda82db3ed50594/f92de0d3b36847508b5fb655d02ee4e9.jpeg",
+          "height": 36
+        }
+      ]
+    },
+    "user": {
+      "uid": "1558a74f61d9484fb45272f48f5955c9",
+      "username": "wErTT",
+      "displayName": "wErT",
+      "profileUrl": "https://sketchfab.com/wErTT",
+      "account": "basic",
+      "avatar": {
+        "uri": "https://api.sketchfab.com/v3/avatars/0ba14feb4f0a4af1a69302e84bc3d8f1",
+        "images": [
+          {
+            "size": 2193,
+            "width": 32,
+            "url": "https://media.sketchfab.com/avatars/0ba14feb4f0a4af1a69302e84bc3d8f1/40ead1a08f004007a22146faad1f5430.png",
+            "height": 32
+          },
+          {
+            "size": 4441,
+            "width": 48,
+            "url": "https://media.sketchfab.com/avatars/0ba14feb4f0a4af1a69302e84bc3d8f1/b952beea4ec047e1bd6272ed91f74b92.png",
+            "height": 48
+          },
+          {
+            "size": 13268,
+            "width": 90,
+            "url": "https://media.sketchfab.com/avatars/0ba14feb4f0a4af1a69302e84bc3d8f1/bda88a4b86f0413eae23de6ffd1d85c0.png",
+            "height": 90
+          },
+          {
+            "size": 15810,
+            "width": 100,
+            "url": "https://media.sketchfab.com/avatars/0ba14feb4f0a4af1a69302e84bc3d8f1/02dcc6b1f0134ffd9600565cf0157a08.png",
+            "height": 100
+          }
+        ]
+      },
+      "uri": "https://api.sketchfab.com/v3/users/1558a74f61d9484fb45272f48f5955c9"
+    },
+    "description": "A massive, terrifying Leviathan Isopod—built to haunt the deep sea. Perfect for horror, sci-fi, or ocean-themed projects.\nCompletely free to download and use. No strings attached.",
+    "faceCount": 11160,
+    "createdAt": "2025-04-30T13:19:16.231639",
+    "vertexCount": 5786,
+    "isAgeRestricted": false,
+    "archives": {
+      "glb": {
+        "textureCount": 0,
+        "size": 386564,
+        "type": "glb",
+        "textureMaxResolution": 0,
+        "faceCount": 11160,
+        "vertexCount": 7651
+      },
+      "gltf": {
+        "textureCount": 0,
+        "size": 118574,
+        "type": "gltf",
+        "textureMaxResolution": 0,
+        "faceCount": 11160,
+        "vertexCount": 7651
+      },
+      "source": {
+        "textureCount": null,
+        "size": 3576932,
+        "type": "source",
+        "textureMaxResolution": null,
+        "faceCount": null,
+        "vertexCount": null
+      },
+      "usdz": {
+        "textureCount": null,
+        "size": 188299,
+        "type": "usdz",
+        "textureMaxResolution": null,
+        "faceCount": null,
+        "vertexCount": null
+      }
+    },
+    "license": {
+      "uid": "322a749bcfa841b29dff1e8a1bb74b0b",
+      "label": "CC Attribution"
+    }
+  }
+]

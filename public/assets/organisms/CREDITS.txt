@@ -1,0 +1,94 @@
+ECOSPHERE — adapted organism assets
+
+Trachelipus ratzeburgii (woodlouse) by .hapto GmbH,
+developed with Senckenberg Museum für Naturkunde Görlitz / museum4punkt0
+Source publication: https://sketchfab.com/3d-models/trachelipus-ratzeburgii-c33d55eda92846fea8021051829ee282
+Public AR source: https://vr-bodenleben.senckenberg.de/tiere/laubstreu/landassel/
+Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Changes by ECOSPHERE: reduced original geometry from57,360 to5,354triangles;
+removed photographic maps; matte sage/grey materials; added20-bone rig and
+idle/walk/eat clips using the original seven leg pairs, antennae and jaws.
+The source is static. Added gait is an artistic approximation, not museum
+validation of motion. Juveniles/needs affect local material appearance.
+Original creators do not endorse ECOSPHERE. No source anatomy was replaced
+with primitive organisms. See ASSETS.md and scripts/adapt_woodlouse.py.
+
+Caterpillar by Poly by Google
+Source: https://poly.pizza/m/64T47O5VHAB
+License: Creative Commons Attribution 3.0 Unported
+https://creativecommons.org/licenses/by/3.0/
+Changes: muted/resized source texture atlas; added subtle
+state-driven crawl morphs; normalized size/ground contact. Source anatomy retained.
+The original creator does not endorse ECOSPHERE.
+
+Tiger Beetle and Archerfish by Gobkit
+https://gobkit.com/freebies
+Source files:
+https://gobkit.com/freebies/insect001/TigerBeetle.glb
+https://gobkit.com/freebies/animal009/Archerfish.glb
+CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+Changes: muted vertex palette, retained relevant clips only; adapted fish body
+proportions and normalized dimensions. Original rigs retained.
+
+Clover_1, Grass_Common_Short, Flower_3_Group, CommonTree_1 by Quaternius
+Stylized Nature MegaKit Standard (free version)
+https://quaternius.com/packs/stylizednaturemegakit.html
+https://quaternius.itch.io/stylized-nature-megakit
+CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+Changes: muted/resized textures, removed source wind color masks/normal maps,
+matte standard materials, independent growth/health and maturity-gated flowers.
+Original mesh anatomy retained. See included License_Quaternius.txt.
+
+Mushroom by Kenney — Nature Kit 2.1
+https://kenney.nl/assets/nature-kit
+CC0 1.0 Universal. See ../kenney/License.txt.
+
+Water lily and Reeds by Pixor library / Frakassets
+https://pixor.art/library/plants/water-lily/
+https://pixor.art/library/plants/reeds/
+Library license: https://pixor.art/library/license/
+CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
+Changes: muted matte materials, removed unused animation/morph/UV data,
+separated existing flower/seed-head faces for simulated maturity,
+normalized to the existing floating/riparian plant scale. Source faces retained.
+
+Files are bundled locally; gameplay makes no requests to asset providers.
+CC0 assets allow modification, commercial use and redistribution without credit.
+The Caterpillar permits those uses with attribution and modification notice.
+This project is personal/non-commercial. No paid pack was acquired.
+
+Mesaphorura macrochaeta (springtail) by .hapto GmbH
+Developed with Senckenberg Museum für Naturkunde Görlitz / museum4punkt0
+https://vr-bodenleben.senckenberg.de/tiere/porenraum/springschwanz/
+https://sketchfab.com/3d-models/mesaphorura-macrochaeta-34561f36da8e4c728e9f4ebb144803ee
+CC BY4.0: https://creativecommons.org/licenses/by/4.0/
+Changes: simplified original anatomy, removed photographic textures, matte
+ivory/sage materials, added ten-bone walk/eat/idle artistic gait and normalized
+tiny biological scale. Original AR source is static. No museum endorsement
+or validation of the added animation/game ecology is implied.
+
+Ant worker, queen and naked pupa
+Original: "Ant" by mujtaba-io (CC0 1.0; attribution optional)
+https://opengameart.org/content/ant-3d-model-rigging-animated-low-poly-ish
+Adaptations: matte charcoal palette, lowered stance, normalized direction,
+static idle; queen gaster/mesosoma proportions; folded original pupal limbs.
+These are stylized adaptations, not named-species reconstructions.
+
+Ant larva
+Original: "BeetleGrub" by Gobkit (CC0 1.0; attribution optional)
+https://gobkit.com/freebies/insect001/BeetleGrub.glb
+https://gobkit.com/freebies
+Adaptations: removed all legs and eyes, reduced/joined head and jaws,
+reoriented original segmented C-curve, matte pale palette, removed animations.
+The original is a beetle; the modified geometry represents a generic legless ant larva.
+
+
+Daphnia — ucdavisterc / UC Davis Tahoe Environmental Research Center
+Source: https://sketchfab.com/3d-models/daphnia-4f27bcd63caf4dae837cfaeb70e1bf3a
+Official public AR exhibit: https://tahoe.ucdavis.edu/Tahoe-Species
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Changes for ECOSPHERE: mesh decimation, reduced skeleton and transferred weights,
+muted untextured materials, body-anchored source appendage animation and static idle.
+Source author does not endorse ECOSPHERE. Source gait reused as a simplified feeding cue.

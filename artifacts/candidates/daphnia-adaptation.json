@@ -1,0 +1,12 @@
+{
+  "file": "daphnia.glb",
+  "bytes": 398196,
+  "sha256": "5bc65efcea53224bf2f3e8cadaecd691670e6e17cc5f505772fd1c8fd2941e63",
+  "triangles": 5707,
+  "bones": 64,
+  "clips": [
+    "eat",
+    "idle",
+    "walk"
+  ]
+}
