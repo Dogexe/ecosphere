@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { BrightnessContrast, DepthOfField, EffectComposer, HueSaturation, Vignette } from '@react-three/postprocessing'
 import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
-import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, SRGBColorSpace, Vector2, Vector3 } from 'three'
+import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, Matrix3, SRGBColorSpace, Vector2, Vector3 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PaperAnimal } from '../scene/PaperCritter'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
@@ -38,6 +38,8 @@ const still = query.get('still') === '1'
 const round = query.get('round') ?? '3'
 const scanned = round !== '1'
 const semi = round === '3'
+/** ?time=morning (default, cool sky) or afternoon (warm gold): the two lighting keys from the painted references. */
+const afternoon = query.get('time') === 'afternoon'
 const ph = `${import.meta.env.BASE_URL}assets/lab/polyhaven/`
 const R = 3.8
 const terrain = makeNoise(101)
@@ -130,10 +132,7 @@ function Moss({ x, z, radius, count }: { x: number; z: number; radius: number; c
     geometry.computeVertexNormals()
     return geometry
   }, [x, z, radius])
-  if (semi) return <group>
-    <mesh geometry={cushion} receiveShadow><meshStandardMaterial color="#4f6a1e" roughness={1} /></mesh>
-    <MossSprigs x={x} z={z} radius={radius} count={Math.round(count / 5)} />
-  </group>
+  if (semi) return <MossSprigs x={x} z={z} radius={radius} count={Math.round(count / 4)} />
   return <group>
     <mesh geometry={cushion} castShadow receiveShadow><meshStandardMaterial {...textures} roughness={0.95} /></mesh>
     <instancedMesh ref={mesh} args={[geometry, undefined, count]} castShadow receiveShadow><meshStandardMaterial roughness={0.95} /></instancedMesh>
@@ -249,7 +248,7 @@ function sprigTexture(seed: number) {
 }
 
 /** Semi-real moss: dense shrubs of painted sprig cards (two crossed planes each), like a tiny forest. */
-function MossSprigs({ x, z, radius, count }: { x: number; z: number; radius: number; count: number }) {
+function MossSprigs({ x, z, radius, count, flat = false, spots, scale = 1 }: { x: number; z: number; radius: number; count: number; flat?: boolean; spots?: Vector3[]; scale?: number }) {
   const mesh = useRef<InstancedMesh>(null)
   const geometry = useMemo(() => {
     const a = new PlaneGeometry(1, 1).translate(0, 0.5, 0)
@@ -264,12 +263,16 @@ function MossSprigs({ x, z, radius, count }: { x: number; z: number; radius: num
     let seed = 5
     const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
     for (let index = 0; index < count; index += 1) {
-      const angle = rand() * Math.PI * 2, distance = Math.sqrt(rand()) * radius
-      const px = x + Math.cos(angle) * distance, pz = z + Math.sin(angle) * distance
-      const edge = distance / radius
-      const dome = Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.16
-      const size = (0.2 + rand() * 0.14) * (1 - edge * 0.35)
-      dummy.position.set(px, soilTop(px, pz) + dome - 0.02, pz)
+      const angle = rand() * Math.PI * 2
+      // Ragged, organic patch edge instead of a perfect circle.
+      const reach = flat ? 1 : 0.7 + noise(Math.cos(angle) * 2 + x, Math.sin(angle) * 2 + z) * 0.6
+      const distance = Math.sqrt(rand()) * radius * reach
+      const spot = spots?.[Math.floor(rand() * spots.length)]
+      const px = spot ? spot.x : x + Math.cos(angle) * distance, pz = spot ? spot.z : z + Math.sin(angle) * distance
+      const edge = spot || flat ? 0.5 : distance / radius
+      const dome = spot || flat ? 0 : Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.16
+      const size = (0.2 + rand() * 0.14) * (1 - edge * 0.35) * scale
+      dummy.position.set(px, spot ? spot.y - 0.03 : soilTop(px, pz) + dome - 0.02, pz)
       dummy.rotation.set((rand() - 0.5) * 0.5, rand() * Math.PI, (rand() - 0.5) * 0.5)
       dummy.scale.set(size, size * (0.9 + rand() * 0.4), size)
       dummy.updateMatrix()
@@ -325,7 +328,96 @@ function ScannedStone() {
     painted.color = new Color('#ece8e2')
     return painted
   }, [rock])
-  return <mesh geometry={rock.geometry} material={material} position={[-1.4, soilTop(-1.4, -0.6) + 0.25, -0.6]} rotation={[0, 0.9, 0]} scale={0.95} castShadow receiveShadow />
+  const placement = { position: [-1.4, soilTop(-1.4, -0.6) + 0.25, -0.6] as [number, number, number], rotation: [0, 0.9, 0] as [number, number, number], scale: 0.95 }
+  // Semi-real: a cap of moss sprigs on the upward-facing top of the stone, as in the reference.
+  const top = useMemo(() => {
+    if (!semi) return []
+    const matrix = new Object3D()
+    matrix.position.set(...placement.position); matrix.rotation.set(...placement.rotation); matrix.scale.setScalar(placement.scale); matrix.updateMatrix()
+    const position = rock.geometry.getAttribute('position'), normal = rock.geometry.getAttribute('normal')
+    const spots: Vector3[] = [], up = new Vector3()
+    const turn = new Matrix3().getNormalMatrix(matrix.matrix)
+    for (let index = 0; index < position.count; index += 3) {
+      up.fromBufferAttribute(normal, index).applyMatrix3(turn).normalize()
+      if (up.y > 0.6) spots.push(new Vector3().fromBufferAttribute(position, index).applyMatrix4(matrix.matrix))
+    }
+    const highest = Math.max(...spots.map((spot) => spot.y))
+    return spots.filter((spot) => spot.y > highest - 0.45)
+  }, [rock])
+  return <>
+    <mesh geometry={rock.geometry} material={material} {...placement} castShadow receiveShadow />
+    {top.length > 0 && <MossSprigs x={0} z={0} radius={1} count={420} spots={top} scale={0.8} />}
+  </>
+}
+
+/** Semi-real props from the reference: a fern sprout, a dry leaf and a twig. */
+function frondTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128; canvas.height = 256
+  const context = canvas.getContext('2d')!
+  context.strokeStyle = '#7f9a2c'; context.lineWidth = 3
+  context.beginPath(); context.moveTo(64, 256); context.quadraticCurveTo(58, 120, 78, 8); context.stroke()
+  for (let step = 0.12; step < 0.96; step += 0.07) {
+    const t = step, y = 256 - t * 248, x = 64 + (t * t) * 14 - Math.sin(t * 3) * 3
+    const length = 40 * Math.sin(Math.PI * Math.min(1, t * 1.05)) + 6
+    for (const side of [-1, 1]) {
+      const tone = 160 + Math.random() * 40
+      context.fillStyle = `rgb(${tone * 0.66},${tone},${tone * 0.3})`
+      context.beginPath(); context.ellipse(x + side * length * 0.5, y - 4, length * 0.5, 5, side * -0.35, 0, Math.PI * 2); context.fill()
+    }
+  }
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return texture
+}
+
+function Fern({ x, z }: { x: number; z: number }) {
+  const texture = useMemo(frondTexture, [])
+  const frond = useMemo(() => new PlaneGeometry(0.55, 1.2).translate(0, 0.6, 0), [])
+  const fronds = [[0, 0.25], [2.1, 0.45], [4.2, 0.35], [1.1, 0.1], [3.2, 0.6]]
+  return <group position={[x, soilTop(x, z) - 0.03, z]}>
+    {fronds.map(([turn, lean], index) => <group key={index} rotation={[0, turn, 0]}>
+      <mesh geometry={frond} rotation={[lean, 0, 0]} castShadow>
+        <meshStandardMaterial map={texture} alphaTest={0.4} side={DoubleSide} roughness={0.9} />
+      </mesh>
+    </group>)}
+  </group>
+}
+
+function leafTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256; canvas.height = 128
+  const context = canvas.getContext('2d')!
+  const fill = context.createLinearGradient(0, 0, 256, 0)
+  fill.addColorStop(0, '#b98457'); fill.addColorStop(1, '#d3a57a')
+  context.fillStyle = fill
+  context.beginPath(); context.moveTo(8, 64); context.quadraticCurveTo(110, -6, 240, 64); context.quadraticCurveTo(110, 134, 8, 64); context.fill()
+  context.strokeStyle = '#94643c'; context.lineWidth = 2.5
+  context.beginPath(); context.moveTo(0, 66); context.lineTo(240, 64); context.stroke()
+  context.lineWidth = 1.4
+  for (let vein = 40; vein < 220; vein += 28) for (const side of [-1, 1]) { context.beginPath(); context.moveTo(vein, 65); context.lineTo(vein + 22, 65 + side * 30); context.stroke() }
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return texture
+}
+
+function Leaf({ x, z, turn }: { x: number; z: number; turn: number }) {
+  const texture = useMemo(leafTexture, [])
+  return <mesh position={[x, soilTop(x, z) + 0.03, z]} rotation={[-Math.PI / 2 + 0.08, 0, turn]} receiveShadow castShadow>
+    <planeGeometry args={[0.9, 0.45]} />
+    <meshStandardMaterial map={texture} transparent alphaTest={0.3} side={DoubleSide} roughness={0.9} />
+  </mesh>
+}
+
+function Twig({ from, to }: { from: [number, number]; to: [number, number] }) {
+  const a = new Vector3(from[0], soilTop(...from) + 0.05, from[1]), b = new Vector3(to[0], soilTop(...to) + 0.05, to[1])
+  const middle = a.clone().add(b).multiplyScalar(0.5), length = a.distanceTo(b)
+  const direction = b.clone().sub(a).normalize()
+  const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), direction)
+  return <mesh position={middle} quaternion={quaternion} castShadow receiveShadow>
+    <cylinderGeometry args={[0.035, 0.05, length, 8]} />
+    <meshStandardMaterial color="#7a5638" roughness={0.9} />
+  </mesh>
 }
 
 function ScannedSill() {
@@ -368,11 +460,12 @@ function Window() {
     canvas.width = 512; canvas.height = 320
     const context = canvas.getContext('2d')!
     const sky = context.createLinearGradient(0, 0, 0, 320)
-    if (semi) { sky.addColorStop(0, '#fff6dc'); sky.addColorStop(0.55, '#f6e2a8'); sky.addColorStop(0.75, '#d9d79a'); sky.addColorStop(1, '#b7c27e') }
+    if (semi && afternoon) { sky.addColorStop(0, '#fff6dc'); sky.addColorStop(0.55, '#f6e2a8'); sky.addColorStop(0.75, '#d9d79a'); sky.addColorStop(1, '#b7c27e') }
+    else if (semi) { sky.addColorStop(0, '#cfe4f4'); sky.addColorStop(0.5, '#e6efe6'); sky.addColorStop(0.75, '#b9cf9c'); sky.addColorStop(1, '#8fb070') }
     else { sky.addColorStop(0, '#dfeefa'); sky.addColorStop(0.5, '#f4f1e2'); sky.addColorStop(0.62, '#9fb889'); sky.addColorStop(1, '#5f7d4f') }
     context.fillStyle = sky
     context.fillRect(0, 0, 512, 320)
-    if (semi) {
+    if (semi && afternoon) {
       // Semi-real: a warm low sun glowing through the window, as in the painted reference.
       const sun = context.createRadialGradient(120, 70, 0, 120, 70, 260)
       sun.addColorStop(0, 'rgba(255,248,220,1)'); sun.addColorStop(1, 'rgba(255,236,180,0)')
@@ -380,7 +473,7 @@ function Window() {
     }
     context.filter = 'blur(14px)'
     for (let index = 0; index < 14; index += 1) {
-      context.fillStyle = semi ? (index % 2 ? '#c3c78a' : '#d0cf95') : index % 2 ? '#6f8f5c' : '#86a36a'
+      context.fillStyle = semi ? (afternoon ? (index % 2 ? '#c3c78a' : '#d0cf95') : (index % 2 ? '#9fbf84' : '#b3cc95')) : index % 2 ? '#6f8f5c' : '#86a36a'
       context.beginPath(); context.ellipse(index * 40 + 10, 190 + (index % 3) * 12, 50, 40, 0, 0, Math.PI * 2); context.fill()
     }
     const texture = new CanvasTexture(canvas)
@@ -441,13 +534,26 @@ function Lab() {
   const subject = useMemo(() => new Vector3(bug[0], soilTop(bug[0], bug[1]) + 0.12, bug[1]), [])
   return <Canvas shadows={semi ? 'soft' : true} dpr={[1, 2]} camera={{ position: view.position, fov: view.fov }} gl={{ antialias: true }} frameloop={still ? 'demand' : 'always'}>
     <Environment files={scanned ? `${ph}artist_workshop/artist_workshop_1k.hdr` : `${import.meta.env.BASE_URL}assets/lab/apartment.exr`} background backgroundBlurriness={semi ? 0.85 : 0.55} backgroundIntensity={0.9} environmentIntensity={0.8} />
-    <directionalLight position={[-12, 14, -10]} intensity={2.6} color="#ffe2b8" castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={12} shadow-camera-bottom={-4} shadow-bias={-0.0004} />
-    {semi && <hemisphereLight args={['#fff1d6', '#5a4632', 0.55]} />}
+    <directionalLight position={semi && !afternoon ? [10, 16, -8] : [-12, 14, -10]} intensity={semi && !afternoon ? 2.2 : 2.6} color={semi && !afternoon ? '#f2f4ff' : '#ffe2b8'} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={12} shadow-camera-bottom={-4} shadow-bias={-0.0004} />
+    {semi && <hemisphereLight args={[afternoon ? '#fff1d6' : '#e4f0ff', '#5a4632', afternoon ? 0.55 : 0.7]} />}
     <Window />
     <Suspense fallback={null}>
       {scanned ? <><ScannedSill /><ScannedSubstrate /><ScannedStone /></> : <><Sill /><Substrate /><Stone /></>}
       <Moss x={-0.2} z={-1.6} radius={1.5} count={14000} />
       <Moss x={2.0} z={-0.4} radius={0.9} count={6000} />
+      {semi && <>
+        {/* Reference: moss covers most of the floor, with a clear patch of soil where the woodlouse walks. */}
+        <Moss x={-2.2} z={1.0} radius={1.1} count={7000} />
+        <Moss x={0.3} z={2.5} radius={0.95} count={6000} />
+        <Moss x={2.5} z={1.9} radius={0.8} count={4500} />
+        <Moss x={-0.7} z={0.5} radius={0.55} count={2500} />
+        <Moss x={-2.7} z={-1.4} radius={0.8} count={4000} />
+        <MossSprigs x={0} z={0} radius={3.5} count={260} flat scale={0.6} />
+        <Fern x={0.1} z={-0.3} />
+        <Leaf x={1.7} z={1.3} turn={0.5} />
+        <Leaf x={1.9} z={-1.6} turn={-0.9} />
+        <Twig from={[0.3, 1.3]} to={[1.1, 2.0]} />
+      </>}
     </Suspense>
     {!scanned && <Grit count={260} />}
     <group position={[bug[0], soilTop(bug[0], bug[1]) - (scanned ? 0.05 : 0), bug[1]]} rotation={[0, heading.current, 0]}>
