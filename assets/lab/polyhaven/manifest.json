@@ -1,0 +1,143 @@
+{
+  "source": "https://polyhaven.com",
+  "api": "https://api.polyhaven.com",
+  "fetched": "2026-11-03",
+  "total_bytes": 23029619,
+  "assets": [
+    {
+      "id": "rock_moss_set_01",
+      "type": "model",
+      "name": "Rock Moss Set 01",
+      "purpose": "small mossy rocks",
+      "license": "CC0",
+      "authors": [
+        "Kless Gyzen"
+      ],
+      "source": "https://polyhaven.com/a/rock_moss_set_01",
+      "resolution": "1k",
+      "files": [
+        "rock_moss_set_01_1k.gltf",
+        "textures/rock_moss_set_01_nor_gl_1k.jpg",
+        "rock_moss_set_01.bin",
+        "textures/rock_moss_set_01_rough_1k.jpg",
+        "textures/rock_moss_set_01_diff_1k.jpg"
+      ],
+      "bytes": 1937065
+    },
+    {
+      "id": "bark_debris_01",
+      "type": "model",
+      "name": "Bark Debris 01",
+      "purpose": "bark / dead wood pieces",
+      "license": "CC0",
+      "authors": [
+        "Greg Zaal",
+        "Jenelle van Heerden"
+      ],
+      "source": "https://polyhaven.com/a/bark_debris_01",
+      "resolution": "1k",
+      "files": [
+        "bark_debris_01_1k.gltf",
+        "textures/bark_debris_01_arm_1k.jpg",
+        "bark_debris_01.bin",
+        "textures/bark_debris_01_diff_1k.jpg",
+        "textures/bark_debris_01_nor_gl_1k.jpg"
+      ],
+      "bytes": 8067781
+    },
+    {
+      "id": "forest_ground_04",
+      "type": "texture",
+      "name": "Forest Ground 04",
+      "purpose": "forest floor / soil",
+      "license": "CC0",
+      "authors": [
+        "Rob Tuytel",
+        "Rico Cilliers"
+      ],
+      "source": "https://polyhaven.com/a/forest_ground_04",
+      "resolution": "1k",
+      "files": [
+        "forest_ground_04_diff_1k.jpg",
+        "forest_ground_04_nor_gl_1k.jpg",
+        "forest_ground_04_rough_1k.jpg",
+        "forest_ground_04_disp_1k.jpg"
+      ],
+      "bytes": 3291763
+    },
+    {
+      "id": "moss_wood",
+      "type": "texture",
+      "name": "Moss Wood",
+      "purpose": "moss: dense green moss on old planks (visible vertical cracks); Poly Haven has no pure moss ground texture",
+      "license": "CC0",
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "source": "https://polyhaven.com/a/moss_wood",
+      "resolution": "1k",
+      "files": [
+        "moss_wood_diff_1k.jpg",
+        "moss_wood_nor_gl_1k.jpg",
+        "moss_wood_rough_1k.jpg",
+        "moss_wood_disp_1k.jpg"
+      ],
+      "bytes": 2485365
+    },
+    {
+      "id": "clean_pebbles",
+      "type": "texture",
+      "name": "Clean Pebbles",
+      "purpose": "gravel / small pebbles",
+      "license": "CC0",
+      "authors": [
+        "Dario Barresi",
+        "Charlotte Baglioni"
+      ],
+      "source": "https://polyhaven.com/a/clean_pebbles",
+      "resolution": "1k",
+      "files": [
+        "clean_pebbles_diff_1k.jpg",
+        "clean_pebbles_nor_gl_1k.jpg",
+        "clean_pebbles_rough_1k.jpg",
+        "clean_pebbles_disp_1k.jpg"
+      ],
+      "bytes": 3512662
+    },
+    {
+      "id": "oak_veneer_01",
+      "type": "texture",
+      "name": "Oak Veneer 01",
+      "purpose": "light oak windowsill",
+      "license": "CC0",
+      "authors": [
+        "Jenelle van Heerden"
+      ],
+      "source": "https://polyhaven.com/a/oak_veneer_01",
+      "resolution": "1k",
+      "files": [
+        "oak_veneer_01_diff_1k.jpg",
+        "oak_veneer_01_nor_gl_1k.jpg",
+        "oak_veneer_01_rough_1k.jpg",
+        "oak_veneer_01_disp_1k.jpg"
+      ],
+      "bytes": 2015320
+    },
+    {
+      "id": "artist_workshop",
+      "type": "hdri",
+      "name": "Artist Workshop",
+      "purpose": "bright interior with daylight through windows",
+      "license": "CC0",
+      "authors": [
+        "Oliksiy Yakovlyev"
+      ],
+      "source": "https://polyhaven.com/a/artist_workshop",
+      "resolution": "1k",
+      "files": [
+        "artist_workshop_1k.hdr"
+      ],
+      "bytes": 1719663
+    }
+  ]
+}
