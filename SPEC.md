@@ -1,5 +1,14 @@
 # ECOSPHERE — scoped development
 
+## Observatory: run history and A/B projections — 2026-11-03
+
+Context.md's core loop (Simulate → Observe → Experiment → Analyze) has no analysis view yet: A/B shows one frozen snapshot each. Add a read-only Observatory dialog with two views, both built from pure `src/sim/observatory.ts`:
+
+1. **This run**: one sample per model hour of the live world (plants, leaf cover, soil water/nutrients/organic, pond oxygen %, algae, each animal role, ant workers). Kept only in memory, capped at 24×60 samples, cleared when a world is begun/restored or time moves backwards. No saved field.
+2. **Compare A/B**: from each kept snapshot, run the unchanged `simulateStep` forward for 3/7/14 model days without interventions and overlay the chosen metric. Labelled as an untouched projection from the snapshot moment, not the player's later run. Deterministic: the same snapshot gives the same curve; the live world and stored slots are never mutated.
+
+Hand-written SVG line chart, no new dependency, no save-format or solver change, no RNG use outside the copied projection worlds. Opening pauses time like other dialogs.
+
 ## Supported nursery and granary contents — 2026-10-31
 
 Review refinement: use a horizontal nursery bed grid (0.085 X / 0.05 Z spacing) for distinct cohorts. Old rows separated only in height collapsed together when settled. Keep within-cohort spacing/count and biological dimensions unchanged; test all eight cohort slots for noncoincident supported positions.
