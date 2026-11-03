@@ -98,6 +98,8 @@ export function App() {
   const [selectedCreature, setSelectedCreature] = useState<number | null>(null)
   const [selectedSoil, setSelectedSoil] = useState<number | null>(null)
   const [nurseryOpen, setNurseryOpen] = useState(false)
+  // Cozy phone HUD: field notes sit in a pull-up sheet over the jar.
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [tool, setTool] = useState<Lifeform | 'colony' | null>(null)
   const [experimentsOpen, setExperimentsOpen] = useState(false)
   const [observatoryOpen, setObservatoryOpen] = useState(false)
@@ -391,7 +393,7 @@ export function App() {
   const hour = String(world.tick % 24).padStart(2, '0')
 
   return (
-    <main className={`app-shell ${paperLook ? 'cozy' : ''} ${followCreature !== null || followAnt !== null || focusedRemains || focusPlant !== null || underwater || underground ? 'is-watching' : ''} ${underwater ? 'is-underwater' : ''} ${underground ? 'is-underground' : ''} ${environment.cycling && environment.solar < 0.3 ? environment.phase === 'night' ? 'is-night' : 'is-twilight' : ''}`}>
+    <main className={`app-shell ${paperLook ? 'cozy' : ''} ${sheetOpen ? 'sheet-open' : ''} ${followCreature !== null || followAnt !== null || focusedRemains || focusPlant !== null || underwater || underground ? 'is-watching' : ''} ${underwater ? 'is-underwater' : ''} ${underground ? 'is-underground' : ''} ${environment.cycling && environment.solar < 0.3 ? environment.phase === 'night' ? 'is-night' : 'is-twilight' : ''}`}>
       <div className="ambient ambient-one" aria-hidden="true" />
       <div className="ambient ambient-two" aria-hidden="true" />
 
@@ -438,6 +440,7 @@ export function App() {
       </section>
 
       <aside key={`${selectedPlant}:${selectedCreature}:${selectedSoil}:${selectedPond}:${selectedAnt}:${selectedBrood}:${selectedRemains?.id}:${focusChamber}:${selectedColony}:${nurseryOpen}`} className={`pulse-panel ${nurseryOpen ? 'is-nursery' : selected ? 'has-plant' : selectedColony || selectedPond || underwater || focusedCreature || focusedRemains || focusedPatch ? 'is-focus' : ''}`} aria-label="Ecosystem state">
+        {paperLook && <button className="sheet-handle" type="button" aria-expanded={sheetOpen} aria-label={sheetOpen ? 'Hide field notes' : 'Show field notes'} onClick={() => setSheetOpen(!sheetOpen)}><i aria-hidden="true" /></button>}
         <div className="panel-top"><span>FIELD NOTES</span><span className="panel-star" aria-hidden="true">✳</span></div>
         {nurseryOpen ? (
           <div className="nursery-view">

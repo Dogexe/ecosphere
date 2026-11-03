@@ -619,3 +619,48 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
   .cozy .day-indicator { align-self: center; margin: -10px auto 0; }
   .app-shell.cozy .header-actions .text-button { min-height: 36px; padding: 6px 10px; font-size: 10px; }
 }
+
+/* Cozy phone HUD: the jar fills the screen; field notes are a pull-up sheet above a compact tool tray. */
+.sheet-handle { display: none; }
+@media (max-width: 760px) {
+  .app-shell.cozy { height: 100dvh; min-height: 0; overflow: clip; display: block; padding: 0; }
+  .cozy .site-header { position: absolute; z-index: 5; top: 10px; left: 12px; right: 12px; margin: 0; align-items: flex-start; }
+  .cozy .brand { font-size: 11px; padding: 6px 11px 6px 8px; }
+  .cozy .header-actions { flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 62%; }
+  .app-shell.cozy .header-actions .text-button { min-height: 32px; padding: 5px 10px; font-size: 10px; box-shadow: 0 2px 0 #e3d1b0; }
+  .cozy .scene-wrap { position: absolute; inset: 0 0 160px; height: auto; min-height: 0; max-height: none; margin: 0; overflow: visible; }
+  .cozy .scene-view-tools { top: 146px; }
+  .cozy .scene-view-button { min-height: 36px; padding: 6px 14px; }
+  .cozy .scene-hint:not(.placing-hint) { display: none; }
+  .cozy .scene-hint.placing-hint { bottom: auto; top: 196px; }
+  .cozy .day-indicator { position: absolute; z-index: 3; left: 12px; top: 96px; margin: 0; padding: 4px 6px 4px 11px; font-size: 8px; }
+  .cozy .day-indicator strong { font-size: 15px; }
+  .cozy .control-dock { position: absolute; z-index: 5; left: 8px; right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); margin: 0; padding: 8px 10px 10px; border-radius: 16px; }
+  .cozy .dock-heading { padding-bottom: 6px; font-size: 8px; }
+  .cozy .dock-heading > span:first-child { display: none; }
+  .cozy .dock-content { grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .cozy .action-button { height: 44px; padding: 6px 8px; }
+  .cozy .action-plus { display: none; }
+  .cozy .sun-control, .cozy .time-control { min-height: 0; }
+  .cozy .range-labels { display: none; }
+  .cozy .speed-buttons { margin-top: 4px; }
+  .cozy .speed-buttons button { height: 30px; min-height: 30px; }
+  /* Sheet: a peek of the notes (title + meters) sits above the tray; the handle opens the rest. */
+  .cozy .pulse-panel {
+    position: absolute; z-index: 4; left: 8px; right: 8px; bottom: calc(var(--tray, 168px) + 6px); margin: 0; padding: 4px 15px 12px;
+    max-height: 116px; overflow: hidden; border-radius: 16px 16px 12px 12px; transition: max-height .3s ease;
+  }
+  .cozy .pulse-panel::before { display: none; }
+  .cozy.sheet-open .pulse-panel, .cozy .pulse-panel:is(.is-nursery, .has-plant, .is-focus) { max-height: min(58dvh, calc(100dvh - 300px)); overflow-y: auto; overscroll-behavior: contain; }
+  .cozy .sheet-handle { display: block; width: 100%; height: 22px; min-height: 22px; margin: 0 0 2px; padding: 0; border: 0; background: none; }
+  .cozy .sheet-handle i { display: block; width: 40px; height: 4px; margin: 0 auto; border-radius: 99px; background: #cdb58f; }
+  .cozy .pulse-panel .panel-top { display: none; }
+  .cozy .pulse-panel .panel-kicker { display: none; }
+  .cozy .pulse-panel h2 { margin: 0 0 8px; font-size: 17px; }
+  .cozy .pulse-panel > p, .cozy .pulse-panel .overview-note { display: none; }
+  .cozy.sheet-open .pulse-panel > p, .cozy.sheet-open .pulse-panel .overview-note { display: block; }
+  .cozy .meter-stack { gap: 10px; }
+  .cozy .meter-top { font-size: 9px; }
+  .cozy .notice { bottom: calc(var(--tray, 168px) + 150px); }
+  .cozy:not(.sheet-open) .pulse-panel:not(.is-nursery, .has-plant, .is-focus) .panel-foot { display: none; }
+}
