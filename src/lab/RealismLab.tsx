@@ -1,8 +1,10 @@
 import { Suspense, useMemo, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { DepthOfField, EffectComposer } from '@react-three/postprocessing'
+import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
-import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, Object3D, PlaneGeometry, SRGBColorSpace } from 'three'
+import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, Object3D, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three'
 import { PaperAnimal } from '../scene/PaperCritter'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
 
@@ -15,7 +17,15 @@ import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture
  */
 
 const query = new URLSearchParams(window.location.search)
-const close = query.get('shot') === 'close'
+const shot = query.get('shot')
+/** Camera presets for screenshots: sill (whole windowsill), jar (default), close, macro (magnifier). */
+const shots: Record<string, { position: [number, number, number]; target: [number, number, number]; fov: number }> = {
+  sill: { position: [16, 12, 30], target: [0, 3.2, 0], fov: 32 },
+  jar: { position: [9, 7.5, 15], target: [0, 3.2, 0], fov: 32 },
+  close: { position: [1.7, 4.4, 2.9], target: [0.9, 2.5, 0.6], fov: 40 },
+  macro: { position: [1.45, 2.75, 2.35], target: [1.0, 2.45, 0.9], fov: 40 },
+}
+const view = shots[shot ?? 'jar'] ?? shots.jar
 /** ?still=1 renders only when something changes (for screenshots on slow software GPUs). */
 const still = query.get('still') === '1'
 /** Round 2 (default) uses Poly Haven CC0 scans; ?round=1 shows the procedural first attempt. */
@@ -256,11 +266,47 @@ function Window() {
   </group>
 }
 
+/**
+ * Magnifier zoom: one continuous camera. As you zoom in, the view eases down
+ * towards eye level (so side-view paper animals read well), the orbit centre
+ * drifts to the animal, and a macro-lens depth of field narrows.
+ * `zoom` 0 = whole jar, 1 = magnifier.
+ */
+const jarCentre = new Vector3(0, 3.2, 0)
+const goal = new Vector3()
+function MagnifierRig({ subject }: { subject: Vector3 }) {
+  const controls = useThree((state) => state.controls) as unknown as { target: Vector3; minPolarAngle: number; maxPolarAngle: number } | null
+  const dof = useRef<DepthOfFieldEffect>(null)
+  const settle = useRef(still ? 5 : 0)
+  useFrame(({ camera, invalidate }) => {
+    // In ?still=1 screenshots, draw a few extra frames so the rig settles.
+    if (settle.current > 0) { settle.current -= 1; invalidate() }
+    if (!controls) return
+    const distance = camera.position.distanceTo(controls.target)
+    const near = 1 - MathUtils.smoothstep(distance, 1.6, 14)
+    goal.copy(jarCentre).lerp(subject, near)
+    controls.target.lerp(goal, still ? 0.3 : 0.08)
+    const centre = MathUtils.lerp(0.95, 1.38, near)
+    controls.minPolarAngle = centre - MathUtils.lerp(0.65, 0.14, near)
+    controls.maxPolarAngle = centre + MathUtils.lerp(0.4, 0.1, near)
+    const effect = dof.current
+    if (effect) {
+      effect.target = controls.target
+      effect.bokehScale = MathUtils.lerp(0.6, 5, near)
+      effect.cocMaterial.worldFocusRange = MathUtils.lerp(9, 0.7, near)
+    }
+  })
+  return <EffectComposer multisampling={0}>
+    <DepthOfField ref={dof} worldFocusRange={9} bokehScale={1} resolutionScale={0.5} />
+  </EffectComposer>
+}
+
 function Lab() {
   const heading = useRef(Math.PI / 2 + 0.25)
   const moving = useRef(true)
   const bug: [number, number] = [1.0, 0.9]
-  return <Canvas shadows dpr={[1, 2]} camera={close ? { position: [1.7, 4.4, 2.9], fov: 40 } : { position: [9, 7.5, 15], fov: 32 }} gl={{ antialias: true }} frameloop={still ? 'demand' : 'always'}>
+  const subject = useMemo(() => new Vector3(bug[0], soilTop(bug[0], bug[1]) + 0.12, bug[1]), [])
+  return <Canvas shadows dpr={[1, 2]} camera={{ position: view.position, fov: view.fov }} gl={{ antialias: true }} frameloop={still ? 'demand' : 'always'}>
     <Environment files={scanned ? `${ph}artist_workshop/artist_workshop_1k.hdr` : `${import.meta.env.BASE_URL}assets/lab/apartment.exr`} background backgroundBlurriness={0.55} backgroundIntensity={0.9} environmentIntensity={0.8} />
     <directionalLight position={[-12, 14, -10]} intensity={2.6} color="#ffe2b8" castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={12} shadow-camera-bottom={-4} shadow-bias={-0.0004} />
     <Window />
@@ -270,11 +316,12 @@ function Lab() {
       <Moss x={2.0} z={-0.4} radius={0.9} count={6000} />
     </Suspense>
     {!scanned && <Grit count={260} />}
-    <group position={[bug[0], soilTop(bug[0], bug[1]), bug[1]]} rotation={[0, heading.current, 0]}>
+    <group position={[bug[0], soilTop(bug[0], bug[1]) - (scanned ? 0.05 : 0), bug[1]]} rotation={[0, heading.current, 0]}>
       <PaperAnimal animal="woodlouse" base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
     </group>
     <Jar />
-    <OrbitControls target={close ? [0.9, 2.5, 0.6] : [0, 3.2, 0]} />
+    <OrbitControls makeDefault target={view.target} minDistance={1.1} maxDistance={40} enableDamping />
+    <MagnifierRig subject={subject} />
   </Canvas>
 }
 
