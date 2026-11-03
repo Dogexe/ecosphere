@@ -6,7 +6,7 @@ import { Color, CylinderGeometry, DoubleSide, FrontSide, Group, InstancedMesh, M
 import { Vector3 } from 'three'
 import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
-import { PaperWoodlouse, paperLook } from './PaperCritter'
+import { PaperAnimal, paperLook } from './PaperCritter'
 import { modelUnavailable, OrganismAsset, PlantAsset } from './OrganismAsset'
 import { worldPickRadius, animalTargetPixels } from './picking'
 import { terrainGeometry } from './terrainGeometry'
@@ -551,7 +551,7 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={startScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      {paperLook ? <PaperWoodlouse heading={yaw} moving={isMoving} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} /> : <OrganismAsset file="woodlouse" shape={{ length: 0.64, base: -0.09 }} moving={isMoving} feeding={feeding} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} fallback={<group>
+      {paperLook ? <PaperAnimal animal="woodlouse" base={-0.09} heading={yaw} moving={isMoving} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} /> : <OrganismAsset file="woodlouse" shape={{ length: 0.64, base: -0.09 }} moving={isMoving} feeding={feeding} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} fallback={<group>
       <instancedMesh ref={legs} args={[undefined, undefined, 28]}><primitive object={woodlouseLeg} attach="geometry" /><meshStandardMaterial color="#7c8071" roughness={1} /></instancedMesh>
       {Array.from({ length: 7 }, (_, index) => (
         <mesh key={index} position={[0, 0.035, index * 0.066 - 0.2]} scale={[0.16 + Math.sin(index / 6 * Math.PI) * 0.045, 0.09, 0.063]} castShadow>
