@@ -56,6 +56,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .text-button:hover { color: #1f4734; border-color: #1f4734; }
 .is-night .text-button:hover, .is-twilight .text-button:hover { color: #fff7de; border-color: #d0e0df; }
 .header-actions { display: flex; align-items: center; gap: 22px; }
+@media (max-width: 520px) {
+  .header-actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 0; column-gap: 12px; min-width: 0; }
+  .header-actions .text-button span { display: none; }
+}
 
 .intro { position: absolute; z-index: 3; left: 4.4%; top: 20%; width: min(26vw, 335px); pointer-events: none; }
 .is-watching .intro { visibility: hidden; }
@@ -408,3 +412,26 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Observatory */
+.observatory-dialog { width: min(760px, calc(100% - 32px)); }
+.observatory-tabs, .observatory-metrics { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 12px; }
+.observatory-tabs button, .observatory-metrics button { min-height: 36px; padding: 0 13px; border: 1px solid #d9e5d2; border-radius: 999px; background: #f9fbf2; color: #4d704c; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.observatory-tabs button.active, .observatory-metrics button.active { border-color: #4d704c; background: #4d704c; color: #f9fbf2; }
+.observatory-metrics button.quiet:not(.active) { color: #a3b098; }
+.observatory-figure { margin: 4px 0 12px; padding: 14px; border: 1px solid #d9e5d2; border-radius: 17px; background: #f9fbf2; }
+.observatory-chart { display: block; width: 100%; height: auto; }
+.observatory-chart .grid { stroke: #dfe8d8; stroke-width: 1; }
+.observatory-chart .axis { fill: #8d9d81; font-size: 11px; }
+.observatory-chart .series { fill: none; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.observatory-chart .series.run, .observatory-chart .series.a, .observatory-legend .run i, .observatory-legend .a i { stroke: #4d8a55; background: #4d8a55; }
+.observatory-chart .series.b, .observatory-legend .b i { stroke: #b4743a; background: #b4743a; }
+.observatory-empty { margin: 0; padding: 48px 12px; text-align: center; color: #8d9d81; }
+.observatory-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 13px; color: #4d704c; }
+.observatory-legend i { display: inline-block; width: 14px; height: 4px; margin-right: 7px; border-radius: 2px; vertical-align: middle; }
+.observatory-legend small { color: #8d9d81; }
+@media (max-width: 1180px), (pointer: coarse) {
+  .observatory-tabs button, .observatory-metrics button { min-height: 44px; }
+  .observatory-figure { padding: 8px; }
+}
+@media (max-width: 520px) { .observatory-chart .axis { font-size: 20px; } }

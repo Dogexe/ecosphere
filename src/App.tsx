@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Terrarium } from './scene/Terrarium'
 import { ExperimentBook } from './ExperimentBook'
+import { Observatory } from './Observatory'
+import { recordSample } from './sim/observatory'
+import type { ObservationSample } from './sim/observatory'
 import { WorldStart } from './WorldStart'
 import { SoilMixture } from './SoilMixture'
 import { Environment } from './Environment'
@@ -91,6 +94,8 @@ export function App() {
   const [nurseryOpen, setNurseryOpen] = useState(false)
   const [tool, setTool] = useState<Lifeform | 'colony' | null>(null)
   const [experimentsOpen, setExperimentsOpen] = useState(false)
+  const [observatoryOpen, setObservatoryOpen] = useState(false)
+  const [history, setHistory] = useState<ObservationSample[]>([])
   const [worldStartOpen, setWorldStartOpen] = useState(false)
   const [worldRevision, setWorldRevision] = useState(0)
   const [mixtureOpen, setMixtureOpen] = useState(false)
@@ -150,6 +155,9 @@ export function App() {
   function setWorld(update: World | ((current: World) => World)) {
     setSession((current) => ({ world: typeof update === 'function' ? update(current.world) : update, events: [] }))
   }
+
+  // Observation only: one reading per model hour, never fed back into the world.
+  useEffect(() => { setHistory((current) => recordSample(current, session.world)) }, [session.world])
 
   useEffect(() => {
     if (speed === 0) return
@@ -284,6 +292,7 @@ export function App() {
   function restore(snapshot: World) {
     setUnderwater(false)
     setUnderground(false)
+    setHistory([])
     setWorld(snapshot)
     setWorldRevision((revision) => revision + 1)
     setSpeed(0)
@@ -297,6 +306,7 @@ export function App() {
   function begin(start: HabitatStart, seed = 2217) {
     setUnderwater(false)
     setUnderground(false)
+    setHistory([])
     setWorld(beginDaylitWorld(createHabitatWorld(start, seed)))
     setWorldRevision((revision) => revision + 1)
     setSpeed(0)
@@ -352,6 +362,7 @@ export function App() {
         </div>
         <div className="header-note"><span className="live-dot" /> A LIVING LITTLE WORLD</div>
         <div className="header-actions">
+          <button className="text-button" onClick={() => { setSpeed(0); setObservatoryOpen(true) }} type="button">Observatory</button>
           <button className="text-button" onClick={() => { setSpeed(0); setExperimentsOpen(true) }} type="button">Experiments</button>
           <button className="text-button" onClick={() => { setSpeed(0); setWorldStartOpen(true) }} type="button">New world <span aria-hidden="true">↗</span></button>
         </div>
@@ -519,6 +530,7 @@ export function App() {
         </div>
       </section>
       {notice && <div className="notice" role="status">{notice}</div>}
+      <Observatory open={observatoryOpen} history={history} onClose={() => setObservatoryOpen(false)} />
       <ExperimentBook open={experimentsOpen} world={world} onClose={() => setExperimentsOpen(false)} onLoad={restore} />
       <WorldStart open={worldStartOpen} onClose={() => setWorldStartOpen(false)} onBegin={begin} onKeep={() => { setWorldStartOpen(false); setExperimentsOpen(true) }} />
       <SoilMixture open={mixtureOpen} patchId={selectedSoil} onClose={() => setMixtureOpen(false)} onApply={mix} />

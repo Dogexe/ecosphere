@@ -1,5 +1,9 @@
 # Verification plan — first playable slice
 
+## Observatory — before implementation, 2026-11-03
+
+Unit: sample values match the world; recorder appends one sample per new tick, ignores repeats, resets on backwards time and caps length; projection equals manual `stepWorld` replay, does not mutate its input, and is identical across runs. Full `npm test`, typecheck and build. Browser: open Observatory on a running world, switch metrics, compare two saved slots at desktop and 390px phone width with no horizontal overflow or console errors.
+
 ## Nursery and granary support — before implementation, 2026-10-31
 
 Test the pure world-down placement using real imported larva/pupa bounds, existing rotation, egg dimensions, cohort stacking and supported food grains. Require finite offsets, nonmutation, preserved scale/count and actual vertices within the cavity. Keep adult support/contact regressions. Run all tests/typecheck/build. Reopen the compiled game, verify current adult follow and nursery/chamber picking, step real development, inspect floors from multiple angles and collect current errors/profile. If native input remains unreliable, record that gate as incomplete and do not expand to another visual feature.

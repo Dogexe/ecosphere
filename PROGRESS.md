@@ -1,5 +1,13 @@
 # ECOSPHERE development progress
 
+## Observatory — 2026-11-03
+
+New header **Observatory** dialog (pauses time like other dialogs). *This run* charts one in-memory reading per model hour (14 metrics: plants, leaf cover, soil water/nutrients/organic, pond oxygen, algae, six animal roles, ant workers), capped at 60 days and cleared on begin/restore. *Compare A & B* replays each kept snapshot forward 3/7/14 days with the unchanged `simulateStep` and no tending, overlaid on one SVG chart. Pure helpers in `src/sim/observatory.ts`; no dependency, solver, RNG or save-format change.
+
+203 tests (3 new: sample fidelity/non-mutation, hourly recorder reset/cap, projection equals manual replay and is deterministic), typecheck and production build pass; existing chunk-size warning remains. Headless Chromium (SwiftShader) on the compiled build at 1280×800 and 390×844: ran 3× time, saved A, lowered sunlight to 0.25, saved B, opened both views. 7-day leaf cover projection A 49%→40% vs B 49%→8%; no horizontal overflow, no console errors. Not tested on a physical iPad or in the host Windows browser.
+
+Limits: run history is lost on reload; projections show "left untouched" futures only, not the player's later actions. Next: Seal Mode can reuse these projections and the history view.
+
 ## Cavity-supported adult ants — 2026-10-31
 
 Imported worker/queen models now use measured rigid-body support against the same cavity field as the rendered nest, replacing the uniform underground base -0.055. Body, carried food, selection marker and 28CSSpx proxy share the presentation translation. The transient rendered-center map feeds nest follow before camera updates; native inspection found and fixed queen clipping caused by following the old graph center. Surface dimensions, assets, graph travel, material accounting, RNG and saves are unchanged.
