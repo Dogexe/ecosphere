@@ -1,4 +1,4 @@
-import { algaeGrowth, defaultClimate, defaultPond, isAquatic, isPondPosition, isSwimmingPosition, lifespan, maturity, pondCenter, rateAt, stepPond } from './pond.ts'
+import { algaeGrowth, defaultClimate, defaultPond, isAquatic, isPondPosition, isSwimmingPosition, lifespan, maturity, pondShape, rateAt, setPondShape, stepPond } from './pond.ts'
 import type { Climate, Pond } from './pond'
 import { addRemains, bodyStock, decayRemains, developmentRate, plantLifetime, plantStage, woodlouseLife, woodlouseMate } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
@@ -116,6 +116,7 @@ export function creatureCounts(creatures: Creature[]): Record<CreatureKind, numb
 }
 
 export function placementIssue(world: World, kind: Lifeform, x: number, z: number): string | null {
+  setPondShape(world.substrate)
   if (world.sealed) return 'This world is sealed. Open the seal to add life.'
   if (isAquatic(kind) ? !isPondPosition(x, z) || (world.pond ?? defaultPond()).water < 8 : !isLand(x, z)) return isAquatic(kind) ? 'Choose water inside the pond. Refill a dry pond first.' : 'Choose dry ground inside the rim.'
   if ((kind === 'fish' || kind === 'flea') && !isSwimmingPosition(kind, x, z)) return 'Choose deeper inside the pond so the whole animal clears the bank.'
@@ -254,7 +255,7 @@ function peakLightAt(world: World, x: number, z: number, excludeId = -1): number
 export const lightAt = (world: World, x: number, z: number, excludeId = -1) => peakLightAt(world, x, z, excludeId) * environmentAt(world).solar
 const plantLight = (world: World, plant: Plant) => plant.kind === 'tree' ? world.light : peakLightAt(world, plant.x, plant.z, plant.id)
 
-function pondPatch(pond: Pond): SoilPatch { return { id: 4, x: pondCenter.x, z: pondCenter.z, fungi: 0, water: pond.water, nutrients: pond.nutrients, organic: pond.organic } }
+function pondPatch(pond: Pond): SoilPatch { return { id: 4, x: pondShape().center.x, z: pondShape().center.z, fungi: 0, water: pond.water, nutrients: pond.nutrients, organic: pond.organic } }
 const plantPatch = (world: World, plant: Plant) => isAquatic(plant.kind) ? pondPatch(world.pond ?? defaultPond()) : nearestSoil(soilFor(world), plant.x, plant.z)
 
 function plantConditions(plant: Plant, patch: SoilPatch, light: number) {
@@ -484,6 +485,7 @@ function spreadSoilWater(soil: SoilPatch[]) {
 }
 
 export function simulateStep(world: World): StepResult {
+  setPondShape(world.substrate)
   const opening = world
   let seed = world.seed
   const highestCreatureId = Math.max((world.nextCreatureId ?? 0) - 1, world.creatures.reduce((highest, creature) => Math.max(highest, creature.id), -1))

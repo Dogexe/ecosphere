@@ -1,3 +1,4 @@
+import { fogLevel } from '../sim/seal'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -27,7 +28,7 @@ import type { SavedSubstrate } from '../sim/substrate'
 import { defaultPond, isAquatic } from '../sim/pond'
 import type { Pond } from '../sim/pond'
 import { plantFlowering, plantStage, woodlouseLife } from '../sim/life'
-import { animalGroundY, animalModelScale, animalWaterY, environmentScale, plantGroundY, plantGrowthScale, plantModelScale, plantSeedDimensions, springtailTrackingRate } from './scale'
+import { animalGroundY, animalModelScale, animalWaterY, environmentScale, groundShape, plantGroundY, plantGrowthScale, plantModelScale, plantSeedDimensions, springtailTrackingRate } from './scale'
 import { plantCameraFocus } from './plantCamera'
 
 type SceneProps = {
@@ -126,10 +127,10 @@ function LitterPatch({ patch }: { patch: SoilPatch }) {
   )
 }
 
-function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwater, swimmers, substrate }: { pond: Pond; swimmers: { id: number; x: number; z: number }[]; substrate?: SavedSubstrate; soil: SoilPatch[]; selectedSoil: number | null; onGroundClick: (x: number, z: number) => void; onPondClick: (x: number, z: number) => void; underwater: boolean }) {
+function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwater, swimmers, substrate, fog = 0 }: { fog?: number; pond: Pond; swimmers: { id: number; x: number; z: number }[]; substrate?: SavedSubstrate; soil: SoilPatch[]; selectedSoil: number | null; onGroundClick: (x: number, z: number) => void; onPondClick: (x: number, z: number) => void; underwater: boolean }) {
   return (
     <group onClick={(event) => { if (event.delta > 5 || (event.point.y < 0.025 && !paperLook)) return; event.stopPropagation(); onGroundClick(event.point.x, event.point.z) }}>
-      {paperLook ? <JarSetting substrate={substrate} soil={soil} /> : <>
+      {paperLook ? <JarSetting substrate={substrate} soil={soil} pond={pond} underwater={underwater} onPondClick={onPondClick} fog={fog} /> : <>
       <mesh position={[0, -0.75, 0]} receiveShadow castShadow>
         <cylinderGeometry args={[3.72, 3.43, 1.05, 48]} />
         <meshStandardMaterial color="#8b715a" roughness={1} flatShading />
@@ -153,8 +154,8 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
       </>}
 
       {soil.map((patch) => (
-        <group key={patch.id} position={[patch.x, 0.052, patch.z]}>
-          {patch.water > 52 && <mesh rotation={[-Math.PI / 2, 0, 0]} raycast={() => undefined}>
+        <group key={patch.id} position={[patch.x, 0.052 + groundShape.offset(patch.x, patch.z), patch.z]}>
+          {patch.water > 52 && !paperLook && <mesh rotation={[-Math.PI / 2, 0, 0]} raycast={() => undefined}>
             <circleGeometry args={[0.86, 24]} />
             <meshBasicMaterial color="#8db9a7" transparent opacity={Math.min(0.19, (patch.water - 52) / 230)} depthWrite={false} />
           </mesh>}
@@ -166,7 +167,8 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
       ))}
       {soil.map((patch) => <LitterPatch key={`litter-${patch.id}`} patch={patch} />)}
 
-      <PondWater pond={pond} underwater={underwater} swimmers={swimmers} onPondClick={onPondClick} />
+      {/* A poured jar draws its own pond, shaped by where the water stands. */}
+      {!(paperLook && substrate?.pool) && <PondWater pond={pond} underwater={underwater} swimmers={swimmers} onPondClick={onPondClick} />}
 
       {!paperLook && <>
       <GrassField />
@@ -819,7 +821,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
-      <Terrain underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
+      <Terrain fog={fogLevel(world)} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
       {!underwater && (world.soil ?? []).map((patch) => <FungalPatch key={patch.id} patch={patch} />)}
       <RemainsField world={viewWorld} />
       {viewWorld.plants.map((plant) => <PlantModel key={`${worldRevision}:${plant.id}`} plant={plant} fit={habitatFit(world, plant)} tick={world.tick} selected={selectedPlant === plant.id} onSelect={() => placing ? onPlace(plant.x, plant.z) : onSelectPlant(plant.id)} />)}

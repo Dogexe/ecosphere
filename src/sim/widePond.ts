@@ -26,12 +26,12 @@ function colonyPoints(value: unknown, found: Source[] = []): Source[] {
 }
 
 /** A nest is moved as one piece, straight away from the pond, until every node is on dry ground. */
-function moveColony(colony: Source, soil: unknown) {
+export function moveColony(colony: Source, soil: unknown, needsMove?: (nodes: Source[]) => boolean) {
   const nodes = Array.isArray(colony.nodes) ? colony.nodes.filter(isRecord).filter(isPoint) : []
   const entrance = isRecord(colony.entrance) && isPoint(colony.entrance) ? colony.entrance : null
   const clear = 0.26 // past the strictest nest rule: rest chambers keep 0.25 from the water
   // Only a nest the old pond allowed and the new one floods is moved.
-  if (!entrance || nodes.every((node) => isLand(node.x as number, node.z as number, 0.08)) || !nodes.every((node) => wasLand(node.x as number, node.z as number))) return
+  if (!entrance || (needsMove ? !needsMove(nodes) : nodes.every((node) => isLand(node.x as number, node.z as number, 0.08)) || !nodes.every((node) => wasLand(node.x as number, node.z as number)))) return
   const target = settleOnLand(entrance.x as number, entrance.z as number, clear)
   let dx = target.x - (entrance.x as number), dz = target.z - (entrance.z as number)
   const length = Math.hypot(dx, dz) || 1

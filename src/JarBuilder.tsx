@@ -3,9 +3,9 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { Color, DoubleSide, InstancedMesh, MOUSE, Object3D, TOUCH, Vector3 } from 'three'
-import { deposit, emptySubstrate, heightAt, jarRadius, layerDepths, puddles, saveSubstrate, settle } from './sim/substrate'
+import { deposit, emptySubstrate, heightAt, jarRadius, layerDepths, puddles, saveSubstrate, settle, substrateCell, substrateSize } from './sim/substrate'
 import type { DecorKind, Pourable, SavedSubstrate, Substrate } from './sim/substrate'
-import { pondCenter } from './sim/pond'
+import { pondDepth } from './sim/pondShape'
 import { layerColours, updateLayered, useLayerMaterials, useLayeredGeometry } from './scene/LayeredGround'
 import { DecorPiece } from './scene/JarSetting'
 
@@ -135,15 +135,6 @@ function Glass() {
   </group>
 }
 
-/** Where the pond will be dug once the game starts: a dashed ring on the soil. */
-function PondMarker({ state }: { state: Substrate }) {
-  const y = layerDepths(state).gravel + layerDepths(state).charcoal + layerDepths(state).soil + 0.05
-  return <mesh position={[pondCenter.x, y, pondCenter.z]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => undefined}>
-    <ringGeometry args={[pondCenter.radius - 0.04, pondCenter.radius, 64]} />
-    <meshBasicMaterial color="#6fa6cc" transparent opacity={0.55} depthWrite={false} />
-  </mesh>
-}
-
 export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: SavedSubstrate, wetness: Substrate) => void; onCancel: () => void }) {
   const state = useMemo(emptySubstrate, [])
   const [step, setStep] = useState<Step>('gravel')
@@ -154,13 +145,20 @@ export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: Saved
   const turn = useRef(0)
   const depths = layerDepths(state)
   const pools = puddles(state)
+  // Water standing deeper than about 1.5 mm becomes the pond once the game starts. 1 unit³ ≈ 6.86 ml at 19 mm per unit.
+  let pondMl = 0
+  for (let k = 0; k < state.pool.length; k += 1) if (state.pool[k] > pondDepth) pondMl += state.pool[k] * substrateCell * substrateCell * 6.86
+  const inPond = (x: number, z: number) => {
+    const i = Math.round((x + R) / substrateCell), j = Math.round((z + R) / substrateCell)
+    return i >= 0 && j >= 0 && i < substrateSize && j < substrateSize && state.pool[j * substrateSize + i] > pondDepth
+  }
   if (location.search.includes('debug')) (window as unknown as { __jar: unknown }).__jar = { state, pouring, aim, step }
   const current = steps.find((item) => item.id === step)!
   const depthOf = (id: Step) => id === 'gravel' ? depths.gravel : id === 'charcoal' ? depths.charcoal : id === 'soil' ? depths.soil : 0
   const target = (event: ThreeEvent<PointerEvent>) => { aim.current.set(event.point.x, 0, event.point.z) }
   const place = (event: ThreeEvent<PointerEvent>) => {
     const { x, z } = event.point
-    if (Math.hypot(x, z) > R - 0.4 || Math.hypot(x - pondCenter.x, z - pondCenter.z) < pondCenter.radius + 0.2) return
+    if (Math.hypot(x, z) > R - 0.4 || inPond(x, z)) return
     const hit = state.decor.findIndex((item) => Math.hypot(item.x - x, item.z - z) < item.size * 0.5)
     if (hit >= 0) state.decor.splice(hit, 1)
     else if (state.decor.length < 12) state.decor.push({ kind: decorKind, x, z, size: decorKind === 'stone' ? 0.8 + ((state.decor.length * 37) % 7) / 10 : 1.4, turn: (state.decor.length * 2.39) % (Math.PI * 2) })
@@ -178,7 +176,6 @@ export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: Saved
           events={{ onPointerDown: (event) => { event.stopPropagation(); if (step === 'decor') place(event); else { target(event); pouring.current = true } }, onPointerMove: (event) => target(event) }} />
         {state.decor.map((item, index) => <DecorPiece key={`${index}:${item.x}`} item={item} index={index} ground={ground} />)}
       </Suspense>
-      {depths.soil > 0.3 && <PondMarker state={state} />}
       {/* One finger or the left button pours; two fingers turn and zoom, the right button turns, the wheel zooms. */}
       <OrbitControls makeDefault target={[0, 2.8, 0]} enablePan={false} minDistance={7} maxDistance={26} maxPolarAngle={1.5} mouseButtons={{ LEFT: undefined as unknown as MOUSE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE }} touches={{ ONE: undefined as unknown as TOUCH, TWO: TOUCH.DOLLY_ROTATE }} />
       <Spin turn={turn} />
@@ -195,7 +192,7 @@ export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: Saved
       <p>{current.hint}</p>
       {current.range && <div className="builder-depth"><span>{mm(depthOf(step))} mm</span><meter min={0} max={current.range[1] * 1.4} low={current.range[0]} high={current.range[1]} optimum={(current.range[0] + current.range[1]) / 2} value={depthOf(step)} /><small>aim for {mm(current.range[0])}–{mm(current.range[1])} mm</small></div>}
       {step === 'decor' && <div className="builder-kinds"><button type="button" className={decorKind === 'stone' ? 'on' : ''} onClick={() => setDecorKind('stone')}>Stone</button><button type="button" className={decorKind === 'log' ? 'on' : ''} onClick={() => setDecorKind('log')}>Wood</button><small>{state.decor.length}/12 placed</small></div>}
-      {step === 'water' && <div className="builder-depth"><span>{Math.round(depths.loose * 100)}% loose</span><small>{pools.cover > 0.01 ? `Standing water over ${Math.round(pools.cover * 100)}% of the floor, ${mm(pools.depth / Math.max(pools.cover, 1e-3))} mm deep on average.` : 'Fresh soil settles over the first two or three waterings.'}</small></div>}
+      {step === 'water' && <div className="builder-depth"><span>{Math.round(depths.loose * 100)}% loose</span><small>{pondMl > 0.5 ? `Pond: about ${Math.round(pondMl)} ml standing in the hollows. Where it stands is where your pond will be.` : pools.cover > 0.01 ? `Standing water over ${Math.round(pools.cover * 100)}% of the floor, ${mm(pools.depth / Math.max(pools.cover, 1e-3))} mm deep on average.` : 'Fresh soil settles over the first two or three waterings. Keep pouring into a hollow to make a pond.'}</small></div>}
       <small className="builder-how">Hold on the jar to pour. Turn it with the arrows, two fingers or a right-drag.</small>
       <div className="builder-actions">
         <button type="button" className="text-button" onClick={onCancel}>Back</button>

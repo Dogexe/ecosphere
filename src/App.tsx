@@ -7,6 +7,10 @@ import { sealOutcome, sealWorld, unsealWorld, airJar, fogLevel } from './sim/sea
 import { recordSample } from './sim/observatory'
 import type { ObservationSample } from './sim/observatory'
 import { WorldStart } from './WorldStart'
+import defaultJar from './sim/defaultJar.json'
+import { adoptPouredJar } from './sim/pouredPond'
+import { maskShape } from './sim/pondShape'
+import { setPondShape } from './sim/pond'
 import { JarBuilder } from './JarBuilder'
 import { pocketWetness } from './sim/substrate'
 import type { SavedSubstrate, Substrate } from './sim/substrate'
@@ -89,13 +93,25 @@ function Meter({ label, value, display, tone = 'green' }: { label: string; value
   )
 }
 
+/**
+ * In the paper look every jar is poured (2026-11-03). A world without its own
+ * poured substrate moves into the default poured jar: its pond follows the
+ * standing water, so anything on the wrong side of the shore steps across.
+ */
+function intoPouredJar(world: World): World {
+  if (!paperLook || world.substrate) return world
+  try { return adoptPouredJar(world, defaultJar as SavedSubstrate) } catch { return world }
+}
+
 export function App() {
   const query = new URLSearchParams(window.location.search)
   const stress = query.get('profile') === '1' && query.get('stress') === '1'
   // The last session comes back paused, with its Observatory history (never in the stress profile).
   const [resumed] = useState(() => stress ? null : readAutosave(browserStore()))
-  const [session, setSession] = useState<StepResult>(() => ({ world: stress ? createStressWorld(query.get('dry') === '1') : resumed?.world ?? beginDaylitWorld(createWorld()), events: [] }))
+  const [session, setSession] = useState<StepResult>(() => ({ world: stress ? createStressWorld(query.get('dry') === '1') : intoPouredJar(resumed?.world ?? beginDaylitWorld(createWorld())), events: [] }))
   const { world, events } = session
+  // The sim and the scene read the pond shape of the world on screen.
+  setPondShape(world.substrate)
   const [speed, setSpeed] = useState<Speed>(stress || resumed ? 0 : 1)
   const [selectedPlant, setSelectedPlant] = useState<number | null>(null)
   const [selectedCreature, setSelectedCreature] = useState<number | null>(null)
@@ -336,7 +352,7 @@ export function App() {
     setUnderground(false)
     setHistory([])
     lastAutosave.current = 0
-    setWorld(snapshot)
+    setWorld(intoPouredJar(snapshot))
     setWorldRevision((revision) => revision + 1)
     setSpeed(0)
     clearSelection()
@@ -351,7 +367,10 @@ export function App() {
     const wet = pocketWetness(poured)
     const base = createHabitatWorld('bare', 2217)
     const soil = base.soil.map((patch) => ({ ...patch, water: wet[patch.id] }))
-    begin('bare', 2217, { ...base, soil, water: soil.reduce((sum, patch) => sum + patch.water, 0) / soil.length, substrate })
+    // The pond is the water left standing; 3.3 units³ (about 23 ml) fills it like the classic pond's 60.
+    const pondVolume = maskShape(substrate).volume ?? 0
+    const pond = { ...(base.pond ?? defaultPond()), water: Math.min(100, 60 * pondVolume / 3.3) }
+    begin('bare', 2217, { ...base, soil, pond, water: soil.reduce((sum, patch) => sum + patch.water, 0) / soil.length, substrate })
     setBuilding(false)
     setNotice('Your jar is ready. Plant it, bring in life, and seal it when it feels right.')
   }
@@ -361,7 +380,7 @@ export function App() {
     setUnderground(false)
     setHistory([])
     lastAutosave.current = 0
-    setWorld(beginDaylitWorld(prepared ?? createHabitatWorld(start, seed)))
+    setWorld(intoPouredJar(beginDaylitWorld(prepared ?? createHabitatWorld(start, seed))))
     setWorldRevision((revision) => revision + 1)
     setSpeed(0)
     clearSelection()

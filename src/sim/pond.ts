@@ -8,15 +8,27 @@ export const defaultPond = (): Pond => ({ water: 60, nutrients: 5, organic: 4, o
 export const maturity = { grazer: 36, woodlouse: 60, beetle: 72, springtail: 24, flea: 12, fish: 96 } as const
 export const lifespan = { grazer: 960, woodlouse: 17520, beetle: 1920, springtail: 4320, flea: 480, fish: 2880 } as const
 export const rateAt = (temperature: number) => Math.max(0.25, Math.min(2.4, 2 ** ((temperature - 22) / 10)))
-export { pondCenter } from './pondShape.ts'
-import { pondCenter } from './pondShape.ts'
+export { pondCenter, pondShape, setPondShape } from './pondShape.ts'
+import { pondCenter, pondShape, pushToShore } from './pondShape.ts'
 export const isAquatic = (kind: string) => kind === 'flea' || kind === 'fish' || kind === 'lily' || kind === 'reed'
-export const isPondPosition = (x: number, z: number) => Number.isFinite(x) && Number.isFinite(z) && Math.hypot(x - pondCenter.x, z - pondCenter.z) <= pondCenter.radius + 1e-9
+const poured = () => pondShape().kind === 'mask'
+export const isPondPosition = (x: number, z: number) => Number.isFinite(x) && Number.isFinite(z) && (poured() ? pondShape().signedDistance(x, z) <= 1e-9 : Math.hypot(x - pondCenter.x, z - pondCenter.z) <= pondCenter.radius + 1e-9)
 // Conservative adult physics hulls, independent of meshes, growth and hit targets.
 export const swimmingClearance = (kind: string) => kind === 'fish' ? 0.24 : kind === 'flea' ? 0.07 : 0
-export const isSwimmingPosition = (kind: string, x: number, z: number) => Number.isFinite(x) && Number.isFinite(z) && Math.hypot(x - pondCenter.x, z - pondCenter.z) + swimmingClearance(kind) <= pondCenter.radius + 1e-9
+export const isSwimmingPosition = (kind: string, x: number, z: number) => Number.isFinite(x) && Number.isFinite(z) && (poured() ? pondShape().signedDistance(x, z) + swimmingClearance(kind) <= 1e-9 : Math.hypot(x - pondCenter.x, z - pondCenter.z) + swimmingClearance(kind) <= pondCenter.radius + 1e-9)
+
+/** The middle of the open water and how far a swimmer can wander from it. */
+const pondMiddle = () => poured() ? pondShape().center : pondCenter
+const wander = (reach: number) => poured() ? Math.min(reach, pondShape().inner * 0.8) : reach
 
 function boundSwimmer(kind: string, x: number, z: number) {
+  if (poured()) {
+    // A poured pond can take any shape: slide the swimmer back along the shore's normal.
+    const margin = swimmingClearance(kind)
+    if (pondShape().signedDistance(x, z) <= -margin) return { x, z }
+    const point = pushToShore(x, z, -margin - 0.01)
+    return pondShape().signedDistance(point.x, point.z) <= -margin + 0.005 ? point : { ...pondShape().center }
+  }
   const distance = Math.hypot(x - pondCenter.x, z - pondCenter.z)
   const radius = pondCenter.radius - swimmingClearance(kind)
   return distance <= radius ? { x, z } : {
@@ -83,7 +95,7 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
     if (creature.kind === 'flea') {
       const threat = survivors.find((animal) => animal.kind === 'fish' && Math.hypot(animal.x - creature.x, animal.z - creature.z) < 0.38)
       const heading = creature.heading + (threat ? 1.5 : 0.1)
-      Object.assign(creature, swim(creature, threat ? creature.x + (creature.x - threat.x) * 2 : pondCenter.x + Math.sin(heading) * 0.65, threat ? creature.z + (creature.z - threat.z) * 2 : pondCenter.z + Math.cos(heading) * 0.65, threat ? 0.095 : 0.04))
+      Object.assign(creature, swim(creature, threat ? creature.x + (creature.x - threat.x) * 2 : pondMiddle().x + Math.sin(heading) * wander(0.65), threat ? creature.z + (creature.z - threat.z) * 2 : pondMiddle().z + Math.cos(heading) * wander(0.65), threat ? 0.095 : 0.04))
       creature.energy -= 0.025
       if (!threat) {
         const bite = Math.min(pond.algae, 0.035 * wet * pond.algae / (pond.algae + 1), (100 - creature.energy) / 18)
@@ -119,7 +131,7 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
     } else {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
       const heading = fish.heading + (seed / 4294967296 - 0.5) * 0.6
-      Object.assign(fish, swim(fish, pondCenter.x + Math.sin(heading) * 0.7, pondCenter.z + Math.cos(heading) * 0.7, 0.035))
+      Object.assign(fish, swim(fish, pondMiddle().x + Math.sin(heading) * wander(0.7), pondMiddle().z + Math.cos(heading) * wander(0.7), 0.035))
     }
     if (fish.energy <= 0) {
       consumed.add(fish.id)
@@ -141,7 +153,7 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
     }
     const energy = parent.energy * 0.42
     parent.energy -= energy
-    const position = swim(parent, pondCenter.x, pondCenter.z, 0.1)
+    const position = swim(parent, pondMiddle().x, pondMiddle().z, 0.1)
     const child = { ...parent, ...position, id: nextId++, age: 0, stage: 'juvenile' as const, energy, materialReserve: 0 }
     young.push(child)
     events.push({ type: 'birth', id: child.id, kind: child.kind, parentId: parent.id })

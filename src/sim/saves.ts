@@ -1,6 +1,6 @@
 import { creatureCounts, creatureLimits, isCreatureKind, isLand } from './ecosystem.ts'
 import type { Creature, Plant, PlantKind, SoilPatch, World } from './ecosystem'
-import { defaultClimate, defaultPond, isAquatic, isPondPosition, maturity } from './pond.ts'
+import { defaultClimate, defaultPond, isAquatic, isPondPosition, maturity, setPondShape } from './pond.ts'
 import { woodlouseLife } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
 import { parseColony } from './colonySave.ts'
@@ -58,6 +58,16 @@ function parseWorld(text: string, settle: boolean): World {
   const envelope = record(decoded)
   if (envelope.version !== 1 && envelope.version !== 2 && envelope.version !== 3) throw new Error('This experiment uses an unsupported save version.')
   const source = settle ? settleOutOfWidePond(record(envelope.world)) : record(envelope.world)
+  // Optional built substrate (2026-11-03); worlds made from a habitat starter have none.
+  // Read first: a poured jar's pond shape decides what counts as water below.
+  if (source.substrate != null && envelope.version !== 3) throw damaged()
+  const substrate = source.substrate == null ? null : saveSubstrate(loadSubstrate(source.substrate))
+  if (substrate) {
+    // A jar built before ponds followed the water has no standing-water map; it keeps the round pond.
+    if (record(source.substrate).pool === undefined) delete substrate.pool
+    if (record(source.substrate).preset === 'default') substrate.preset = 'default'
+  }
+  setPondShape(substrate)
   const soil = movePondPocket(array(source, 'soil', 4).map((value): SoilPatch => {
     const patch = record(value)
     return {
@@ -163,9 +173,6 @@ function parseWorld(text: string, settle: boolean): World {
     sealed = { since: number(seal, 'since', 0, tick, true), goalDays: number(seal, 'goalDays', 1, 365, true), vapor: number(seal, 'vapor', -1e-6, 1e6), co2: optional('co2', startingCO2, -1e3, 1e6), o2: optional('o2', startingO2, -1e3, 1e6), airings: optional('airings', 0, 0, 1e6, true) }
     if (climate.rainfall !== 0) throw damaged()
   }
-  // Optional built substrate (2026-11-03); worlds made from a habitat starter have none.
-  if (source.substrate != null && envelope.version !== 3) throw damaged()
-  const substrate = source.substrate == null ? null : saveSubstrate(loadSubstrate(source.substrate))
   return {
     tick, seed: number(source, 'seed', 0, 4294967295, true),
     light: number(source, 'light', 0.15, 1), grazed: number(source, 'grazed', 0, 1e12),

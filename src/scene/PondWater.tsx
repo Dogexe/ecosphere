@@ -1,7 +1,7 @@
 import { Suspense, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
-import { AdditiveBlending, BufferAttribute, CanvasTexture, Color, DoubleSide, FrontSide, LatheGeometry, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, RepeatWrapping, SRGBColorSpace, Vector2 } from 'three'
+import { AdditiveBlending, BufferAttribute, CanvasTexture, Color, DoubleSide, FrontSide, LatheGeometry, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, PlaneGeometry, RepeatWrapping, SRGBColorSpace, Vector2 } from 'three'
 import type { Group, Texture } from 'three'
 import type { Pond } from '../sim/pond'
 import { pondCenter } from '../sim/pond'
@@ -215,4 +215,63 @@ export function PondWater({ pond, underwater, swimmers, onPondClick }: { pond: P
       </mesh>)}
     </group>
   </group>
+}
+
+/**
+ * A pond in a poured jar: the water fills its hollow, so the surface is one
+ * level sheet and the shore is wherever that level meets the ground. When the
+ * water drops (below 60% of capacity, as for the round pond) the level falls
+ * and the shore creeps in over the wet bank. Deeper water looks darker and
+ * more tinted; algae, tannins and murk tint it as in the round pond.
+ */
+export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPondClick }: { ground: (x: number, z: number) => number; cells: Uint8Array; level: number; floor: number; pond: Pond; underwater: boolean; onPondClick: (x: number, z: number) => void }) {
+  const look = waterLook(pond)
+  const N = Math.round(Math.sqrt(cells.length)), R = 3.77, cell = 2 * R / (N - 1)
+  const parts = useMemo(() => {
+    const geometry = new PlaneGeometry(2 * R, 2 * R, N - 1, N - 1).rotateX(-Math.PI / 2)
+    geometry.setAttribute('color', new BufferAttribute(new Float32Array(N * N * 4), 4))
+    const position = geometry.getAttribute('position'), uv = geometry.getAttribute('uv')
+    for (let v = 0; v < position.count; v += 1) uv.setXY(v, position.getX(v) / 3, position.getZ(v) / 3)
+    const ripples = rippleNormals()
+    ripples.repeat.set(1, 1)
+    return { geometry, ripples, material: new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, normalMap: ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }) }
+  }, [N])
+  // Deepest water in the hollow sets how far the level can fall.
+  const deepest = useMemo(() => { let most = 0; for (let k = 0; k < cells.length; k += 1) if (cells[k]) most = Math.max(most, level - (ground(-R + (k % N) * cell, -R + Math.floor(k / N) * cell) - floor)); return most }, [cells, level, ground, floor, N, cell])
+  const memory = useRef({ surface: level, clock: 0 })
+  const target = level - Math.max(0, (60 - pond.water) / 60) * deepest * 0.8
+  const write = (surface: number) => {
+    const position = parts.geometry.getAttribute('position') as BufferAttribute, colours = parts.geometry.getAttribute('color') as BufferAttribute
+    const deep = new Color(look.tint).multiplyScalar(0.55)
+    for (let j = 0; j < N; j += 1) for (let i = 0; i < N; i += 1) {
+      const v = j * N + i, x = -R + i * cell, z = -R + j * cell
+      // A vertex belongs to the pond if it or a neighbour is pond water, so the sheet reaches the shore.
+      let near = false
+      for (let dj = -1; dj <= 1 && !near; dj += 1) for (let di = -1; di <= 1; di += 1) { const a = i + di, b = j + dj; if (a >= 0 && b >= 0 && a < N && b < N && cells[b * N + a]) { near = true; break } }
+      const bed = ground(x, z) - floor
+      const depth = surface - bed
+      if (near && depth > 0) {
+        position.setXYZ(v, x, floor + surface, z)
+        const shade = Math.min(1, depth / 1.2)
+        const colour = new Color(look.tint).lerp(deep, shade)
+        colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.1 + shade * 0.45 + look.cloud * 0.6))
+      } else {
+        position.setXYZ(v, x, floor + bed - 0.03, z)
+        colours.setXYZW(v, look.tint.r, look.tint.g, look.tint.b, 0)
+      }
+    }
+    position.needsUpdate = true; colours.needsUpdate = true
+    parts.geometry.computeVertexNormals(); parts.geometry.computeBoundingSphere()
+  }
+  useMemo(() => write(memory.current.surface), [parts, look.tint.getHex(), look.cloud, ground, cells]) // eslint-disable-line react-hooks/exhaustive-deps
+  parts.material.side = underwater ? DoubleSide : FrontSide
+  useFrame((_, delta) => {
+    const m = memory.current
+    m.clock += delta
+    parts.ripples.offset.set(m.clock * 0.012, m.clock * 0.007)
+    // The level eases to its new height, like water settling after a pour.
+    if (Math.abs(target - m.surface) > 0.002) { m.surface += (target - m.surface) * Math.min(1, delta * 1.5); write(m.surface) }
+  })
+  return <mesh geometry={parts.geometry} material={parts.material} renderOrder={1} visible={pond.water > 1}
+    onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onPondClick(event.point.x, event.point.z) }} />
 }

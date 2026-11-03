@@ -9,6 +9,12 @@ import type { SoilPatch } from '../sim/ecosystem'
 import { environmentScale, groundShape } from './scale'
 import { cellX, heightAt, inside, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
 import type { Decor, SavedSubstrate } from '../sim/substrate'
+import { isPresetJar } from '../sim/substrate'
+import { maskShape } from '../sim/pondShape'
+import type { PondShape } from '../sim/pondShape'
+import type { Pond } from '../sim/pond'
+import { ShapedPond } from './PondWater'
+import { GlassDroplets } from './GlassDroplets'
 import { LayeredGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
@@ -37,6 +43,7 @@ const gravelBottom = charcoalBottom - jarLayers.gravel
 const glassTop = top + 5.2
 const flat = () => top
 const pond = [{ x: pondCenter.x, z: pondCenter.z, radius: pondCenter.radius + 0.15 }]
+const nowhere: { x: number; z: number; radius: number }[] = []
 const noRaycast = () => undefined
 
 function useScan(id: string, repeat: [number, number]) {
@@ -114,22 +121,24 @@ function Sill({ bottom = gravelBottom }: { bottom?: number }) {
 const leaf = 'dry_quiver_leaf/dry_quiver_leaf_1k.gltf'
 
 /** Moss, stones, a fern and fallen leaves from the approved reference (round 2, image 2), kept clear of the pond. */
-function Dressing({ ground = flat }: { ground?: Ground }) {
+function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?: (x: number, z: number) => boolean; shore?: Vector3[] }) {
+  const avoid = keepOut ? nowhere : pond
+  const dry = (x: number, z: number) => !keepOut || !keepOut(x, z)
   return <>
-    <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />
-    <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />
-    <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />
-    <MossSprigs x={1.6} z={-1.9} radius={1.3} count={260} ground={ground} avoid={pond} />
-    <MossSprigs x={-2.2} z={-0.7} radius={1.0} count={170} ground={ground} avoid={pond} />
-    <MossSprigs x={-0.3} z={2.6} radius={0.9} count={130} ground={ground} avoid={pond} />
-    <MossSprigs x={2.6} z={1.7} radius={0.8} count={110} ground={ground} avoid={pond} />
-    <MossSprigs x={0} z={0} radius={3.5} count={320} flat scale={0.55} ground={ground} avoid={pond} />
-    <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={260} ground={ground} spots={bank} scale={1.1} />
-    <Fern x={-2.6} z={1.9} ground={ground} />
-    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={0.9} z={1.5} length={0.95} turn={0.4} ground={ground} />
-    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={2.2} z={0.4} length={0.8} turn={-1.6} ground={ground} />
-    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />
-    <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={ground} />
+    {dry(2.55, -1.35) && <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />}
+    {dry(-2.55, -1.9) && <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />}
+    {dry(0.6, 3.05) && <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />}
+    <MossSprigs x={1.6} z={-1.9} radius={1.3} count={260} ground={ground} avoid={avoid} keepOut={keepOut} />
+    <MossSprigs x={-2.2} z={-0.7} radius={1.0} count={170} ground={ground} avoid={avoid} keepOut={keepOut} />
+    <MossSprigs x={-0.3} z={2.6} radius={0.9} count={130} ground={ground} avoid={avoid} keepOut={keepOut} />
+    <MossSprigs x={2.6} z={1.7} radius={0.8} count={110} ground={ground} avoid={avoid} keepOut={keepOut} />
+    <MossSprigs x={0} z={0} radius={3.5} count={320} flat scale={0.55} ground={ground} avoid={avoid} keepOut={keepOut} />
+    <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={260} ground={ground} spots={shore ?? bank} scale={1.1} />
+    {dry(-2.6, 1.9) && <Fern x={-2.6} z={1.9} ground={ground} />}
+    {dry(0.9, 1.5) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={0.9} z={1.5} length={0.95} turn={0.4} ground={ground} />}
+    {dry(2.2, 0.4) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={2.2} z={0.4} length={0.8} turn={-1.6} ground={ground} />}
+    {dry(-1.2, -2.6) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />}
+    {dry(1.25, 0.35) && <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={ground} />}
   </>
 }
 
@@ -163,29 +172,51 @@ function usePoolScale(soil: SoilPatch[]) {
   }, [key])
 }
 
-function BuiltJar({ substrate, soil, dressed }: { substrate: SavedSubstrate; soil: SoilPatch[]; dressed: boolean }) {
+function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog = 0 }: { substrate: SavedSubstrate; soil: SoilPatch[]; dressed: boolean; pond?: Pond; underwater?: boolean; onPondClick?: (x: number, z: number) => void; fog?: number }) {
   const state = useMemo(() => loadSubstrate(substrate), [substrate])
+  // A jar poured since ponds follow the water has its pond where the water stands; older built jars keep the dug round one.
+  const water = useMemo(() => substrate.pool ? maskShape(substrate) : null, [substrate])
+  const hasPond = !!water && (water.volume ?? 0) > 0
   const floor = useMemo(() => {
+    // With a poured pond, line its water up with the sim's pond surface; otherwise put the mean ground where the sim expects it.
+    if (water && hasPond) return environmentScale.pondSurfaceY - (water.level ?? 0)
     let sum = 0, count = 0
     for (let k = 0; k < state.soil.length; k += 1) {
       const i = k % substrateSize, j = Math.floor(k / substrateSize)
-      if (!inside[k] || Math.hypot(cellX(i) - pondCenter.x, cellX(j) - pondCenter.z) < pondCenter.radius + 0.3) continue
+      if (!inside[k] || (!water && Math.hypot(cellX(i) - pondCenter.x, cellX(j) - pondCenter.z) < pondCenter.radius + 0.3)) continue
       sum += topAt(state, k); count += 1
     }
     return top - (count ? sum / count : 0)
-  }, [state])
-  const shape = useMemo(() => pondCut(floor), [floor])
-  const poolScale = usePoolScale(soil)
-  const ground = useMemo(() => (x: number, z: number) => shape(x, z, heightAt(state, x, z)) + floor, [shape, state, floor])
+  }, [state, water, hasPond])
+  const shape = useMemo(() => water ? undefined : pondCut(floor), [floor, water])
+  const soilScale = usePoolScale(soil)
+  // Pond water is drawn by the pond itself; the rest of the standing water dries with the soil.
+  const poolScale = useMemo(() => water && hasPond ? (x: number, z: number) => water.signedDistance(x, z) < 0.1 ? 0 : soilScale(x, z) : soilScale, [water, hasPond, soilScale])
+  const ground = useMemo(() => (x: number, z: number) => (shape ? shape(x, z, heightAt(state, x, z)) : heightAt(state, x, z)) + floor, [shape, state, floor])
   // Plants and animals stand on this ground instead of the flat default.
-  useLayoutEffect(() => { groundShape.offset = (x, z) => ground(x, z) - top; return () => { groundShape.offset = () => 0 } }, [ground])
+  useLayoutEffect(() => { groundShape.offset = (x, z) => ground(x, z) - top; groundShape.poured = !!water; return () => { groundShape.offset = () => 0; groundShape.poured = false } }, [ground, water])
+  const keepOut = useMemo(() => water && hasPond ? (x: number, z: number) => water.signedDistance(x, z) < 0.12 : undefined, [water, hasPond])
+  const shore = useMemo(() => water && hasPond ? shoreSpots(water, ground) : undefined, [water, hasPond, ground])
   return <>
     <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} poolScale={poolScale} onClick /></Suspense>
+    {water && hasPond && water.cells && pond && <ShapedPond ground={ground} cells={water.cells} level={water.level ?? 0} floor={floor} pond={pond} underwater={!!underwater} onPondClick={onPondClick ?? (() => undefined)} />}
     <Suspense fallback={null}>{state.decor.map((item, index) => <DecorPiece key={index} item={item} index={index} ground={ground} />)}</Suspense>
-    {dressed && <Suspense fallback={null}><Dressing ground={ground} /></Suspense>}
+    {dressed && <Suspense fallback={null}><Dressing ground={ground} keepOut={keepOut} shore={shore} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
     <Glass bottom={floor} />
+    {fog > 0.2 && !underwater && <GlassDroplets fog={fog} radius={R} top={glassTop - 0.3} ground={ground} />}
   </>
+}
+
+/** Points along a poured pond's bank, for moss creeping to the water's edge. */
+function shoreSpots(water: PondShape, ground: Ground) {
+  const spots: Vector3[] = []
+  for (let n = 0; spots.length < 120 && n < 4000; n += 1) {
+    const x = -3.5 + ((n * 0.618034) % 1) * 7, z = -3.5 + ((n * 0.7548777) % 1) * 7
+    const d = water.signedDistance(x, z)
+    if (d > 0.1 && d < 0.32 && Math.hypot(x, z) < 3.4) spots.push(new Vector3(x, ground(x, z) + 0.02, z))
+  }
+  return spots
 }
 
 /**
@@ -193,8 +224,9 @@ function BuiltJar({ substrate, soil, dressed }: { substrate: SavedSubstrate; soi
  * their layers; every other jar uses the default one, poured the same way
  * (scripts/pour_default_jar.mjs) and dressed with moss, stones and a fern.
  */
-export function JarSetting({ substrate, soil = [] }: { substrate?: SavedSubstrate; soil?: SoilPatch[] }) {
-  return <BuiltJar substrate={substrate ?? defaultJar as SavedSubstrate} soil={soil} dressed={!substrate} />
+export function JarSetting({ substrate, soil = [], pond, underwater, onPondClick, fog = 0 }: { substrate?: SavedSubstrate; soil?: SoilPatch[]; pond?: Pond; underwater?: boolean; onPondClick?: (x: number, z: number) => void; fog?: number }) {
+  const jar = substrate ?? defaultJar as SavedSubstrate
+  return <BuiltJar substrate={jar} soil={soil} dressed={isPresetJar(jar)} pond={pond} underwater={underwater} onPondClick={onPondClick} fog={fog} />
 }
 
 /** The earlier hand-made default jar: flat layered cylinders. Kept for reference. */

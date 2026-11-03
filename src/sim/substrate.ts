@@ -96,7 +96,12 @@ export function deposit(state: Substrate, material: Pourable, x: number, z: numb
   const [ci, cj] = cellOf(x, z)
   const spread = 2
   let weight = 0
-  for (let dj = -spread; dj <= spread; dj += 1) for (let di = -spread; di <= spread; di += 1) weight += Math.exp(-(di * di + dj * dj) / 2.5)
+  // Weigh only cells inside the jar: what lands against the glass stays in the jar.
+  for (let dj = -spread; dj <= spread; dj += 1) for (let di = -spread; di <= spread; di += 1) {
+    const i = ci + di, j = cj + dj
+    if (i >= 0 && j >= 0 && i < N && j < N && inside[index(i, j)]) weight += Math.exp(-(di * di + dj * dj) / 2.5)
+  }
+  if (weight === 0) return
   for (let dj = -spread; dj <= spread; dj += 1) for (let di = -spread; di <= spread; di += 1) {
     const i = ci + di, j = cj + dj
     if (i < 0 || j < 0 || i >= N || j >= N || !inside[index(i, j)]) continue
@@ -277,19 +282,22 @@ export function pocketWetness(state: Substrate) {
 // ---- Saving ----------------------------------------------------------------
 
 /** What a save stores: heights to 0.01 units (0.2 mm), looseness to 0.01. Soil water lives in the sim's soil pockets once the game starts; standing puddles are kept here (only when there are any). */
-export type SavedSubstrate = { size: number; gravel: number[]; charcoal: number[]; soil: number[]; loose: number[]; table: number; decor: Decor[]; pool?: number[] }
+export type SavedSubstrate = { size: number; gravel: number[]; charcoal: number[]; soil: number[]; loose: number[]; table: number; decor: Decor[]; pool?: number[]; preset?: 'default' }
 const round = (value: number) => Math.round(value * 100) / 100
 
 export function saveSubstrate(state: Substrate): SavedSubstrate {
   const pack = (values: Float32Array) => Array.from(values, (value, k) => inside[k] ? round(value) : 0)
   const saved: SavedSubstrate = { size: N, gravel: pack(state.gravel), charcoal: pack(state.charcoal), soil: pack(state.soil), loose: pack(state.loose), table: round(state.table), decor: state.decor.map((item) => ({ ...item, x: round(item.x), z: round(item.z), size: round(item.size), turn: round(item.turn) })) }
-  const pool = pack(state.pool)
-  if (pool.some((value) => value > 0)) saved.pool = pool
+  // Always stored since the pond follows the standing water; jars built before that have none and keep the round pond.
+  saved.pool = pack(state.pool)
   return saved
 }
 
 const damaged = () => new Error('This experiment file is damaged.')
 const finite = (value: unknown, low: number, high: number) => typeof value === 'number' && Number.isFinite(value) && value >= low && value <= high
+
+/** Whether a saved substrate is the default poured jar (dressed with moss and stones) rather than one the player built. */
+export const isPresetJar = (saved: SavedSubstrate) => saved.preset === 'default'
 
 /** Rebuilds a substrate from a save, rejecting anything out of physical bounds. */
 export function loadSubstrate(source: unknown): Substrate {
@@ -306,6 +314,7 @@ export function loadSubstrate(source: unknown): Substrate {
     if (!Array.isArray(saved.pool) || saved.pool.length !== N * N) throw damaged()
     saved.pool.forEach((value, k) => { if (!finite(value, 0, 12)) throw damaged(); state.pool[k] = inside[k] ? value as number : 0 })
   }
+  if (saved.preset !== undefined && saved.preset !== 'default') throw damaged()
   if (!finite(saved.table, 0, 12)) throw damaged()
   state.table = saved.table as number
   if (!Array.isArray(saved.decor) || saved.decor.length > 24) throw damaged()

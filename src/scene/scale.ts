@@ -65,9 +65,11 @@ export function plantGrowthScale(plant: Plant) {
  * How far the ground at a point sits above the flat default. Zero unless the
  * player built the jar; then the jar scene sets it from their poured soil.
  */
-export const groundShape: { offset: (x: number, z: number) => number } = { offset: () => 0 }
+export const groundShape: { offset: (x: number, z: number) => number; poured: boolean } = { offset: () => 0, poured: false }
 
 export function plantGroundY(plant: Plant) {
+  // In a poured pond reeds root on the actual bed under the water.
+  if (plant.kind === 'reed' && groundShape.poured) return environmentScale.soilSurfaceY + groundShape.offset(plant.x, plant.z) + 0.002
   return flatPlantGroundY(plant) + (['lily', 'reed'].includes(plant.kind) ? 0 : groundShape.offset(plant.x, plant.z))
 }
 

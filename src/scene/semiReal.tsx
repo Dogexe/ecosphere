@@ -61,7 +61,7 @@ function sprigTexture(seed: number) {
 }
 
 /** Dense shrubs of painted sprig cards (two crossed planes each), like a tiny forest. `avoid` keeps sprigs out of circles such as the pond. */
-export function MossSprigs({ x, z, radius, count, ground, flat = false, spots, scale = 1, avoid = nowhere }: { x: number; z: number; radius: number; count: number; ground: Ground; flat?: boolean; spots?: Vector3[]; scale?: number; avoid?: { x: number; z: number; radius: number }[] }) {
+export function MossSprigs({ x, z, radius, count, ground, flat = false, spots, scale = 1, avoid = nowhere, keepOut }: { x: number; z: number; radius: number; count: number; ground: Ground; flat?: boolean; spots?: Vector3[]; scale?: number; avoid?: { x: number; z: number; radius: number }[]; keepOut?: (x: number, z: number) => boolean }) {
   const mesh = useRef<InstancedMesh>(null)
   const geometry = useMemo(() => {
     const a = new PlaneGeometry(1, 1).translate(0, 0.5, 0)
@@ -83,7 +83,7 @@ export function MossSprigs({ x, z, radius, count, ground, flat = false, spots, s
       const px = spot ? spot.x : x + Math.cos(angle) * distance, pz = spot ? spot.z : z + Math.sin(angle) * distance
       const edge = spot || flat ? 0.5 : distance / radius
       const dome = spot || flat ? 0 : Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.16
-      const hidden = avoid.some((circle) => Math.hypot(px - circle.x, pz - circle.z) < circle.radius)
+      const hidden = avoid.some((circle) => Math.hypot(px - circle.x, pz - circle.z) < circle.radius) || (!spot && !!keepOut?.(px, pz))
       const size = hidden ? 0 : (0.2 + rand() * 0.14) * (1 - edge * 0.35) * scale
       dummy.position.set(px, spot ? spot.y - 0.03 : ground(px, pz) + dome - 0.02, pz)
       dummy.rotation.set((rand() - 0.5) * 0.5, rand() * Math.PI, (rand() - 0.5) * 0.5)
@@ -96,7 +96,7 @@ export function MossSprigs({ x, z, radius, count, ground, flat = false, spots, s
     }
     mesh.current.instanceMatrix.needsUpdate = true
     if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true
-  }, [x, z, radius, count, ground, flat, spots, scale, avoid])
+  }, [x, z, radius, count, ground, flat, spots, scale, avoid, keepOut])
   return <instancedMesh ref={mesh} args={[geometry, undefined, count]} frustumCulled={false} raycast={noRaycast} castShadow receiveShadow>
     <meshStandardMaterial map={texture} alphaTest={0.4} side={DoubleSide} roughness={1} />
   </instancedMesh>
