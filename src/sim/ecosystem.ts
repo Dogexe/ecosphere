@@ -7,6 +7,8 @@ import { isLand, walkOnLand } from './land.ts'
 import type { AntColony } from './colony'
 import { clearMissingAntGoals, stepAntColony } from './colony.ts'
 import type { AntEvent } from './colony'
+import { closeWaterCycle } from './seal.ts'
+import type { Seal } from './seal'
 export { isLand } from './land.ts'
 export type PlantKind = 'clover' | 'fern' | 'bloom' | 'moss' | 'grass' | 'tree' | 'lily' | 'reed'
 export type CreatureKind = 'grazer' | 'woodlouse' | 'beetle' | 'springtail' | 'flea' | 'fish'
@@ -50,6 +52,8 @@ export interface Creature {
 
 export interface World {
   colony?: AntColony | null
+  /** Present only while Seal Mode is on; see seal.ts. */
+  sealed?: Seal | null
   tick: number
   seed: number
   water: number
@@ -102,6 +106,7 @@ export function creatureCounts(creatures: Creature[]): Record<CreatureKind, numb
 }
 
 export function placementIssue(world: World, kind: Lifeform, x: number, z: number): string | null {
+  if (world.sealed) return 'This world is sealed. Open the seal to add life.'
   if (isAquatic(kind) ? !isPondPosition(x, z) || (world.pond ?? defaultPond()).water < 8 : !isLand(x, z)) return isAquatic(kind) ? 'Choose water inside the pond. Refill a dry pond first.' : 'Choose dry ground inside the rim.'
   if ((kind === 'fish' || kind === 'flea') && !isSwimmingPosition(kind, x, z)) return 'Choose deeper inside the pond so the whole animal clears the bank.'
   if (isCreatureKind(kind)) {
@@ -129,6 +134,7 @@ export function introduceLife(world: World, kind: Lifeform, x: number, z: number
 }
 
 export function removeLife(world: World, kind: 'plant' | 'creature', id: number): World {
+  if (world.sealed) return world
   // Removal exports living material; it is not also counted as detritus.
   const next = kind === 'plant'
     ? { ...world, plants: world.plants.filter((plant) => plant.id !== id) }
@@ -404,7 +410,7 @@ export function applySoilInput(world: World, input: SoilInput, patchId?: number)
   const current = soilFor(world)
   if (!input || (['water', 'organic', 'nutrients'] as const).some((key) => !Number.isFinite(input[key]) || input[key] < 0 || input[key] > 20)
     || (patchId !== undefined && !current.some((patch) => patch.id === patchId))
-    || input.water + input.organic + input.nutrients === 0) return { world, receipt }
+    || input.water + input.organic + input.nutrients === 0 || world.sealed) return { world, receipt }
   const soil = current.map((patch) => {
     if (patchId !== undefined && patch.id !== patchId) return patch
     const water = Math.min(input.water, Math.max(0, 100 - patch.water))
@@ -418,6 +424,8 @@ export function applySoilInput(world: World, input: SoilInput, patchId?: number)
 }
 
 export function intervene(world: World, action: Intervention): World {
+  // A sealed jar still exchanges light and heat, never matter.
+  if (world.sealed && action.type !== 'light' && action.type !== 'temperature' && action.type !== 'day-night') return world
   if (action.type === 'water') return applySoilInput(world, { water: 18, organic: 0, nutrients: 0 }).world
   if (action.type === 'compost') return applySoilInput(world, { water: 0, organic: 16, nutrients: 0 }).world
   if (action.type === 'light') return { ...world, light: clamp(action.value, 0.15, 1) }
@@ -441,6 +449,7 @@ export function interveneAt(world: World, type: 'water' | 'compost', patchId: nu
 }
 
 export function simulateStep(world: World): StepResult {
+  const opening = world
   let seed = world.seed
   const highestCreatureId = Math.max((world.nextCreatureId ?? 0) - 1, world.creatures.reduce((highest, creature) => Math.max(highest, creature.id), -1))
   const events: SimulationEvent[] = []
@@ -870,11 +879,23 @@ export function simulateStep(world: World): StepResult {
   const residents = resolveWoodlouseContacts([...survivors, ...hunters.filter((hunter) => hunter.energy > 0), ...newborns, ...aquatic.creatures])
   const nextWorld = withSoil({ ...world, tick: world.tick + 1, seed: aquatic.seed, pond: aquatic.pond, remains, nextCreatureId: aquatic.nextId, nextPlantId, grazed, plants: [...plants, ...seedlings], creatures: residents }, soil)
   const ants = stepAntColony(nextWorld, environment)
-  return { world: ants.world, events: [...events, ...ants.events] }
+  return { world: closeWaterCycle(opening, ants.world), events: [...events, ...ants.events] }
 }
 
 export function stepWorld(world: World): World {
   return simulateStep(world).world
+}
+
+/** What most limits the plants now; with no plants, the scarcest soil resource. */
+export function dominantLimit(world: World): 'water' | 'light' | 'nutrients' | 'temperature' | null {
+  if (world.plants.length) {
+    const tally = new Map<string, number>()
+    for (const plant of world.plants) { const limit = plantOutlook(world, plant).limiting; tally.set(limit, (tally.get(limit) ?? 0) + 1) }
+    return [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0] as 'water' | 'light' | 'nutrients' | 'temperature'
+  }
+  const scores = { water: world.water / 40, nutrients: world.nutrients / 20, light: world.light / 0.5 }
+  const lowest = (Object.entries(scores) as ['water' | 'nutrients' | 'light', number][]).sort((a, b) => a[1] - b[1])[0]
+  return lowest[1] < 1 ? lowest[0] : null
 }
 
 export function vitality(world: World): number {

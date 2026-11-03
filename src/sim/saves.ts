@@ -4,6 +4,7 @@ import { defaultClimate, defaultPond, isAquatic, isPondPosition, maturity } from
 import { woodlouseLife } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
 import { parseColony } from './colonySave.ts'
+import type { Seal } from './seal'
 
 const damaged = () => new Error('This experiment is incomplete or damaged.')
 
@@ -137,9 +138,18 @@ export function parseSave(text: string): World {
   const storedNextPlantId = source.nextPlantId === undefined ? nextPlantId : number(source, 'nextPlantId', nextPlantId, 1e9, true)
   if (envelope.version !== 3 && source.colony != null) throw damaged()
   const colony = envelope.version === 3 ? parseColony(source.colony, plants, soil) : null
+  const tick = number(source, 'tick', 0, 1e9, true)
+  let sealed: Seal | null = null
+  if (source.sealed !== undefined && source.sealed !== null) {
+    // Optional Seal Mode state (2026-11-03); older saves simply have none.
+    if (envelope.version !== 3) throw damaged()
+    const seal = record(source.sealed)
+    sealed = { since: number(seal, 'since', 0, tick, true), goalDays: number(seal, 'goalDays', 1, 365, true), vapor: number(seal, 'vapor', -1e-6, 1e6) }
+    if (climate.rainfall !== 0) throw damaged()
+  }
   return {
-    tick: number(source, 'tick', 0, 1e9, true), seed: number(source, 'seed', 0, 4294967295, true),
+    tick, seed: number(source, 'seed', 0, 4294967295, true),
     light: number(source, 'light', 0.15, 1), grazed: number(source, 'grazed', 0, 1e12),
-    water: mean('water'), nutrients: mean('nutrients'), organic: mean('organic'), soil, plants, creatures, climate, pond, remains, nextCreatureId: storedNextCreatureId, nextPlantId: storedNextPlantId, ...(colony ? { colony } : {}),
+    water: mean('water'), nutrients: mean('nutrients'), organic: mean('organic'), soil, plants, creatures, climate, pond, remains, nextCreatureId: storedNextCreatureId, nextPlantId: storedNextPlantId, ...(colony ? { colony } : {}), ...(sealed ? { sealed } : {}),
   }
 }

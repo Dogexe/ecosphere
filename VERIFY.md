@@ -1,5 +1,9 @@
 # Verification plan — first playable slice
 
+## Seal Mode — before implementation, 2026-11-03
+
+Unit: every refused input returns the identical world; light/temperature still apply; jar water constant to 1e-9 relative over 720 sealed hours in garden, woodland, meadow, wetland and colony worlds, vapour never negative, soil water within 0..100; open meadow loses >20% held water in 10 days while the sealed copy keeps more; save round trip mid-run continues identically; sealed save with rain or a future `since` is rejected; outcome running/survived/collapsed. Full suite, typecheck, build. Browser: seal a world, confirm inputs disabled, run to the goal, see the report, unseal, desktop and phone.
+
 ## Observatory — before implementation, 2026-11-03
 
 Unit: sample values match the world; recorder appends one sample per new tick, ignores repeats, resets on backwards time and caps length; projection equals manual `stepWorld` replay, does not mutate its input, and is identical across runs. Full `npm test`, typecheck and build. Browser: open Observatory on a running world, switch metrics, compare two saved slots at desktop and 390px phone width with no horizontal overflow or console errors.

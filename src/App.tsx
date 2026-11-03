@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Terrarium } from './scene/Terrarium'
 import { ExperimentBook } from './ExperimentBook'
 import { Observatory } from './Observatory'
+import { SealPanel } from './SealPanel'
+import { sealOutcome, sealWorld, unsealWorld } from './sim/seal'
 import { recordSample } from './sim/observatory'
 import type { ObservationSample } from './sim/observatory'
 import { WorldStart } from './WorldStart'
@@ -16,7 +18,7 @@ import { plantStage, woodlouseLife } from './sim/life'
 import { createHabitatWorld, habitatStarts } from './sim/habitats'
 import type { HabitatStart } from './sim/habitats'
 import { createStressWorld } from './dev/stressWorld'
-import { applySoilInput, beetleIsHunting, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
+import { applySoilInput, beetleIsHunting, dominantLimit, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
 
 type Speed = 0 | 1 | 3
@@ -95,6 +97,7 @@ export function App() {
   const [tool, setTool] = useState<Lifeform | 'colony' | null>(null)
   const [experimentsOpen, setExperimentsOpen] = useState(false)
   const [observatoryOpen, setObservatoryOpen] = useState(false)
+  const [sealOpen, setSealOpen] = useState(false)
   const [history, setHistory] = useState<ObservationSample[]>([])
   const [worldStartOpen, setWorldStartOpen] = useState(false)
   const [worldRevision, setWorldRevision] = useState(0)
@@ -158,6 +161,14 @@ export function App() {
 
   // Observation only: one reading per model hour, never fed back into the world.
   useEffect(() => { setHistory((current) => recordSample(current, session.world)) }, [session.world])
+
+  // Pause and show the report once when a sealed jar reaches its goal or collapses.
+  const sealResult = session.world.sealed ? sealOutcome(session.world, () => null)?.status ?? null : null
+  const lastSealResult = useRef(sealResult)
+  useEffect(() => {
+    if (sealResult && sealResult !== 'running' && lastSealResult.current === 'running') { setSpeed(0); setSealOpen(true) }
+    lastSealResult.current = sealResult
+  }, [sealResult])
 
   useEffect(() => {
     if (speed === 0) return
@@ -347,6 +358,8 @@ export function App() {
   const resting = focusedCreature ? scheduledRest(world, focusedCreature) && !fleeing && !focusedCreatureFeeding : false
   const environment = environmentAt(world)
   const plantVitality = Math.round(vitality(world) * 100)
+  const sealed = !!world.sealed
+  const sealStatus = sealed ? sealOutcome(world, dominantLimit) : null
   const day = String(Math.floor(world.tick / 24) + 1).padStart(2, '0')
   const hour = String(world.tick % 24).padStart(2, '0')
 
@@ -362,6 +375,7 @@ export function App() {
         </div>
         <div className="header-note"><span className="live-dot" /> A LIVING LITTLE WORLD</div>
         <div className="header-actions">
+          <button className={`text-button ${sealed ? 'seal-badge' : ''}`} onClick={() => { setSpeed(0); setSealOpen(true) }} type="button">{sealStatus ? `Sealed · ${Math.min(sealStatus.day, sealStatus.goalDays)}/${sealStatus.goalDays}d` : 'Seal'}</button>
           <button className="text-button" onClick={() => { setSpeed(0); setObservatoryOpen(true) }} type="button">Observatory</button>
           <button className="text-button" onClick={() => { setSpeed(0); setExperimentsOpen(true) }} type="button">Experiments</button>
           <button className="text-button" onClick={() => { setSpeed(0); setWorldStartOpen(true) }} type="button">New world <span aria-hidden="true">↗</span></button>
@@ -412,7 +426,7 @@ export function App() {
             <p className="nursery-help">Choose a lifeform, then tap {underwater || tool && tool !== 'colony' && isAquatic(tool) ? 'open water' : 'open ground'}. Its new life follows the conditions here.</p>
             <button className="back-link" onClick={toggleNursery} type="button">← Back to observing</button>
           </div>
-        ) : focusedRemains ? <RemainsPanel remains={focusedRemains} onBack={() => { clearSelection(); setSelectedColony(!!world.colony && underground) }} /> : selectedColony && world.colony ? <ColonyPanel
+        ) : focusedRemains ? <RemainsPanel remains={focusedRemains} onBack={() => { clearSelection(); setSelectedColony(!!world.colony && underground) }} /> : selectedColony && world.colony ? <ColonyPanel sealed={sealed}
           foodSources={antFoodSources(world.plants, world.colony.entrance.x, world.colony.entrance.z)} foodVisible={showAntFood}
           onFood={() => { clearSelection(); setSelectedColony(true); setUnderwater(false); setUnderground(false); setShowAntFood(!showAntFood) }}
           soil={world.soil}
@@ -441,7 +455,7 @@ export function App() {
             {focusedKind === 'woodlouse' && creatureSoil && <Meter label="Nearby moisture" value={creatureSoil.water} display={`${Math.round(creatureSoil.water)}%`} tone="blue" />}
             <button className="back-link" type="button" onClick={() => setFollowCreature(followCreature === focusedCreature.id ? null : focusedCreature.id)}>{followCreature === focusedCreature.id ? 'Stop following' : 'Follow this animal'}</button>
             {offspring && <button className="back-link" type="button" onClick={() => { setSelectedCreature(offspring.id); setFollowCreature(offspring.id) }}>Observe offspring #{offspring.id + 1} →</button>}
-            <button className="remove-link" onClick={() => remove('creature', focusedCreature.id)} type="button">Move out of terrarium</button>
+            <button className="remove-link" disabled={sealed} onClick={() => remove('creature', focusedCreature.id)} type="button">Move out of terrarium</button>
             {residents.length > 1 && <button className="back-link" type="button" onClick={() => { const next = residents[(residents.findIndex((creature) => creature.id === focusedCreature.id) + 1) % residents.length]; clearSelection(); setSelectedCreature(next.id); setFollowCreature(next.id) }}>Watch next animal →</button>}
             <button className="back-link" onClick={clearSelection} type="button">← Whole ecosystem</button>
           </div>
@@ -459,7 +473,7 @@ export function App() {
             {isAquatic(selected.kind) ? <Meter label="Pond water" value={pond.water} display={`${Math.round(pond.water)}%`} tone="blue" /> : selectedPatch && <Meter label="Nearby soil water" value={selectedPatch.water} display={`${Math.round(selectedPatch.water)}%`} tone="blue" />}
             {outlook && <div className="patch-litter">{Math.round(outlook.localLight * 100)}% local light after canopy shade</div>}
             {!isAquatic(selected.kind) && selectedPatch && <button className="back-link" type="button" onClick={() => { clearSelection(); setSelectedSoil(selectedPatch.id) }}>Tend this plant's soil →</button>}
-            <button className="remove-link" onClick={() => remove('plant', selected.id)} type="button">Move out of terrarium</button>
+            <button className="remove-link" disabled={sealed} onClick={() => remove('plant', selected.id)} type="button">Move out of terrarium</button>
             <button className="back-link" onClick={clearSelection} type="button">← Whole ecosystem</button>
           </div>
         ) : selectedPond || underwater ? <div className="focus-view">
@@ -506,13 +520,13 @@ export function App() {
       <div className="day-indicator" aria-live="off"><span>DAY {day}</span><strong>{hour}:00</strong>{environment.cycling && <span className="phase-label">{environment.phase.toUpperCase()} · {environment.temperatureC.toFixed(1)}°</span>}<span className="day-separator">/</span><span>{speed === 0 ? 'PAUSED' : `${speed}× TIME`}</span>{speed === 0 && <button className="step-hour" type="button" aria-label="Advance one model hour" onClick={() => setSession((current) => simulateStep(current.world))}>+1h</button>}</div>
 
       <section className="control-dock" aria-label="Terrarium controls">
-        <div className="dock-heading"><span>{underwater ? 'TEND YOUR POND' : 'TEND YOUR WORLD'}</span><div className="dock-tools"><button className="mixture-toggle" type="button" onClick={() => { setSpeed(0); setEnvironmentOpen(true) }}>Environment</button>{!underwater && <button className="mixture-toggle" type="button" onClick={() => { setSpeed(0); setMixtureOpen(true) }}>Soil mixture</button>}<button className="nursery-toggle" onClick={toggleNursery} aria-expanded={nurseryOpen} type="button">{nurseryOpen ? 'Close nursery −' : 'Introduce life +'}</button></div></div>
+        <div className="dock-heading"><span>{sealed ? 'SEALED · LIGHT & WARMTH ONLY' : underwater ? 'TEND YOUR POND' : 'TEND YOUR WORLD'}</span><div className="dock-tools"><button className="mixture-toggle" type="button" onClick={() => { setSpeed(0); setEnvironmentOpen(true) }}>Environment</button>{!underwater && <button className="mixture-toggle" type="button" disabled={sealed} onClick={() => { setSpeed(0); setMixtureOpen(true) }}>Soil mixture</button>}<button className="nursery-toggle" disabled={sealed && !nurseryOpen} onClick={toggleNursery} aria-expanded={nurseryOpen} type="button">{nurseryOpen ? 'Close nursery −' : 'Introduce life +'}</button></div></div>
         <div className="dock-content">
           <div className="input-actions">
-            <button className="action-button water-button" type="button" onClick={() => act({ type: underwater ? 'pond-water' : 'water' }, underwater ? 'Fresh water refills the pond.' : 'Fresh water soaks into the soil.')}>
+            <button className="action-button water-button" type="button" disabled={sealed} onClick={() => act({ type: underwater ? 'pond-water' : 'water' }, underwater ? 'Fresh water refills the pond.' : 'Fresh water soaks into the soil.')}>
               <span className="action-symbol water-symbol" aria-hidden="true">●</span><span><strong>{underwater ? 'Refill pond' : selectedSoil === null ? 'Add water' : 'Water this spot'}</strong><small>{underwater ? 'Support water life' : selectedSoil === null ? 'Moisten the soil' : 'Focus this patch'}</small></span><span className="action-plus">+</span>
             </button>
-            <button className="action-button compost-button" type="button" onClick={() => act({ type: underwater ? 'pond-organic' : 'compost' }, underwater ? 'Pond litter begins to decompose. Decay uses oxygen.' : 'Organic matter begins to decompose.')}>
+            <button className="action-button compost-button" type="button" disabled={sealed} onClick={() => act({ type: underwater ? 'pond-organic' : 'compost' }, underwater ? 'Pond litter begins to decompose. Decay uses oxygen.' : 'Organic matter begins to decompose.')}>
               <span className="action-symbol compost-symbol" aria-hidden="true">✳</span><span><strong>{underwater ? 'Add pond litter' : selectedSoil === null ? 'Add compost' : 'Feed this spot'}</strong><small>{underwater ? 'Decay uses oxygen' : selectedSoil === null ? 'Feed the ground' : 'Focus this patch'}</small></span><span className="action-plus">+</span>
             </button>
           </div>
@@ -530,11 +544,12 @@ export function App() {
         </div>
       </section>
       {notice && <div className="notice" role="status">{notice}</div>}
+      <SealPanel open={sealOpen} world={world} onClose={() => setSealOpen(false)} onSeal={(goalDays) => { setWorld((current) => sealWorld(current, goalDays)); setSealOpen(false); setNurseryOpen(false); setTool(null); setNotice(`Sealed for ${goalDays} days. Press 1× or 3× to let time run.`) }} onUnseal={() => { setWorld((current) => unsealWorld(current)); setSealOpen(false); setNotice('The seal is open. You can tend the world again.') }} onObserve={() => { setSealOpen(false); setObservatoryOpen(true) }} />
       <Observatory open={observatoryOpen} history={history} onClose={() => setObservatoryOpen(false)} />
       <ExperimentBook open={experimentsOpen} world={world} onClose={() => setExperimentsOpen(false)} onLoad={restore} />
       <WorldStart open={worldStartOpen} onClose={() => setWorldStartOpen(false)} onBegin={begin} onKeep={() => { setWorldStartOpen(false); setExperimentsOpen(true) }} />
       <SoilMixture open={mixtureOpen} patchId={selectedSoil} onClose={() => setMixtureOpen(false)} onApply={mix} />
-      <Environment open={environmentOpen} world={world} onClose={() => setEnvironmentOpen(false)} onAct={(action) => { setWorld((current) => intervene(current, action)) }} />
+      <Environment open={environmentOpen} world={world} sealed={sealed} onClose={() => setEnvironmentOpen(false)} onAct={(action) => { setWorld((current) => intervene(current, action)) }} />
     </main>
   )
 }

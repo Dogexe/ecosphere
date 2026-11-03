@@ -1,5 +1,11 @@
 # ECOSPHERE — scoped development
 
+## Seal Mode — 2026-11-03 (owner approved the optional save field)
+
+Context.md Phase 2: seal the world and test whether it lasts. Optional `World.sealed = { since, goalDays, vapor }`, written inside the existing v3 envelope only when sealed; v1/v2/v3 saves without it load unchanged. While sealed every matter input or removal is refused in the pure functions (water, compost, soil mixture, rain, pond inputs, introducing or removing life, introducing or exporting the colony); light, temperature and day/night remain. Rain is set to 0 on sealing and a sealed save with rain is rejected.
+
+Water closure: after each sealed step, water the unchanged open solver lost (soil, pond, woodlouse and adult-ant body water) is added to jar vapour; 50% of vapour per hour condenses evenly onto the four soil pockets and the pond, capped at 100. Jar water (held + vapour) is therefore conserved; open-world futures are unchanged. Nutrients and carbon stay the existing open approximations and the UI says so. Goal 10/30/60 days; survived = producers (plants or algae ≥ 0.05) alive at the goal; collapsed = no producers. The report names the plants' most common limiting factor (or the scarcest soil stock when none remain). This narrows roadmap M2's "full mass ledger" to water; a common-unit nutrient/carbon budget is future work.
+
 ## Observatory: run history and A/B projections — 2026-11-03
 
 Context.md's core loop (Simulate → Observe → Experiment → Analyze) has no analysis view yet: A/B shows one frozen snapshot each. Add a read-only Observatory dialog with two views, both built from pure `src/sim/observatory.ts`:
