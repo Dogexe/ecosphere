@@ -7,6 +7,9 @@ import { sealOutcome, sealWorld, unsealWorld, airJar, fogLevel } from './sim/sea
 import { recordSample } from './sim/observatory'
 import type { ObservationSample } from './sim/observatory'
 import { WorldStart } from './WorldStart'
+import { JarBuilder } from './JarBuilder'
+import { pocketWetness } from './sim/substrate'
+import type { SavedSubstrate, Substrate } from './sim/substrate'
 import { SoilMixture } from './SoilMixture'
 import { Environment } from './Environment'
 import { ColonyPanel } from './ColonyPanel'
@@ -106,6 +109,7 @@ export function App() {
   const [sealOpen, setSealOpen] = useState(false)
   const [history, setHistory] = useState<ObservationSample[]>(() => resumed?.history ?? [])
   const [worldStartOpen, setWorldStartOpen] = useState(false)
+  const [building, setBuilding] = useState(false)
   const [worldRevision, setWorldRevision] = useState(0)
   const [mixtureOpen, setMixtureOpen] = useState(false)
   const [environmentOpen, setEnvironmentOpen] = useState(false)
@@ -342,12 +346,22 @@ export function App() {
     setNotice('Your experiment is restored.')
   }
 
-  function begin(start: HabitatStart, seed = 2217) {
+  /** A jar the player built by hand: an empty world whose soil is as wet as they watered it. */
+  function beginBuilt(substrate: SavedSubstrate, poured: Substrate) {
+    const wet = pocketWetness(poured)
+    const base = createHabitatWorld('bare', 2217)
+    const soil = base.soil.map((patch) => ({ ...patch, water: wet[patch.id] }))
+    begin('bare', 2217, { ...base, soil, water: soil.reduce((sum, patch) => sum + patch.water, 0) / soil.length, substrate })
+    setBuilding(false)
+    setNotice('Your jar is ready. Plant it, bring in life, and seal it when it feels right.')
+  }
+
+  function begin(start: HabitatStart, seed = 2217, prepared?: World) {
     setUnderwater(false)
     setUnderground(false)
     setHistory([])
     lastAutosave.current = 0
-    setWorld(beginDaylitWorld(createHabitatWorld(start, seed)))
+    setWorld(beginDaylitWorld(prepared ?? createHabitatWorld(start, seed)))
     setWorldRevision((revision) => revision + 1)
     setSpeed(0)
     clearSelection()
@@ -579,8 +593,9 @@ export function App() {
       <SealPanel open={sealOpen} world={world} onClose={() => setSealOpen(false)} onSeal={(goalDays) => { setWorld((current) => sealWorld(current, goalDays)); setSealOpen(false); setNurseryOpen(false); setTool(null); setNotice(`Sealed for ${goalDays} days. Press 1× or 3× to let time run.`) }} onUnseal={() => { setWorld((current) => unsealWorld(current)); setSealOpen(false); setNotice('The seal is open. You can tend the world again.') }} onAir={() => { setWorld((current) => airJar(current)); setNotice('You lifted the lid for a moment. Fresh room air is inside; the seal is back on.') }} onObserve={() => { setSealOpen(false); setObservatoryOpen(true) }} />
       <Observatory open={observatoryOpen} history={history} onClose={() => setObservatoryOpen(false)} />
       <ExperimentBook open={experimentsOpen} world={world} onClose={() => setExperimentsOpen(false)} onLoad={restore} />
-      <WorldStart open={worldStartOpen} onClose={() => setWorldStartOpen(false)} onBegin={begin} onKeep={() => { setWorldStartOpen(false); setExperimentsOpen(true) }} />
+      <WorldStart open={worldStartOpen} onClose={() => setWorldStartOpen(false)} onBegin={(start, seed) => begin(start, seed)} onBuild={paperLook ? () => { setWorldStartOpen(false); setSpeed(0); setBuilding(true) } : undefined} onKeep={() => { setWorldStartOpen(false); setExperimentsOpen(true) }} />
       <SoilMixture open={mixtureOpen} patchId={selectedSoil} onClose={() => setMixtureOpen(false)} onApply={mix} />
+      {building && <JarBuilder onFinish={beginBuilt} onCancel={() => setBuilding(false)} />}
       <Environment open={environmentOpen} world={world} sealed={sealed} onClose={() => setEnvironmentOpen(false)} onAct={(action) => { setWorld((current) => intervene(current, action)) }} />
     </main>
   )

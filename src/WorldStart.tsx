@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { habitatStarts } from './sim/habitats'
 import type { HabitatStart } from './sim/habitats'
 
-type Props = { open: boolean; onClose: () => void; onBegin: (start: HabitatStart, seed: number) => void; onKeep: () => void }
+type Props = { open: boolean; onClose: () => void; onBegin: (start: HabitatStart, seed: number) => void; onKeep: () => void; onBuild?: () => void }
 
-export function WorldStart({ open, onClose, onBegin, onKeep }: Props) {
+export function WorldStart({ open, onClose, onBegin, onKeep, onBuild }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [chosen, setChosen] = useState<HabitatStart>('garden')
   const [seed, setSeed] = useState('2217')
@@ -32,7 +32,7 @@ export function WorldStart({ open, onClose, onBegin, onKeep }: Props) {
         </div>
         <div className="habitat-details" aria-live="polite"><span className="slot-label">{selected.residents}</span><p><strong>Something to try</strong>{selected.experiment}</p></div>
         <label className="seed-field">World seed<input aria-label="World seed" inputMode="numeric" maxLength={10} value={seed} onChange={(event) => setSeed(event.target.value)} /><small>{validSeed ? 'The same seed and actions follow the same path.' : 'Use a whole number from 0 to 4294967295.'}</small></label>
-        <div className="world-start-actions"><button className="save-experiment" type="button" onClick={onKeep}>Keep current world first</button><button className="load-experiment" type="button" disabled={!validSeed} onClick={() => onBegin(chosen, Number(seed))}>Begin {selected.name.toLowerCase()} <span aria-hidden="true">↗</span></button></div>
+        <div className="world-start-actions"><button className="save-experiment" type="button" onClick={onKeep}>Keep current world first</button>{onBuild && <button className="save-experiment build-jar" type="button" onClick={onBuild}>Build my own jar</button>}<button className="load-experiment" type="button" disabled={!validSeed} onClick={() => onBegin(chosen, Number(seed))}>Begin {selected.name.toLowerCase()} <span aria-hidden="true">↗</span></button></div>
         <p className="storage-note">Beginning replaces the unsaved world. Your two saved experiments stay in the field book. Time is paused.</p>
       </div>
     </dialog>

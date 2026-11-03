@@ -23,6 +23,7 @@ import type { SurfacePose } from './PondView'
 import { plantGeometry, propaguleGeometry } from './plantGeometry'
 import { creatureIsFeeding, creatureKind, habitatFit, nearestSoil } from '../sim/ecosystem'
 import type { Creature, Plant, SimulationEvent, SoilPatch, World } from '../sim/ecosystem'
+import type { SavedSubstrate } from '../sim/substrate'
 import { defaultPond, isAquatic } from '../sim/pond'
 import type { Pond } from '../sim/pond'
 import { plantFlowering, plantStage, woodlouseLife } from '../sim/life'
@@ -125,10 +126,10 @@ function LitterPatch({ patch }: { patch: SoilPatch }) {
   )
 }
 
-function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwater, swimmers }: { pond: Pond; swimmers: { id: number; x: number; z: number }[]; soil: SoilPatch[]; selectedSoil: number | null; onGroundClick: (x: number, z: number) => void; onPondClick: (x: number, z: number) => void; underwater: boolean }) {
+function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwater, swimmers, substrate }: { pond: Pond; swimmers: { id: number; x: number; z: number }[]; substrate?: SavedSubstrate; soil: SoilPatch[]; selectedSoil: number | null; onGroundClick: (x: number, z: number) => void; onPondClick: (x: number, z: number) => void; underwater: boolean }) {
   return (
-    <group onClick={(event) => { if (event.delta > 5 || event.point.y < 0.025) return; event.stopPropagation(); onGroundClick(event.point.x, event.point.z) }}>
-      {paperLook ? <JarSetting /> : <>
+    <group onClick={(event) => { if (event.delta > 5 || (event.point.y < 0.025 && !substrate)) return; event.stopPropagation(); onGroundClick(event.point.x, event.point.z) }}>
+      {paperLook ? <JarSetting substrate={substrate} /> : <>
       <mesh position={[0, -0.75, 0]} receiveShadow castShadow>
         <cylinderGeometry args={[3.72, 3.43, 1.05, 48]} />
         <meshStandardMaterial color="#8b715a" roughness={1} flatShading />
@@ -818,7 +819,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
-      <Terrain underwater={underwater} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
+      <Terrain underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
       {!underwater && (world.soil ?? []).map((patch) => <FungalPatch key={patch.id} patch={patch} />)}
       <RemainsField world={viewWorld} />
       {viewWorld.plants.map((plant) => <PlantModel key={`${worldRevision}:${plant.id}`} plant={plant} fit={habitatFit(world, plant)} tick={world.tick} selected={selectedPlant === plant.id} onSelect={() => placing ? onPlace(plant.x, plant.z) : onSelectPlant(plant.id)} />)}

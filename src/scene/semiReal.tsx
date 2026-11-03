@@ -164,7 +164,7 @@ export function ScannedProp({ file, node, x, z, length, turn, ground, lift = 0 }
 }
 
 /** A painted grey stone from Poly Haven "Rock Moss Set 01" with a cap of moss sprigs on its upward faces. */
-export function MossyStone({ node, x, z, width, turn, ground, sink = 0.2 }: { node: string; x: number; z: number; width: number; turn: number; ground: Ground; sink?: number }) {
+export function MossyStone({ node, x, z, width, turn, ground, sink = 0.2, moss = true }: { node: string; x: number; z: number; width: number; turn: number; ground: Ground; sink?: number; moss?: boolean }) {
   const { nodes } = useGLTF(`${polyHaven}rock_moss_set_01/rock_moss_set_01_1k.gltf`)
   const rock = nodes[node] as Mesh
   const { geometry, material, scale } = useMemo(() => {
@@ -195,6 +195,6 @@ export function MossyStone({ node, x, z, width, turn, ground, sink = 0.2 }: { no
   }, [geometry, position, turn, scale, width])
   return <>
     <mesh geometry={geometry} material={material} position={position} rotation={[0, turn, 0]} scale={scale} castShadow receiveShadow />
-    {top.length > 0 && <MossSprigs x={x} z={z} radius={1} count={Math.round(220 * width)} ground={ground} spots={top} scale={0.4 + width * 0.3} />}
+    {moss && top.length > 0 && <MossSprigs x={x} z={z} radius={1} count={Math.round(220 * width)} ground={ground} spots={top} scale={0.4 + width * 0.3} />}
   </>
 }

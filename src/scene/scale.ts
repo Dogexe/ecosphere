@@ -61,7 +61,17 @@ export function plantGrowthScale(plant: Plant) {
   return (0.32 + 0.68 * Math.sqrt(biomass)) * (0.6 + 0.4 * development) * stableVariation(plant.id) * emergence
 }
 
+/**
+ * How far the ground at a point sits above the flat default. Zero unless the
+ * player built the jar; then the jar scene sets it from their poured soil.
+ */
+export const groundShape: { offset: (x: number, z: number) => number } = { offset: () => 0 }
+
 export function plantGroundY(plant: Plant) {
+  return flatPlantGroundY(plant) + (['lily', 'reed'].includes(plant.kind) ? 0 : groundShape.offset(plant.x, plant.z))
+}
+
+function flatPlantGroundY(plant: Plant) {
   if (plant.kind === 'lily') return environmentScale.pondSurfaceY + 0.002 - 0.025 * plantModelScale('lily')[1] * plantGrowthScale(plant)
   if (plant.kind === 'reed') return environmentScale.pondShelfY + 0.002
   if (['seed', 'germinating', 'seedling'].includes(plantStage(plant))) return environmentScale.soilSurfaceY
@@ -87,7 +97,7 @@ export function animalModelScale(creature: Creature) {
   return size.length / size.sourceLength * growth * stableVariation(creature.id)
 }
 
-export const animalGroundY = (creature: Creature) => 0.05 + animalDimensions[creature.kind ?? 'grazer'].clearance * animalModelScale(creature)
+export const animalGroundY = (creature: Creature) => 0.05 + animalDimensions[creature.kind ?? 'grazer'].clearance * animalModelScale(creature) + groundShape.offset(creature.x, creature.z)
 
 // Micro follow must match the rendered body's interpolation. A slower
 // camera can trail farther than its entire close frustum during3× foraging.

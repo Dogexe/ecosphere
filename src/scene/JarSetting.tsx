@@ -1,12 +1,16 @@
-import { Suspense, useMemo } from 'react'
+import { Suspense, useLayoutEffect, useMemo } from 'react'
 import { useTexture } from '@react-three/drei'
 import { CylinderGeometry, DoubleSide, RepeatWrapping, SRGBColorSpace, Vector2, Vector3 } from 'three'
 import type { Texture } from 'three'
 import { charcoalTexture, soilSideTexture } from '../lab/proceduralTextures'
 import { pondCenter } from '../sim/pond'
-import { environmentScale } from './scale'
+import { environmentScale, groundShape } from './scale'
+import { cellX, heightAt, inside, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
+import type { Decor, SavedSubstrate } from '../sim/substrate'
+import { LayeredGround } from './LayeredGround'
 import { terrainGeometry } from './terrainGeometry'
 import { Fern, MossSprigs, MossyStone, paintify, polyHaven, ScannedProp } from './semiReal'
+import type { Ground } from './semiReal'
 
 /*
  * The semi-real jar for ?look=paper: the island becomes a glass jar on a
@@ -83,10 +87,10 @@ export function JarSubstrate() {
 }
 
 /** Clear glass: a thin physical shell with sharp reflections, so the jar contents stay crisp. */
-function Glass() {
+function Glass({ bottom = gravelBottom }: { bottom?: number }) {
   return <group>
-    <mesh position={[0, (gravelBottom + glassTop) / 2, 0]} raycast={noRaycast} renderOrder={2}>
-      <cylinderGeometry args={[R + 0.12, R + 0.12, glassTop - gravelBottom + 0.1, 96, 1, true]} />
+    <mesh position={[0, (bottom + glassTop) / 2, 0]} raycast={noRaycast} renderOrder={2}>
+      <cylinderGeometry args={[R + 0.12, R + 0.12, glassTop - bottom + 0.1, 96, 1, true]} />
       <meshPhysicalMaterial color="#ffffff" transparent opacity={0.08} roughness={0.02} metalness={0} clearcoat={1} clearcoatRoughness={0.02} envMapIntensity={1.4} side={DoubleSide} depthWrite={false} />
     </mesh>
     <mesh position={[0, glassTop, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
@@ -96,9 +100,9 @@ function Glass() {
   </group>
 }
 
-function Sill() {
+function Sill({ bottom = gravelBottom }: { bottom?: number }) {
   const oak = useScan('oak_veneer_01', sillRepeat)
-  return <mesh position={[0, gravelBottom - 0.55, 1.5]} raycast={noRaycast} receiveShadow>
+  return <mesh position={[0, bottom - 0.55, 1.5]} raycast={noRaycast} receiveShadow>
     <boxGeometry args={[30, 1, 14]} />
     <meshStandardMaterial {...oak} />
   </mesh>
@@ -126,8 +130,52 @@ function Dressing() {
   </>
 }
 
+/** A stone or piece of wood the player set while building the jar. */
+export function DecorPiece({ item, index, ground }: { item: Decor; index: number; ground: Ground }) {
+  return item.kind === 'stone'
+    ? <MossyStone node={`rock_moss_set_01_rock0${index % 6 + 1}`} x={item.x} z={item.z} width={item.size} turn={item.turn} ground={ground} moss={false} />
+    : <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_a" x={item.x} z={item.z} length={item.size} turn={item.turn} ground={ground} />
+}
+
+/** The pond is dug into a built jar: the ground sinks under the water and eases up to the pond lip. */
+function pondCut(floor: number) {
+  const lip = environmentScale.pondSurfaceY - floor
+  const under = environmentScale.pondBedY - floor - 0.1
+  return (x: number, z: number, height: number) => {
+    const d = Math.hypot(x - pondCenter.x, z - pondCenter.z)
+    if (d < pondCenter.radius * 1.02) return under
+    const t = Math.min(1, (d - pondCenter.radius * 1.02) / 0.7)
+    return lip + (height - lip) * t * t * (3 - 2 * t)
+  }
+}
+
+/** A jar the player built: their layers, raised so the soil sits where the simulation expects the ground. */
+function BuiltJar({ substrate }: { substrate: SavedSubstrate }) {
+  const state = useMemo(() => loadSubstrate(substrate), [substrate])
+  const floor = useMemo(() => {
+    let sum = 0, count = 0
+    for (let k = 0; k < state.soil.length; k += 1) {
+      const i = k % substrateSize, j = Math.floor(k / substrateSize)
+      if (!inside[k] || Math.hypot(cellX(i) - pondCenter.x, cellX(j) - pondCenter.z) < pondCenter.radius + 0.3) continue
+      sum += topAt(state, k); count += 1
+    }
+    return top - (count ? sum / count : 0)
+  }, [state])
+  const shape = useMemo(() => pondCut(floor), [floor])
+  const ground = useMemo(() => (x: number, z: number) => shape(x, z, heightAt(state, x, z)) + floor, [shape, state, floor])
+  // Plants and animals stand on this ground instead of the flat default.
+  useLayoutEffect(() => { groundShape.offset = (x, z) => ground(x, z) - top; return () => { groundShape.offset = () => 0 } }, [ground])
+  return <>
+    <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} onClick /></Suspense>
+    <Suspense fallback={null}>{state.decor.map((item, index) => <DecorPiece key={index} item={item} index={index} ground={ground} />)}</Suspense>
+    <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
+    <Glass bottom={floor} />
+  </>
+}
+
 /** Everything the jar adds around the simulation. Each part loads its scans on its own so the game never waits for them. */
-export function JarSetting() {
+export function JarSetting({ substrate }: { substrate?: SavedSubstrate }) {
+  if (substrate) return <BuiltJar substrate={substrate} />
   return <>
     <Suspense fallback={<mesh position={[0, top, 0]} rotation={[-Math.PI / 2, 0, 0]}><primitive object={terrainGeometry.cap} attach="geometry" /><meshStandardMaterial color="#6b5544" roughness={1} /></mesh>}><JarSubstrate /></Suspense>
     <Suspense fallback={null}><Dressing /></Suspense>
