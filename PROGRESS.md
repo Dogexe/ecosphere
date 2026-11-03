@@ -1,5 +1,13 @@
 # ECOSPHERE development progress
 
+## Autosave — 2026-11-03
+
+The game now remembers the world between visits. It autosaves every few seconds while things change and immediately when the tab is hidden or closed, then on the next visit brings back the same world and its Observatory graph, paused, with "Welcome back". A/B experiment slots are separate and untouched. Observatory also graphs Jar oxygen and Jar CO2.
+
+223 tests (7 new in `autosave.test.mjs`), typecheck and build pass. Browser (headless Chromium, desktop 1440×900 and iPhone 13): ran a few hours, reloaded; the same hour and history came back paused with the notice, stayed paused, no horizontal overflow, no console errors. A fresh run's autosave is ~5 KB; a full 60-day history is well under 1 MB.
+
+Limits: one autosave per browser (clearing site data or private mode loses it); a phone that kills the page without `pagehide` loses at most the last 5 s.
+
 ## Living jar — 2026-11-03
 
 Compared the game with real closed terrariums (Claude Doc "ECOSPHERE เทียบกับ terrarium จริง"): untouched sealed starters died in ~120 days. Fixed the causes: sealed jars can now grow seedlings (the seal guard had blocked the solver itself), perennial plants and woodlice/springtails live realistic lifespans, and soil bacteria mineralise litter. While sealed, minerals and carbon are conserved exactly and the jar has its own air: plants run short of CO2 by day and soil life breathes it back, rich soil can pull O2 down (the Biosphere 2 lesson), bright light heats the jar, waterlogged soil rots roots and the glass fogs. The report shows temperature, O2, CO2 and fog; "Air it for a moment" lets in room air and is counted.

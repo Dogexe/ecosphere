@@ -18,6 +18,7 @@ import { plantStage, woodlouseLife } from './sim/life'
 import { createHabitatWorld, habitatStarts } from './sim/habitats'
 import type { HabitatStart } from './sim/habitats'
 import { createStressWorld } from './dev/stressWorld'
+import { autosaveInterval, browserStore, readAutosave, writeAutosave } from './sim/autosave'
 import { applySoilInput, beetleIsHunting, dominantLimit, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
 
@@ -87,9 +88,11 @@ function Meter({ label, value, display, tone = 'green' }: { label: string; value
 export function App() {
   const query = new URLSearchParams(window.location.search)
   const stress = query.get('profile') === '1' && query.get('stress') === '1'
-  const [session, setSession] = useState<StepResult>(() => ({ world: stress ? createStressWorld(query.get('dry') === '1') : beginDaylitWorld(createWorld()), events: [] }))
+  // The last session comes back paused, with its Observatory history (never in the stress profile).
+  const [resumed] = useState(() => stress ? null : readAutosave(browserStore()))
+  const [session, setSession] = useState<StepResult>(() => ({ world: stress ? createStressWorld(query.get('dry') === '1') : resumed?.world ?? beginDaylitWorld(createWorld()), events: [] }))
   const { world, events } = session
-  const [speed, setSpeed] = useState<Speed>(stress ? 0 : 1)
+  const [speed, setSpeed] = useState<Speed>(stress || resumed ? 0 : 1)
   const [selectedPlant, setSelectedPlant] = useState<number | null>(null)
   const [selectedCreature, setSelectedCreature] = useState<number | null>(null)
   const [selectedSoil, setSelectedSoil] = useState<number | null>(null)
@@ -98,7 +101,7 @@ export function App() {
   const [experimentsOpen, setExperimentsOpen] = useState(false)
   const [observatoryOpen, setObservatoryOpen] = useState(false)
   const [sealOpen, setSealOpen] = useState(false)
-  const [history, setHistory] = useState<ObservationSample[]>([])
+  const [history, setHistory] = useState<ObservationSample[]>(() => resumed?.history ?? [])
   const [worldStartOpen, setWorldStartOpen] = useState(false)
   const [worldRevision, setWorldRevision] = useState(0)
   const [mixtureOpen, setMixtureOpen] = useState(false)
@@ -116,7 +119,7 @@ export function App() {
   const [focusChamber, setFocusChamber] = useState<number | null>(null)
   const [showAntFood, setShowAntFood] = useState(false)
   const [selectedRemains, setSelectedRemains] = useState<{ id: number; sourceId: number; form: string } | null>(null)
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState(resumed ? 'Welcome back. Your world is where you left it, paused. Press 1× to continue.' : '')
   const scene = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -161,6 +164,27 @@ export function App() {
 
   // Observation only: one reading per model hour, never fed back into the world.
   useEffect(() => { setHistory((current) => recordSample(current, session.world)) }, [session.world])
+
+  // Autosave: at most every few seconds while things change, and at once when the page is hidden or closed.
+  const latest = useRef({ world: session.world, history })
+  latest.current = { world: session.world, history }
+  const lastAutosave = useRef(resumed ? Date.now() : 0)
+  useEffect(() => {
+    if (stress) return
+    const save = () => { lastAutosave.current = Date.now(); writeAutosave(browserStore(), latest.current.world, latest.current.history) }
+    const wait = autosaveInterval - (Date.now() - lastAutosave.current)
+    if (wait <= 0) { save(); return }
+    const timer = window.setTimeout(save, wait)
+    return () => window.clearTimeout(timer)
+  }, [session.world, history, stress])
+  useEffect(() => {
+    if (stress) return
+    const flush = () => { lastAutosave.current = Date.now(); writeAutosave(browserStore(), latest.current.world, latest.current.history) }
+    const hidden = () => { if (document.visibilityState === 'hidden') flush() }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', hidden)
+    return () => { window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', hidden) }
+  }, [stress])
 
   // Pause and show the report once when a sealed jar reaches its goal or collapses.
   const sealResult = session.world.sealed ? sealOutcome(session.world, () => null)?.status ?? null : null
@@ -304,6 +328,7 @@ export function App() {
     setUnderwater(false)
     setUnderground(false)
     setHistory([])
+    lastAutosave.current = 0
     setWorld(snapshot)
     setWorldRevision((revision) => revision + 1)
     setSpeed(0)
@@ -318,6 +343,7 @@ export function App() {
     setUnderwater(false)
     setUnderground(false)
     setHistory([])
+    lastAutosave.current = 0
     setWorld(beginDaylitWorld(createHabitatWorld(start, seed)))
     setWorldRevision((revision) => revision + 1)
     setSpeed(0)

@@ -1,5 +1,9 @@
 # Verification plan — first playable slice
 
+## Autosave — before implementation, 2026-11-03
+
+Unit: encode → decode gives the same world (deep equal) and history within 0.005; a restored world's next 48 hours equal the original's; history over the limit is trimmed and the text stays under 1 MB; non-ascending or future history ticks drop the history but keep the world; history without jar-air columns fills room air; null, throwing, damaged and full storage all return safely (full → world without history); a damaged save is not deleted; A/B slots untouched. Browser (desktop and phone): run a few hours, reload, same day and history appear paused with the notice; Observatory shows the old line continuing; no console errors.
+
 ## Living jar — before implementation, 2026-11-03
 
 Unit: minerals and carbon (including jar CO2) conserved to 1e-8 relative for 60 sealed days in garden, woodland, wetland and colony worlds; O2 change equals minus CO2 change; CO2 never meaningfully negative; open woodland still loses minerals; seedlings are born inside a sealed jar; zero CO2 means no growth; sealed noon is >8 °C warmer at meadow light and night is unchanged; thin air lowers woodlouse energy and leaves more litter; waterlogged sealed soil reports rot and raises loss; airing resets air, halves vapour and counts; old seal saves without air load with fresh air. Benchmark: a moss and fern jar at light 0.45 survives 365 untouched days with ≥10 plants. Existing tests whose numbers change from bacterial decay and new lifespans are re-baselined (litter baseline, lifespan constant, new trajectory fixture; old fixtures kept). Full suite, typecheck, build; browser seal → run → report → air, desktop and phone, no console errors.

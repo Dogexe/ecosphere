@@ -1,5 +1,6 @@
 import { creatureCounts, simulateStep, vitality } from './ecosystem.ts'
 import type { World } from './ecosystem'
+import { co2Ppm, o2Percent } from './seal.ts'
 
 // Read-only measurements of a world. Nothing here feeds back into the simulation.
 export type ObservationSample = {
@@ -18,10 +19,13 @@ export type ObservationSample = {
   flea: number
   fish: number
   antWorkers: number
+  /** Jar air; room air (20.9% / 420 ppm) while the world is open. */
+  jarOxygen: number
+  jarCO2: number
 }
 
 export type MetricKey = Exclude<keyof ObservationSample, 'tick'>
-export type Metric = { key: MetricKey; label: string; unit: string; group: 'producers' | 'soil' | 'pond' | 'animals' }
+export type Metric = { key: MetricKey; label: string; unit: string; group: 'producers' | 'soil' | 'pond' | 'animals' | 'air' }
 
 export const metrics: readonly Metric[] = [
   { key: 'plants', label: 'Plants', unit: '', group: 'producers' },
@@ -38,6 +42,8 @@ export const metrics: readonly Metric[] = [
   { key: 'flea', label: 'Water fleas', unit: '', group: 'animals' },
   { key: 'fish', label: 'Fish', unit: '', group: 'animals' },
   { key: 'antWorkers', label: 'Ant workers', unit: '', group: 'animals' },
+  { key: 'jarOxygen', label: 'Jar oxygen', unit: '%', group: 'air' },
+  { key: 'jarCO2', label: 'Jar CO2', unit: 'ppm', group: 'air' },
 ]
 
 /** Live-run history kept in memory: 60 model days at one sample per hour. */
@@ -56,6 +62,8 @@ export function sampleWorld(world: World): ObservationSample {
     algae: world.pond.algae,
     ...counts,
     antWorkers: world.colony?.workers.length ?? 0,
+    jarOxygen: world.sealed ? o2Percent(world.sealed.o2) : 20.9,
+    jarCO2: world.sealed ? Math.max(0, co2Ppm(world.sealed.co2)) : 420,
   }
 }
 
