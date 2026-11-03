@@ -2,7 +2,7 @@ import type { Creature, Lifeform, Plant, PlantKind, SoilPatch, World } from './e
 import { isAquatic, rateAt } from './pond.ts'
 import type { Pond } from './pond'
 
-export const plantLifetime: Record<PlantKind, number> = { clover: 1200, grass: 960, bloom: 720, fern: 2400, moss: 3600, tree: 10000, lily: 1800, reed: 2200 }
+export const plantLifetime: Record<PlantKind, number> = { clover: 8760, grass: 8760, bloom: 2880, fern: 43800, moss: 87600, tree: 175200, lily: 17520, reed: 17520 }
 export const developmentRate: Record<PlantKind, number> = { clover: 1.2, grass: 1.5, bloom: 1, fern: 0.65, moss: 0.8, tree: 0.45, lily: 0.8, reed: 1.1 }
 export function plantStage(plant: Plant): 'seed' | 'germinating' | 'seedling' | 'growing' | 'mature' | 'senescent' {
   const age = plant.age ?? 90

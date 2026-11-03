@@ -3,7 +3,7 @@ import { Terrarium } from './scene/Terrarium'
 import { ExperimentBook } from './ExperimentBook'
 import { Observatory } from './Observatory'
 import { SealPanel } from './SealPanel'
-import { sealOutcome, sealWorld, unsealWorld } from './sim/seal'
+import { sealOutcome, sealWorld, unsealWorld, airJar, fogLevel } from './sim/seal'
 import { recordSample } from './sim/observatory'
 import type { ObservationSample } from './sim/observatory'
 import { WorldStart } from './WorldStart'
@@ -404,6 +404,7 @@ export function App() {
           onSelectPond={() => { clearSelection(); setSelectedPond(true) }}
           onClearSelection={clearSelection}
         />
+        {sealed && !underwater && !underground && <div className="jar-fog" aria-hidden="true" style={{ opacity: fogLevel(world) * 0.6 }} />}
         <div className="scene-view-tools"><button className="scene-view-button" type="button" onClick={underground ? changeNestView : changeView} disabled={!underwater && !underground && pond.water < 8}>{underwater || underground ? '↑ Return to surface' : '↓ Explore the pond'}</button>{world.colony && !underwater && !underground && <button className="scene-view-button" type="button" onClick={changeNestView}>↓ Inside the nest</button>}</div>
         <div className={`scene-hint ${tool ? 'placing-hint' : ''}`}>{tool ? `PLACING ${tool.toUpperCase()} · TAP ${tool !== 'colony' && isAquatic(tool) ? 'WATER' : 'OPEN GROUND'}` : <>{underground ? 'SOIL CUTAWAY · DRAG TO LOOK' : underwater ? 'UNDER THE SURFACE · DRAG TO LOOK' : 'DRAG TO ORBIT'} <span>·</span> PINCH TO ZOOM <span>·</span> TWO FINGERS TO PAN</>}</div>
       </section>
@@ -468,7 +469,7 @@ export function App() {
             {world.colony && <p className="colony-note">{selectedSeedMaterial > 0.00001 ? `${selectedSeedMaterial < 0.001 ? '<0.001' : selectedSeedMaterial.toFixed(3)} seed-bearing material is available here. Workers must reach this plant and carry it home.` : ['clover', 'grass', 'bloom'].includes(selected.kind) ? ['mature', 'senescent'].includes(plantStage(selected)) ? 'Mature, but not enough leaf cover for harvestable seed material. More than 70% cover is needed to supply the seed harvesters.' : 'Still developing. Once mature, this plant also needs more than 70% leaf cover before seed harvesters can use it.' : 'This plant does not supply the seed harvesters. Other roles in the food web can still use the habitat it creates.'}</p>}
             {selected.parentId !== null && selected.parentId !== undefined && <div className="patch-litter">From parent plant #{selected.parentId + 1}</div>}
             {seedPhase && <div className="plant-outlook"><strong>Living on stored material</strong><span>Moisture and temperature govern emergence. Stored material sustains this propagule until it can photosynthesize.</span></div>}
-            {outlook && !seedPhase && <div className="plant-outlook"><strong>{outlook.dark ? 'Living through the night' : outlook.change > 0.001 ? 'Growing before grazing' : outlook.change < -0.001 ? 'Losing leaves before grazing' : 'Holding its leaves'}</strong><span>{outlook.dark ? 'No photosynthesis in darkness. Maintenance and leaf turnover continue until daylight returns.' : outlook.fit > 0.65 ? 'These conditions suit it; leaves still turn over.' : outlook.limiting === 'temperature' ? 'Temperature is limiting its growth.' : outlook.limiting === 'water' ? 'Moisture is furthest from its needs.' : outlook.limiting === 'light' ? 'Light is furthest from its preference.' : 'Available nutrients are its main constraint.'} Neighbors and grazers can change the outcome.</span></div>}
+            {outlook && !seedPhase && <div className="plant-outlook"><strong>{outlook.dark ? 'Living through the night' : outlook.change > 0.001 ? 'Growing before grazing' : outlook.change < -0.001 ? 'Losing leaves before grazing' : 'Holding its leaves'}</strong><span>{outlook.dark ? 'No photosynthesis in darkness. Maintenance and leaf turnover continue until daylight returns.' : outlook.fit > 0.65 ? 'These conditions suit it; leaves still turn over.' : outlook.limiting === 'rot' ? 'Its roots sit in waterlogged soil and are rotting.' : outlook.limiting === 'co2' ? 'The sealed air is short of CO2 for photosynthesis.' : outlook.limiting === 'temperature' ? 'Temperature is limiting its growth.' : outlook.limiting === 'water' ? 'Moisture is furthest from its needs.' : outlook.limiting === 'light' ? 'Light is furthest from its preference.' : 'Available nutrients are its main constraint.'} Neighbors and grazers can change the outcome.</span></div>}
             <Meter label={seedPhase ? 'Stored material' : 'Leaf cover'} value={selected.biomass / selected.capacity * 100} display={seedPhase ? `${selected.biomass.toFixed(2)} units` : `${Math.round(selected.biomass / selected.capacity * 100)}%`} />
             {isAquatic(selected.kind) ? <Meter label="Pond water" value={pond.water} display={`${Math.round(pond.water)}%`} tone="blue" /> : selectedPatch && <Meter label="Nearby soil water" value={selectedPatch.water} display={`${Math.round(selectedPatch.water)}%`} tone="blue" />}
             {outlook && <div className="patch-litter">{Math.round(outlook.localLight * 100)}% local light after canopy shade</div>}
@@ -544,7 +545,7 @@ export function App() {
         </div>
       </section>
       {notice && <div className="notice" role="status">{notice}</div>}
-      <SealPanel open={sealOpen} world={world} onClose={() => setSealOpen(false)} onSeal={(goalDays) => { setWorld((current) => sealWorld(current, goalDays)); setSealOpen(false); setNurseryOpen(false); setTool(null); setNotice(`Sealed for ${goalDays} days. Press 1× or 3× to let time run.`) }} onUnseal={() => { setWorld((current) => unsealWorld(current)); setSealOpen(false); setNotice('The seal is open. You can tend the world again.') }} onObserve={() => { setSealOpen(false); setObservatoryOpen(true) }} />
+      <SealPanel open={sealOpen} world={world} onClose={() => setSealOpen(false)} onSeal={(goalDays) => { setWorld((current) => sealWorld(current, goalDays)); setSealOpen(false); setNurseryOpen(false); setTool(null); setNotice(`Sealed for ${goalDays} days. Press 1× or 3× to let time run.`) }} onUnseal={() => { setWorld((current) => unsealWorld(current)); setSealOpen(false); setNotice('The seal is open. You can tend the world again.') }} onAir={() => { setWorld((current) => airJar(current)); setNotice('You lifted the lid for a moment. Fresh room air is inside; the seal is back on.') }} onObserve={() => { setSealOpen(false); setObservatoryOpen(true) }} />
       <Observatory open={observatoryOpen} history={history} onClose={() => setObservatoryOpen(false)} />
       <ExperimentBook open={experimentsOpen} world={world} onClose={() => setExperimentsOpen(false)} onLoad={restore} />
       <WorldStart open={worldStartOpen} onClose={() => setWorldStartOpen(false)} onBegin={begin} onKeep={() => { setWorldStartOpen(false); setExperimentsOpen(true) }} />

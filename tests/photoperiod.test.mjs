@@ -32,10 +32,12 @@ test('solar forcing repeats, has an exact daily integral and lagged bounded temp
   assert.ok(environmentAt({ ...base, climate: { ...base.climate, temperatureC: 40 }, tick: 15 }).temperatureC <= 40)
 })
 
-test('constant mode retains the twelve explicit recruitment/light/contact-correction trajectories', () => {
-  const cases = JSON.parse(readFileSync(new URL('./fixtures/contact-trajectories.json', import.meta.url)))
+test('constant mode retains the twelve explicit living-jar-correction trajectories', () => {
+  const cases = JSON.parse(readFileSync(new URL('./fixtures/living-jar-trajectories.json', import.meta.url)))
   for (const item of cases) {
-    // Original and recruitment-only hashes remain in their historical files.
+    // Original, recruitment-only and contact hashes remain in their historical
+    // files. The 2026-11-03 living-jar correction (bacterial litter decay,
+    // perennial plant and real woodlouse/springtail lifespans) changes paths.
     // Soft contact changes actual woodlouse positions and subsequent ecological
     // paths; stock-flow/contact tests validate the cause independently.
     let world = createHabitatWorld(item.habitat, item.seed)

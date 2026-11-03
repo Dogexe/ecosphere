@@ -1,5 +1,9 @@
 # Verification plan — first playable slice
 
+## Living jar — before implementation, 2026-11-03
+
+Unit: minerals and carbon (including jar CO2) conserved to 1e-8 relative for 60 sealed days in garden, woodland, wetland and colony worlds; O2 change equals minus CO2 change; CO2 never meaningfully negative; open woodland still loses minerals; seedlings are born inside a sealed jar; zero CO2 means no growth; sealed noon is >8 °C warmer at meadow light and night is unchanged; thin air lowers woodlouse energy and leaves more litter; waterlogged sealed soil reports rot and raises loss; airing resets air, halves vapour and counts; old seal saves without air load with fresh air. Benchmark: a moss and fern jar at light 0.45 survives 365 untouched days with ≥10 plants. Existing tests whose numbers change from bacterial decay and new lifespans are re-baselined (litter baseline, lifespan constant, new trajectory fixture; old fixtures kept). Full suite, typecheck, build; browser seal → run → report → air, desktop and phone, no console errors.
+
 ## Seal Mode — before implementation, 2026-11-03
 
 Unit: every refused input returns the identical world; light/temperature still apply; jar water constant to 1e-9 relative over 720 sealed hours in garden, woodland, meadow, wetland and colony worlds, vapour never negative, soil water within 0..100; open meadow loses >20% held water in 10 days while the sealed copy keeps more; save round trip mid-run continues identically; sealed save with rain or a future `since` is rejected; outcome running/survived/collapsed. Full suite, typecheck, build. Browser: seal a world, confirm inputs disabled, run to the goal, see the report, unseal, desktop and phone.

@@ -4,6 +4,10 @@ import { createWorld, creatureCounts, creatureIsFeeding, introduceLife, interven
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
 
 const animal = (id, kind, x, z, energy = 55) => ({ id, kind, x, z, heading: 0, energy })
+// Litter left after one hour of bacterial decay in an empty habitat; capture
+// and death deposits arrive after decay, so they add to this baseline.
+const decayedLitter = () => simulateStep(habitat([])).world.soil[1].organic
+
 function habitat(creatures, plants = []) {
   const base = createWorld(17)
   return { ...base, creatures, plants, soil: base.soil.map((patch) => ({ ...patch, water: 75, organic: 10, fungi: 0 })), water: 75, organic: 10 }
@@ -48,7 +52,7 @@ test('one capture partitions the prey body and cannot duplicate a corpse or feed
   assert.equal(result.events.some((event) => event.type === 'death' && event.id === 0), false)
   const caught = catches[0]
   near(caught.preyMaterial, caught.offspringMaterial + caught.litter + caught.metabolized)
-  near(result.world.soil[1].organic - initial.soil[1].organic, caught.litter)
+  near(result.world.soil[1].organic - decayedLitter(), caught.litter)
   assert.ok(result.world.creatures.find((creature) => creature.id === caught.predatorId).energy > 55)
   assert.equal(creatureIsFeeding(result.world, result.world.creatures[0], []), false)
   assert.equal(creatureIsFeeding(result.world, result.world.creatures.find((creature) => creature.id === caught.predatorId), result.events), true)
@@ -58,7 +62,7 @@ test('energy death precedes capture and captured parents cannot reproduce', () =
   const dying = simulateStep(habitat([animal(0, 'grazer', 1.7, -1.7, 0.1), animal(1, 'beetle', 1.65, -1.7)]))
   assert.equal(dying.events.filter((event) => event.type === 'death').length, 1)
   assert.equal(dying.events.some((event) => event.type === 'predation'), false)
-  near(dying.world.soil[1].organic + dying.world.remains.reduce((sum, item) => sum + item.material, 0), 10.42)
+  near(dying.world.soil[1].organic + dying.world.remains.reduce((sum, item) => sum + item.material, 0), decayedLitter() + 0.42)
   const captured = simulateStep(habitat([animal(0, 'grazer', 1.7, -1.7, 95), animal(1, 'beetle', 1.65, -1.7)], [{ id: 0, kind: 'clover', x: 1.7, z: -1.7, biomass: 5, capacity: 8.8 }]))
   assert.equal(captured.events.some((event) => event.type === 'predation'), true)
   assert.equal(captured.events.some((event) => event.type === 'birth'), false)
@@ -96,7 +100,7 @@ test('carnivorous beetles cannot live on plants, litter, or one another', () => 
   assert.equal(catches, 0)
   assert.equal(world.grazed, 0)
   const dying = stepWorld(habitat([animal(0, 'beetle', 1.7, -1.7, 0.1)]))
-  near(dying.soil[1].organic + dying.remains.reduce((sum, item) => sum + item.material, 0), 10.34)
+  near(dying.soil[1].organic + dying.remains.reduce((sum, item) => sum + item.material, 0), decayedLitter() + 0.34)
 })
 
 test('predator state/events replay deterministically and old World-only stepping stays equivalent', () => {
