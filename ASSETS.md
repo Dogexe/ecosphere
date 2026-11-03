@@ -112,3 +112,7 @@ Runtime modifications: normalize the base and scale, limit excessive width, set 
 Terrain, rocks, water, litter, curved grass dressing, fern, moss, aquatic invertebrates and woodlice retain authored geometry in`src/scene/`. Earlier clover/grass/flower/tree/lily/reed/grazer/beetle/fish geometry remains as a loading-failure fallback. Decorative grass/logs do not add simulated biomass or ecological species.
 
 Kenney flower variants A/B/C remain excluded. Original GLB source hashes for rejected C variants, retained only as evaluation evidence: purple `beb85b66766c9943a89a5ee27114d3befe22569db9a6f0b5f8366b687f9c1e42`, yellow `4115c017390b3e157466a8719e9e2af6c5385505135e7012982b9410760ba9f3`.
+
+## Paper-look scanned plants (2026-11-03)
+
+Poly Haven CC0 models in `public/assets/lab/polyhaven/` (see its `manifest.json`): `calathea_orbifolia_01` (tree kind, a young Calathea), `shrub_sorrel_01` (clover kind, Oxalis), `fern_02` (fern kind). Downloaded at 1k; the diffuse JPG was merged with Poly Haven's 1k alpha map into an RGBA PNG so the leaf cutouts work. Used by `src/scene/ScanPlant.tsx`, scaled to `plantDimensions` in `src/scene/scale.ts`.

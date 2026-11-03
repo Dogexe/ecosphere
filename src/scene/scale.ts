@@ -21,11 +21,13 @@ export const environmentScale = {
 // baked bounds, not guessed import scale factors (x/z preserve aspect ratio).
 export const plantDimensions: Record<PlantKind, { spread: number; height: number; sourceSpread: number; sourceHeight: number }> = {
   moss: { spread: 0.72, height: 0.17, sourceSpread: 0.8772, sourceHeight: 0.272 },
-  clover: { spread: 0.8, height: 0.34, sourceSpread: 1.0199, sourceHeight: 0.4306 },
+  // Oxalis, 2026-11-03: about 3 cm across and 3 cm high, so its leaflets fall in the real 4-13 mm (VicFlora).
+  clover: { spread: 1.6, height: 1.5, sourceSpread: 1.0199, sourceHeight: 0.4306 },
   grass: { spread: 0.4, height: 0.48, sourceSpread: 0.2911, sourceHeight: 0.355 },
-  fern: { spread: 1.25, height: 0.85, sourceSpread: 1.5927, sourceHeight: 0.9044 },
+  fern: { spread: 2.0, height: 1.2, sourceSpread: 1.5927, sourceHeight: 0.9044 },
   bloom: { spread: 0.72, height: 0.94, sourceSpread: 0.7935, sourceHeight: 0.8433 },
-  tree: { spread: 1.95, height: 2.5, sourceSpread: 1.6055, sourceHeight: 1.8527 },
+  // A young Calathea in the paper look: up to about 5 cm across, half the glass height.
+  tree: { spread: 2.6, height: 2.5, sourceSpread: 1.6055, sourceHeight: 1.8527 },
   lily: { spread: 0.68, height: 0.22, sourceSpread: 0.64, sourceHeight: 0.27 },
   reed: { spread: 0.42, height: 1.1, sourceSpread: 0.2911, sourceHeight: 0.355 },
 }
