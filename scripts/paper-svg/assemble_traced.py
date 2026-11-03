@@ -61,12 +61,10 @@ def main(config_path, out_path):
     ant_w, ant_h = ant_box[2] - ant_box[0], ant_box[3] - ant_box[1]
     ant_scale = config['antenna']['length'] / max(ant_w, ant_h)
 
-    def leg_group(side, order, x, y, turn=0, flip=False):
-        # turn: degrees about the hip; flip: mirror the leg so its foot points forward (front legs).
+    def leg_group(side, order, x, y):
         darker = ' filter="url(#far)"' if side == 'far' else ''
-        mirror = -1 if flip else 1
         return (f'<g id="leg-{side}-{order}" data-motion="leg" data-side="{side}" data-order="{order}" data-pivot="{x:.1f} {y:.1f}">'
-                f'<use href="#leg-shape" transform="translate({x:.1f} {y:.1f}) rotate({turn}) scale({mirror * leg_scale:.4f} {leg_scale:.4f}) translate({-hip_x:.1f} 0)"{darker}/></g>')
+                f'<use href="#leg-shape" transform="translate({x - hip_x * leg_scale:.1f} {y:.1f}) scale({leg_scale:.4f})"{darker}/></g>')
 
     def antenna_group(i, x, y, turn):
         return (f'<g id="antenna-{i}" data-motion="antenna" data-pivot="{x:.1f} {y:.1f}">'
@@ -83,9 +81,9 @@ def main(config_path, out_path):
            '<filter id="far"><feColorMatrix type="matrix" values="0.72 0 0 0 0  0 0.72 0 0 0  0 0 0.72 0 0  0 0 0 1 0"/></filter>'
            '</defs>\n'
            + ''.join(antenna_group(i, *a) for i, a in enumerate(config['antenna']['bases'])) + '\n'
-           + ''.join(leg_group('far', i, h[0] + far_dx, h[1] + far_lift, *h[2:3]) for i, h in enumerate(hips)) + '\n'
+           + ''.join(leg_group('far', i, x + far_dx, y + far_lift) for i, (x, y) in enumerate(hips)) + '\n'
            # Near legs sit behind the body too: the plates cover their tops, as in the painted design.
-           + ''.join(leg_group('near', i, *h) for i, h in enumerate(hips)) + '\n'
+           + ''.join(leg_group('near', i, x, y) for i, (x, y) in enumerate(hips)) + '\n'
            + f'<g id="body" data-motion="body" data-pivot="{config["body"]["pivot"]}"><g transform="translate({bx:.1f} {by:.1f}) scale({scale})">{body}</g></g>\n</svg>\n')
     open(out_path, 'w').write(svg)
     print(f'wrote {out_path} ({len(svg) // 1024} KB)')
