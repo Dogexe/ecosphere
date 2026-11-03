@@ -153,6 +153,7 @@ export function advanceInNest(colony: AntColony, ant: Ant, goal: number, stride:
 }
 
 export function colonyPlacementIssue(world: World, x: number, z: number): string | null {
+  if (world.sealed) return 'This world is sealed. Open the seal to add life.'
   if (world.colony) return 'This world already has an ant colony. Export it before introducing another.'
   if (!isLand(x, z, 0.18)) return 'Choose dry ground with room for the nest entrance.'
   return makeNest(x, z) ? null : 'Leave a little more land around the underground chambers.'
@@ -204,7 +205,7 @@ export function clearMissingAntGoals(colony: AntColony, plants: Plant[]): AntCol
 }
 
 export function exportColony(world: World): { world: World; exported: number; ledger: AntLedger | null } {
-  if (!world.colony) return { world, exported: 0, ledger: null }
+  if (!world.colony || world.sealed) return { world, exported: 0, ledger: null }
   const exported = antMaterial(world.colony)
   const ledger = { ...world.colony.ledger, exported: world.colony.ledger.exported + exported }
   const { colony: _colony, ...withoutColony } = world

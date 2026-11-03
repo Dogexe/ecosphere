@@ -1,5 +1,11 @@
 # ECOSPHERE development progress
 
+## Seal Mode — 2026-11-03
+
+Header **Seal** opens a dialog: choose 10/30/60 days and seal. While sealed the dock, soil mixture, nursery, move-out links, colony export, rain slider and pond inputs are disabled and the pure functions refuse them too; light and warmth still work. Evaporated and transpired water is held as jar vapour and condenses back, so jar water is conserved (tests: < 1e-9 relative drift over 30 days in five worlds). Reaching the goal or losing all producers pauses time and opens the report (status, plants/animals/algae, water held and as vapour, nutrients, main limiting factor) with links to the Observatory and to open the seal. `src/sim/seal.ts`; optional `sealed` save field approved by the owner. Context.md updated with the owner's decisions (personal game, web stack, owner is the only tester).
+
+Limits: only water is closed. Nutrient and carbon pools keep their open approximations, so this is not yet the full common-unit mass ledger. Browser checks are listed with the PR; no physical iPad check.
+
 ## Observatory — 2026-11-03
 
 New header **Observatory** dialog (pauses time like other dialogs). *This run* charts one in-memory reading per model hour (14 metrics: plants, leaf cover, soil water/nutrients/organic, pond oxygen, algae, six animal roles, ant workers), capped at 60 days and cleared on begin/restore. *Compare A & B* replays each kept snapshot forward 3/7/14 days with the unchanged `simulateStep` and no tending, overlaid on one SVG chart. Pure helpers in `src/sim/observatory.ts`; no dependency, solver, RNG or save-format change.

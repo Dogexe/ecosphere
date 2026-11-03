@@ -4,7 +4,7 @@ import type { Plant, SoilPatch } from './sim/ecosystem'
 import { digRequired } from './sim/excavation'
 import { excavationSite, nestCrowded } from './sim/excavation'
 
-export function ColonyPanel({ colony, soil, foodSources, foodVisible, selected, following, underground, chamber, selectedBrood, onSelectBrood, onSelect, onFollow, onView, onBrood, onExport, onChamber, onConstruction, onFood, onTendSoil }: { colony: AntColony; soil: SoilPatch[]; foodSources: Plant[]; foodVisible: boolean; selected: number | null; following: number | null; underground: boolean; chamber: number | null; selectedBrood: number | null; onSelectBrood: (id: number) => void; onSelect: (id: number) => void; onFollow: (id: number | null) => void; onView: () => void; onBrood: () => void; onExport: () => void; onChamber: (id: number) => void; onConstruction: (enabled: boolean) => void; onFood: () => void; onTendSoil: (id: number) => void }) {
+export function ColonyPanel({ colony, soil, foodSources, foodVisible, selected, following, underground, chamber, selectedBrood, onSelectBrood, onSelect, onFollow, onView, onBrood, onExport, onChamber, onConstruction, onFood, onTendSoil, sealed = false }: { colony: AntColony; sealed?: boolean; soil: SoilPatch[]; foodSources: Plant[]; foodVisible: boolean; selected: number | null; following: number | null; underground: boolean; chamber: number | null; selectedBrood: number | null; onSelectBrood: (id: number) => void; onSelect: (id: number) => void; onFollow: (id: number | null) => void; onView: () => void; onBrood: () => void; onExport: () => void; onChamber: (id: number) => void; onConstruction: (enabled: boolean) => void; onFood: () => void; onTendSoil: (id: number) => void }) {
   const ants = [colony.queen, ...colony.workers].filter((ant) => ant !== null)
   const ant = ants.find((item) => item.id === selected)
   const room = colony.nodes.find((node) => node.id === chamber)
@@ -56,6 +56,6 @@ export function ColonyPanel({ colony, soil, foodSources, foodVisible, selected, 
     <button className="back-link" type="button" onClick={onView}>{underground ? '↑ Return to surface' : '↓ Look inside the nest'}</button>
     {colony.brood.length > 0 && <button className="back-link" type="button" onClick={onBrood}>Observe developing young →</button>}
     <p className="colony-note">Development takes compressed model time. Larvae grow from delivered food; newly emerged workers stay the same body size.</p>
-    <button className="remove-link" type="button" onClick={onExport}>Move colony and stores out</button>
+    <button className="remove-link" type="button" disabled={sealed} onClick={onExport}>Move colony and stores out</button>
   </div>
 }

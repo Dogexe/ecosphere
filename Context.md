@@ -2,6 +2,10 @@
 
 
 
+> \*\*Owner update, 2026-11-03:\*\* ECOSPHERE is a personal game for its owner, not for sale; the owner is the only playtester. It is built as a browser game in TypeScript, React and Three.js (React Three Fiber) instead of Godot. A playable prototype exists; see README.md, AGENTS.md and PROGRESS.md for what is implemented and verified.
+
+
+
 \## 1. Project Vision
 
 
@@ -20,7 +24,7 @@ The game should produce emergent outcomes through interacting simulation rules, 
 
 
 
-The long-term ambition is to develop a polished indie game suitable for release on Steam, while also supporting browser-based play.
+The long-term ambition is a polished personal game that runs in the browser on PC and tablet. Commercial release (for example on Steam) is not planned.
 
 
 
@@ -196,11 +200,9 @@ Performance is especially important because browser support is a core goal.
 
 
 
-\- Godot 4 — game engine.
+\- TypeScript, Vite, React and Three.js (React Three Fiber, Drei) — game engine and UI (replaces the original Godot 4 plan).
 
-\- GDScript — primary implementation language.
-
-\- Godot Compatibility Renderer — for WebGL 2.0 compatibility.
+\- WebGL 2.0 in the browser — rendering target.
 
 \- Blender + Python — procedural asset creation and modification.
 
@@ -218,7 +220,7 @@ Target platforms:
 
 2\. Web browsers.
 
-3\. Potential Steam release.
+3\. No commercial release planned.
 
 
 
@@ -390,7 +392,7 @@ Start with the smallest scientifically coherent simulation. Do not implement the
 
 
 
-\*\*Current status:\*\* Concept, architecture direction, and roadmap have been discussed. No implementation or completed features have been verified.
+\*\*Current status (2026-11-03):\*\* A playable browser prototype with a seeded fixed-step simulation, eight plant and six animal roles, an ant colony, a pond, day/night, A/B experiments, an Observatory and Seal Mode. PROGRESS.md records what has been verified and what remains open.
 
 
 

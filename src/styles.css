@@ -435,3 +435,14 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
   .observatory-figure { padding: 8px; }
 }
 @media (max-width: 520px) { .observatory-chart .axis { font-size: 20px; } }
+
+/* Seal Mode */
+.text-button.seal-badge { color: #8a5a22; font-weight: 750; }
+.seal-progress { height: 10px; margin: 6px 0 16px; border-radius: 999px; background: #e3ebdc; overflow: hidden; }
+.seal-progress i { display: block; height: 100%; border-radius: inherit; background: #4d8a55; }
+.seal-progress i.collapsed { background: #b4743a; }
+.seal-readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; margin: 0 0 14px; }
+.seal-readout dt { margin-bottom: 3px; font-size: 10px; color: #8d9d81; }
+.seal-readout dd { margin: 0; font-size: 16px; font-weight: 750; color: #4d704c; }
+.action-button:disabled, .mixture-toggle:disabled, .nursery-toggle:disabled, .remove-link:disabled, .recipe-buttons button:disabled, input[type="range"]:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 520px) { .seal-readout { grid-template-columns: repeat(2, 1fr); } }
