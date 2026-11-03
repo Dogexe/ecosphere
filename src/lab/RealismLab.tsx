@@ -1,8 +1,8 @@
-import { useMemo, useRef } from 'react'
+import { Suspense, useMemo, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas } from '@react-three/fiber'
-import { Environment, MeshTransmissionMaterial, OrbitControls } from '@react-three/drei'
-import { BufferAttribute, CanvasTexture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, Object3D, PlaneGeometry, SRGBColorSpace } from 'three'
+import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
+import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, Object3D, PlaneGeometry, SRGBColorSpace } from 'three'
 import { PaperAnimal } from '../scene/PaperCritter'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
 
@@ -18,6 +18,9 @@ const query = new URLSearchParams(window.location.search)
 const close = query.get('shot') === 'close'
 /** ?still=1 renders only when something changes (for screenshots on slow software GPUs). */
 const still = query.get('still') === '1'
+/** Round 2 (default) uses Poly Haven CC0 scans; ?round=1 shows the procedural first attempt. */
+const scanned = query.get('round') !== '1'
+const ph = `${import.meta.env.BASE_URL}assets/lab/polyhaven/`
 const R = 3.8
 const terrain = makeNoise(101)
 const soilTop = (x: number, z: number) => 2.25 + (terrain(x * 0.35 + 5, z * 0.35 + 5, 4) - 0.5) * 0.7 + Math.max(0, 1 - Math.hypot(x + 1.4, z + 0.6) / 1.8) * 0.45
@@ -93,7 +96,9 @@ function Moss({ x, z, radius, count }: { x: number; z: number; radius: number; c
       if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true
     })
   }, [x, z, radius, count])
-  const textures = useMemo(() => mossTexture(), [])
+  const procedural = useMemo(() => scanned ? null : mossTexture(), [])
+  const scan = scanned ? useScan('moss_wood', [radius * 0.9, radius * 0.9]) : null
+  const textures = scan ?? procedural!
   const cushion = useMemo(() => {
     const geometry = new PlaneGeometry(2 * radius, 2 * radius, 64, 64).rotateX(-Math.PI / 2)
     const position = geometry.getAttribute('position') as BufferAttribute
@@ -108,7 +113,7 @@ function Moss({ x, z, radius, count }: { x: number; z: number; radius: number; c
     return geometry
   }, [x, z, radius])
   return <group>
-    <mesh geometry={cushion} castShadow receiveShadow><meshStandardMaterial map={textures.map} normalMap={textures.normalMap} roughness={0.95} /></mesh>
+    <mesh geometry={cushion} castShadow receiveShadow><meshStandardMaterial {...textures} roughness={0.95} /></mesh>
     <instancedMesh ref={mesh} args={[geometry, undefined, count]} castShadow receiveShadow><meshStandardMaterial roughness={0.95} /></instancedMesh>
   </group>
 }
@@ -141,6 +146,63 @@ function Grit({ count }: { count: number }) {
     })
   }, [count])
   return <instancedMesh ref={mesh} args={[geometry, undefined, count]} castShadow receiveShadow><meshStandardMaterial roughness={0.85} /></instancedMesh>
+}
+
+/** Loads a Poly Haven texture set (colour, normal, roughness, optional height) tiled `repeat` times. */
+function useScan(id: string, repeat: [number, number], height = false) {
+  const files = { map: `${ph}${id}/${id}_diff_1k.jpg`, normalMap: `${ph}${id}/${id}_nor_gl_1k.jpg`, roughnessMap: `${ph}${id}/${id}_rough_1k.jpg`, ...(height ? { displacementMap: `${ph}${id}/${id}_disp_1k.jpg` } : {}) }
+  const set = useTexture(files) as Record<string, Texture>
+  useMemo(() => {
+    for (const [key, texture] of Object.entries(set)) {
+      texture.wrapS = texture.wrapT = RepeatWrapping
+      texture.repeat.set(...repeat)
+      texture.anisotropy = 8
+      if (key === 'map') texture.colorSpace = SRGBColorSpace
+      texture.needsUpdate = true
+    }
+  }, [set, repeat])
+  return set
+}
+
+function ScannedSubstrate() {
+  const soil = useScan('forest_ground_04', [1.6, 1.6], true)
+  const pebbles = useScan('clean_pebbles', [8, 0.32])
+  const side = useMemo(() => ({ charcoal: charcoalTexture(), side: soilSideTexture() }), [])
+  const surface = useMemo(() => {
+    const geometry = new PlaneGeometry(2 * R, 2 * R, 220, 220).rotateX(-Math.PI / 2)
+    const position = geometry.getAttribute('position') as BufferAttribute
+    for (let index = 0; index < position.count; index += 1) {
+      let x = position.getX(index), z = position.getZ(index)
+      const radius = Math.hypot(x, z)
+      if (radius > R) { x *= R / radius; z *= R / radius }
+      position.setXYZ(index, x, soilTop(x, z), z)
+    }
+    geometry.computeVertexNormals()
+    return geometry
+  }, [])
+  const band = (y0: number, y1: number) => new CylinderGeometry(R, R, y1 - y0, 128, 1, true).translate(0, (y0 + y1) / 2, 0)
+  return <group>
+    <mesh geometry={band(0, 0.95)} castShadow><meshStandardMaterial {...pebbles} side={DoubleSide} /></mesh>
+    <mesh geometry={band(0.95, 1.2)} castShadow><meshStandardMaterial map={side.charcoal} roughness={0.6} side={DoubleSide} /></mesh>
+    <mesh geometry={band(1.2, 2.05)} castShadow><meshStandardMaterial map={side.side} roughness={0.95} side={DoubleSide} /></mesh>
+    {/* Damp soil reads darker; the scan is dry forest floor. */}
+    <mesh geometry={surface} receiveShadow><meshStandardMaterial {...soil} color="#9a8f84" displacementScale={0.12} displacementBias={-0.06} /></mesh>
+  </group>
+}
+
+/** One rock from Poly Haven "Rock Moss Set 01" (photogrammetry scan). */
+function ScannedStone() {
+  const { nodes } = useGLTF(`${ph}rock_moss_set_01/rock_moss_set_01_1k.gltf`)
+  const rock = nodes.rock_moss_set_01_rock01 as Mesh
+  return <mesh geometry={rock.geometry} material={rock.material} position={[-1.4, soilTop(-1.4, -0.6) + 0.25, -0.6]} rotation={[0, 0.9, 0]} scale={0.95} castShadow receiveShadow />
+}
+
+function ScannedSill() {
+  const oak = useScan('oak_veneer_01', [1.5, 0.7])
+  return <mesh position={[0, -0.6, 1]} receiveShadow>
+    <boxGeometry args={[30, 1, 14]} />
+    <meshStandardMaterial {...oak} />
+  </mesh>
 }
 
 function Jar() {
@@ -199,15 +261,15 @@ function Lab() {
   const moving = useRef(true)
   const bug: [number, number] = [1.0, 0.9]
   return <Canvas shadows dpr={[1, 2]} camera={close ? { position: [1.7, 4.4, 2.9], fov: 40 } : { position: [9, 7.5, 15], fov: 32 }} gl={{ antialias: true }} frameloop={still ? 'demand' : 'always'}>
-    <Environment files={`${import.meta.env.BASE_URL}assets/lab/apartment.exr`} background backgroundBlurriness={0.55} backgroundIntensity={0.9} environmentIntensity={0.8} />
+    <Environment files={scanned ? `${ph}artist_workshop/artist_workshop_1k.hdr` : `${import.meta.env.BASE_URL}assets/lab/apartment.exr`} background backgroundBlurriness={0.55} backgroundIntensity={0.9} environmentIntensity={0.8} />
     <directionalLight position={[-12, 14, -10]} intensity={2.6} color="#ffe2b8" castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={12} shadow-camera-bottom={-4} shadow-bias={-0.0004} />
     <Window />
-    <Sill />
-    <Substrate />
-    <Stone />
-    <Moss x={-0.2} z={-1.6} radius={1.5} count={14000} />
-    <Moss x={2.0} z={-0.4} radius={0.9} count={6000} />
-    <Grit count={260} />
+    <Suspense fallback={null}>
+      {scanned ? <><ScannedSill /><ScannedSubstrate /><ScannedStone /></> : <><Sill /><Substrate /><Stone /></>}
+      <Moss x={-0.2} z={-1.6} radius={1.5} count={14000} />
+      <Moss x={2.0} z={-0.4} radius={0.9} count={6000} />
+    </Suspense>
+    {!scanned && <Grit count={260} />}
     <group position={[bug[0], soilTop(bug[0], bug[1]), bug[1]]} rotation={[0, heading.current, 0]}>
       <PaperAnimal animal="woodlouse" base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
     </group>
