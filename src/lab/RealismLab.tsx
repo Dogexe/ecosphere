@@ -1,10 +1,10 @@
-import { Suspense, useMemo, useRef } from 'react'
+import { Suspense, useLayoutEffect, useMemo, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { DepthOfField, EffectComposer } from '@react-three/postprocessing'
+import { BrightnessContrast, DepthOfField, EffectComposer, HueSaturation, Vignette } from '@react-three/postprocessing'
 import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
-import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, Object3D, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three'
+import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, SRGBColorSpace, Vector2, Vector3 } from 'three'
 import { PaperAnimal } from '../scene/PaperCritter'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
 
@@ -28,8 +28,15 @@ const shots: Record<string, { position: [number, number, number]; target: [numbe
 const view = shots[shot ?? 'jar'] ?? shots.jar
 /** ?still=1 renders only when something changes (for screenshots on slow software GPUs). */
 const still = query.get('still') === '1'
-/** Round 2 (default) uses Poly Haven CC0 scans; ?round=1 shows the procedural first attempt. */
-const scanned = query.get('round') !== '1'
+/**
+ * ?round=1: procedural first attempt. ?round=2: raw Poly Haven CC0 scans.
+ * Round 3 (default): the same scans softened toward a painted, semi-real look
+ * that suits the cartoon paper creatures (blurred colour maps, gentle normals,
+ * clumped moss, warm soft light, a contact shadow and a light colour grade).
+ */
+const round = query.get('round') ?? '3'
+const scanned = round !== '1'
+const semi = round === '3'
 const ph = `${import.meta.env.BASE_URL}assets/lab/polyhaven/`
 const R = 3.8
 const terrain = makeNoise(101)
@@ -122,6 +129,10 @@ function Moss({ x, z, radius, count }: { x: number; z: number; radius: number; c
     geometry.computeVertexNormals()
     return geometry
   }, [x, z, radius])
+  if (semi) return <group>
+    <mesh geometry={cushion} receiveShadow><meshStandardMaterial color="#7d9a2e" roughness={1} /></mesh>
+    <MossClumps x={x} z={z} radius={radius} count={Math.round(count / 12)} />
+  </group>
   return <group>
     <mesh geometry={cushion} castShadow receiveShadow><meshStandardMaterial {...textures} roughness={0.95} /></mesh>
     <instancedMesh ref={mesh} args={[geometry, undefined, count]} castShadow receiveShadow><meshStandardMaterial roughness={0.95} /></instancedMesh>
@@ -171,8 +182,93 @@ function useScan(id: string, repeat: [number, number], height = false) {
       texture.needsUpdate = true
     }
   }, [set, repeat])
-  return set
+  return useMemo(() => semi ? { ...set, map: paintify(set.map), normalScale: new Vector2(0.35, 0.35) } : set, [set])
 }
+
+/** Semi-real: soften a photo texture into broad painted patches (blur, lift, a little saturation). */
+function paintify(texture: Texture, extra = '') {
+  const image = texture.image as HTMLImageElement
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width; canvas.height = image.height
+  const context = canvas.getContext('2d')!
+  context.filter = `blur(3px) saturate(1.15) contrast(0.85) brightness(1.06) ${extra}`
+  context.drawImage(image, 0, 0)
+  const painted = new CanvasTexture(canvas)
+  painted.wrapS = painted.wrapT = RepeatWrapping
+  painted.repeat.copy(texture.repeat)
+  painted.colorSpace = SRGBColorSpace
+  painted.anisotropy = 8
+  return painted
+}
+
+/** A soft dark blob under a creature so it sits on the ground instead of floating. */
+function ContactBlob({ width, depth }: { width: number; depth: number }) {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 128
+    const context = canvas.getContext('2d')!
+    const gradient = context.createRadialGradient(64, 64, 4, 64, 64, 64)
+    gradient.addColorStop(0, 'rgba(30,20,12,0.75)'); gradient.addColorStop(0.55, 'rgba(30,20,12,0.35)'); gradient.addColorStop(1, 'rgba(30,20,12,0)')
+    context.fillStyle = gradient; context.fillRect(0, 0, 128, 128)
+    return new CanvasTexture(canvas)
+  }, [])
+  return <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} renderOrder={1}>
+    <planeGeometry args={[width, depth]} />
+    <meshBasicMaterial map={texture} transparent depthWrite={false} />
+  </mesh>
+}
+
+/** Semi-real moss: rounded tufts packed into a cushion, like a painted moss ball. */
+function MossClumps({ x, z, radius, count }: { x: number; z: number; radius: number; count: number }) {
+  const mesh = useRef<InstancedMesh>(null)
+  const geometry = useMemo(() => new IcosahedronGeometry(1, 2), [])
+  useLayoutEffect(() => {
+    {
+      if (!mesh.current) return
+      const dummy = new Object3D(), colour = new Color()
+      const noise = makeNoise(x * 37 + z)
+      let seed = 3
+      const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+      for (let index = 0; index < count; index += 1) {
+        const angle = rand() * Math.PI * 2, distance = Math.sqrt(rand()) * radius
+        const px = x + Math.cos(angle) * distance, pz = z + Math.sin(angle) * distance
+        const edge = distance / radius
+        const dome = Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.22
+        const size = (0.1 + rand() * 0.08) * (1 - edge * 0.4)
+        dummy.position.set(px, soilTop(px, pz) + dome + size * 0.15, pz)
+        dummy.rotation.set(0, rand() * 6, 0)
+        dummy.scale.set(size, size * 0.75, size)
+        dummy.updateMatrix()
+        mesh.current.setMatrixAt(index, dummy.matrix)
+        const light = noise(px * 3, pz * 3) * 0.6 + rand() * 0.4
+        colour.setRGB(0.42 + light * 0.18, 0.58 + light * 0.16 - edge * 0.05, 0.12 + light * 0.06, SRGBColorSpace)
+        mesh.current.setColorAt(index, colour)
+      }
+      mesh.current.instanceMatrix.needsUpdate = true
+      if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true
+    }
+  }, [x, z, radius, count])
+  return <instancedMesh ref={mesh} args={[geometry, undefined, count]} frustumCulled={false} castShadow receiveShadow><meshStandardMaterial map={fuzz} roughness={1} /></instancedMesh>
+}
+
+/** Speckled light/dark dots so moss tufts read as soft and fuzzy rather than smooth balls. */
+const fuzz = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 128
+  const context = canvas.getContext('2d')!
+  context.fillStyle = '#e6e6e6'; context.fillRect(0, 0, 128, 128)
+  let seed = 11
+  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+  for (let index = 0; index < 1400; index += 1) {
+    const tone = 170 + rand() * 85
+    context.fillStyle = `rgb(${tone},${tone},${tone})`
+    context.beginPath(); context.arc(rand() * 128, rand() * 128, 0.8 + rand() * 1.6, 0, Math.PI * 2); context.fill()
+  }
+  const texture = new CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = RepeatWrapping
+  texture.repeat.set(3, 3)
+  return texture
+})()
 
 function ScannedSubstrate() {
   const soil = useScan('forest_ground_04', [1.6, 1.6], true)
@@ -196,7 +292,7 @@ function ScannedSubstrate() {
     <mesh geometry={band(0.95, 1.2)} castShadow><meshStandardMaterial map={side.charcoal} roughness={0.6} side={DoubleSide} /></mesh>
     <mesh geometry={band(1.2, 2.05)} castShadow><meshStandardMaterial map={side.side} roughness={0.95} side={DoubleSide} /></mesh>
     {/* Damp soil reads darker; the scan is dry forest floor. */}
-    <mesh geometry={surface} receiveShadow><meshStandardMaterial {...soil} color="#9a8f84" displacementScale={0.12} displacementBias={-0.06} /></mesh>
+    <mesh geometry={surface} receiveShadow><meshStandardMaterial {...soil} color={semi ? "#a8927c" : "#9a8f84"} displacementScale={semi ? 0.06 : 0.12} displacementBias={semi ? -0.03 : -0.06} /></mesh>
   </group>
 }
 
@@ -204,7 +300,16 @@ function ScannedSubstrate() {
 function ScannedStone() {
   const { nodes } = useGLTF(`${ph}rock_moss_set_01/rock_moss_set_01_1k.gltf`)
   const rock = nodes.rock_moss_set_01_rock01 as Mesh
-  return <mesh geometry={rock.geometry} material={rock.material} position={[-1.4, soilTop(-1.4, -0.6) + 0.25, -0.6]} rotation={[0, 0.9, 0]} scale={0.95} castShadow receiveShadow />
+  const material = useMemo(() => {
+    if (!semi) return rock.material
+    const source = rock.material as MeshStandardMaterial
+    const painted = source.clone()
+    if (source.map) { painted.map = paintify(source.map, 'saturate(0.25) brightness(1.25)'); painted.map.repeat.set(1, 1); painted.map.flipY = source.map.flipY }
+    painted.normalScale = new Vector2(0.4, 0.4)
+    painted.color = new Color('#ece8e2')
+    return painted
+  }, [rock])
+  return <mesh geometry={rock.geometry} material={material} position={[-1.4, soilTop(-1.4, -0.6) + 0.25, -0.6]} rotation={[0, 0.9, 0]} scale={0.95} castShadow receiveShadow />
 }
 
 function ScannedSill() {
@@ -247,12 +352,19 @@ function Window() {
     canvas.width = 512; canvas.height = 320
     const context = canvas.getContext('2d')!
     const sky = context.createLinearGradient(0, 0, 0, 320)
-    sky.addColorStop(0, '#dfeefa'); sky.addColorStop(0.5, '#f4f1e2'); sky.addColorStop(0.62, '#9fb889'); sky.addColorStop(1, '#5f7d4f')
+    if (semi) { sky.addColorStop(0, '#fff6dc'); sky.addColorStop(0.55, '#f6e2a8'); sky.addColorStop(0.75, '#d9d79a'); sky.addColorStop(1, '#b7c27e') }
+    else { sky.addColorStop(0, '#dfeefa'); sky.addColorStop(0.5, '#f4f1e2'); sky.addColorStop(0.62, '#9fb889'); sky.addColorStop(1, '#5f7d4f') }
     context.fillStyle = sky
     context.fillRect(0, 0, 512, 320)
+    if (semi) {
+      // Semi-real: a warm low sun glowing through the window, as in the painted reference.
+      const sun = context.createRadialGradient(120, 70, 0, 120, 70, 260)
+      sun.addColorStop(0, 'rgba(255,248,220,1)'); sun.addColorStop(1, 'rgba(255,236,180,0)')
+      context.fillStyle = sun; context.fillRect(0, 0, 512, 320)
+    }
     context.filter = 'blur(14px)'
     for (let index = 0; index < 14; index += 1) {
-      context.fillStyle = index % 2 ? '#6f8f5c' : '#86a36a'
+      context.fillStyle = semi ? (index % 2 ? '#c3c78a' : '#d0cf95') : index % 2 ? '#6f8f5c' : '#86a36a'
       context.beginPath(); context.ellipse(index * 40 + 10, 190 + (index % 3) * 12, 50, 40, 0, 0, Math.PI * 2); context.fill()
     }
     const texture = new CanvasTexture(canvas)
@@ -298,6 +410,11 @@ function MagnifierRig({ subject }: { subject: Vector3 }) {
   })
   return <EffectComposer multisampling={0}>
     <DepthOfField ref={dof} worldFocusRange={9} bokehScale={1} resolutionScale={0.5} />
+    <>{semi && <>
+      <HueSaturation saturation={0.08} />
+      <BrightnessContrast brightness={0.02} contrast={-0.06} />
+      <Vignette offset={0.35} darkness={0.45} />
+    </>}</>
   </EffectComposer>
 }
 
@@ -306,9 +423,10 @@ function Lab() {
   const moving = useRef(true)
   const bug: [number, number] = [1.0, 0.9]
   const subject = useMemo(() => new Vector3(bug[0], soilTop(bug[0], bug[1]) + 0.12, bug[1]), [])
-  return <Canvas shadows dpr={[1, 2]} camera={{ position: view.position, fov: view.fov }} gl={{ antialias: true }} frameloop={still ? 'demand' : 'always'}>
-    <Environment files={scanned ? `${ph}artist_workshop/artist_workshop_1k.hdr` : `${import.meta.env.BASE_URL}assets/lab/apartment.exr`} background backgroundBlurriness={0.55} backgroundIntensity={0.9} environmentIntensity={0.8} />
+  return <Canvas shadows={semi ? 'soft' : true} dpr={[1, 2]} camera={{ position: view.position, fov: view.fov }} gl={{ antialias: true }} frameloop={still ? 'demand' : 'always'}>
+    <Environment files={scanned ? `${ph}artist_workshop/artist_workshop_1k.hdr` : `${import.meta.env.BASE_URL}assets/lab/apartment.exr`} background backgroundBlurriness={semi ? 0.85 : 0.55} backgroundIntensity={0.9} environmentIntensity={0.8} />
     <directionalLight position={[-12, 14, -10]} intensity={2.6} color="#ffe2b8" castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={12} shadow-camera-bottom={-4} shadow-bias={-0.0004} />
+    {semi && <hemisphereLight args={['#fff1d6', '#5a4632', 0.55]} />}
     <Window />
     <Suspense fallback={null}>
       {scanned ? <><ScannedSill /><ScannedSubstrate /><ScannedStone /></> : <><Sill /><Substrate /><Stone /></>}
@@ -317,6 +435,7 @@ function Lab() {
     </Suspense>
     {!scanned && <Grit count={260} />}
     <group position={[bug[0], soilTop(bug[0], bug[1]) - (scanned ? 0.05 : 0), bug[1]]} rotation={[0, heading.current, 0]}>
+      {semi && <ContactBlob width={0.85} depth={0.32} />}
       <PaperAnimal animal="woodlouse" base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
     </group>
     <Jar />
