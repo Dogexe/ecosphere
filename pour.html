@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ECOSPHERE pour lab</title>
+    <style>
+      html, body, #pour { margin: 0; height: 100%; background: #efe6d6; overscroll-behavior: none; touch-action: none; }
+      .pour-hud { position: fixed; left: 16px; top: 16px; display: grid; gap: 8px; max-width: 280px; padding: 14px 16px; background: #fbf6ea; color: #4b3a2a; border-radius: 14px; box-shadow: 0 6px 20px rgba(60,40,20,.18); font: 15px/1.4 Georgia, serif; }
+      .pour-hud strong { font-size: 18px; }
+      .pour-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+      .pour-tools button, .pour-reset { font: inherit; padding: 6px 12px; border-radius: 999px; border: 1.5px solid #c9b79c; background: #fff; color: inherit; cursor: pointer; }
+      .pour-tools button.on { background: #7d9a3a; border-color: #7d9a3a; color: #fff; }
+      .pour-hud small { color: #7a6650; }
+      .pour-reset { justify-self: start; }
+    </style>
+    <script type="module" crossorigin src="./assets/pour-BTWl2tDP.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/OrbitControls-CBjWlK3U.js">
+  </head>
+  <body>
+    <div id="pour"></div>
+  </body>
+</html>
