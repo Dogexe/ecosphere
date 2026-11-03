@@ -25,7 +25,7 @@ import type { Ground } from './semiReal'
  * The semi-real jar for ?look=paper: the island becomes a glass jar on a
  * windowsill with layers you can see through the glass.
  *
- * One world unit is about 19 mm (the woodlouse is 0.64 long, about 12 mm),
+ * One world unit is about 19 mm (an adult woodlouse is about 12 mm, 0.63 long),
  * so the 3.77 radius jar is about 14 cm across. Layer depths follow UVM
  * Extension's terrarium guide (1-2 in of gravel, a thin layer of charcoal,
  * 2-3 in of soil): https://www.uvm.edu/news/extension/terrarium-gardening

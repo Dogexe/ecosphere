@@ -91,12 +91,33 @@ export const animalDimensions: Record<CreatureKind, { length: number; sourceLeng
   fish: { length: 0.43, sourceLength: 0.48, clearance: 0, newbornRatio: 0.55 },
 }
 
+/**
+ * Real adult body lengths (mm, antennae and tails excluded) for the
+ * semi-real jar (?look=paper), where one world unit is about 19 mm
+ * (see JarSetting.tsx). Each guild is drawn as one real species:
+ * - woodlouse: Porcellio scaber, up to 17 mm (BMIG, https://bmig.org.uk/species/Porcellio-scaber); 12 mm adult.
+ * - springtail: Folsomia candida, about 3 mm (https://en.wikipedia.org/wiki/Folsomia_candida); 2.5 mm.
+ * - grazer: cabbage white caterpillar Pieris rapae, 20-30 mm fully grown
+ *   (Landcare Research NZ); 25 mm.
+ * - beetle: green tiger beetle Cicindela campestris, 12-17 mm (Atlas of Beetles of Russia, https://www.zin.ru/ANIMALIA/COLEOPTERA/ENG/ciccaman.htm); 14 mm.
+ * - flea: Daphnia pulex, 0.2-3 mm (ADW, https://animaldiversity.org/accounts/Daphnia_pulex/); 2 mm.
+ * - fish: kept at the old envelope (about 8 mm) until it moves to a water jar.
+ * Visual only: feeding ranges, contact cores and saved positions do not change.
+ */
+export const millimetresPerUnit = 19
+export const realAdultLengthMm: Record<CreatureKind, number> = {
+  woodlouse: 12, springtail: 2.5, grazer: 25, beetle: 14, flea: 2, fish: 0.43 * 19,
+}
+/** Set once by the paper look; the classic low-poly look keeps the Scale Bible envelopes. */
+export const animalScaleMode = { real: false }
+
 export function animalModelScale(creature: Creature) {
   const kind = creature.kind ?? 'grazer'
   const size = animalDimensions[kind]
+  const length = animalScaleMode.real ? realAdultLengthMm[kind] / millimetresPerUnit : size.length
   const growth = kind === 'woodlouse' ? Math.cbrt(woodlouseLife(creature).mass / 0.22)
     : size.newbornRatio + (1 - size.newbornRatio) * Math.min(1, (creature.age ?? maturity[kind]) / maturity[kind])
-  return size.length / size.sourceLength * growth * stableVariation(creature.id)
+  return length / size.sourceLength * growth * stableVariation(creature.id)
 }
 
 export const animalGroundY = (creature: Creature) => 0.05 + animalDimensions[creature.kind ?? 'grazer'].clearance * animalModelScale(creature) + groundShape.offset(creature.x, creature.z)

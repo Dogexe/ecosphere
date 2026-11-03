@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { CanvasTexture, Color, DoubleSide, Group, MathUtils, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three'
 import { legSwing, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
 import type { PaperMotion, PaperRig } from './paperRig'
+import { animalScaleMode } from './scale'
 
 /**
  * Paper look (prototype, `?look=paper`): hand-drawn side-view cut-outs
@@ -16,6 +17,8 @@ import type { PaperMotion, PaperRig } from './paperRig'
 export const paperLook = (() => {
   try { return new URLSearchParams(window.location.search).get('look') === 'paper' } catch { return false }
 })()
+// The semi-real jar draws every animal at its real adult size.
+animalScaleMode.real = paperLook
 
 /** A layer cropped to its drawn pixels so mostly-empty canvases cost little GPU memory. */
 type Sheet = { texture: CanvasTexture; left: number; top: number; width: number; height: number }
