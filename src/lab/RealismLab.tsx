@@ -5,6 +5,7 @@ import { BrightnessContrast, DepthOfField, EffectComposer, HueSaturation, Vignet
 import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
 import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, SRGBColorSpace, Vector2, Vector3 } from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PaperAnimal } from '../scene/PaperCritter'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
 
@@ -130,8 +131,8 @@ function Moss({ x, z, radius, count }: { x: number; z: number; radius: number; c
     return geometry
   }, [x, z, radius])
   if (semi) return <group>
-    <mesh geometry={cushion} receiveShadow><meshStandardMaterial color="#7d9a2e" roughness={1} /></mesh>
-    <MossClumps x={x} z={z} radius={radius} count={Math.round(count / 12)} />
+    <mesh geometry={cushion} receiveShadow><meshStandardMaterial color="#4f6a1e" roughness={1} /></mesh>
+    <MossSprigs x={x} z={z} radius={radius} count={Math.round(count / 5)} />
   </group>
   return <group>
     <mesh geometry={cushion} castShadow receiveShadow><meshStandardMaterial {...textures} roughness={0.95} /></mesh>
@@ -182,16 +183,16 @@ function useScan(id: string, repeat: [number, number], height = false) {
       texture.needsUpdate = true
     }
   }, [set, repeat])
-  return useMemo(() => semi ? { ...set, map: paintify(set.map), normalScale: new Vector2(0.35, 0.35) } : set, [set])
+  return useMemo(() => semi ? { ...set, map: paintify(set.map, '', 1), normalScale: new Vector2(0.6, 0.6) } : set, [set])
 }
 
 /** Semi-real: soften a photo texture into broad painted patches (blur, lift, a little saturation). */
-function paintify(texture: Texture, extra = '') {
+function paintify(texture: Texture, extra = '', blur = 3) {
   const image = texture.image as HTMLImageElement
   const canvas = document.createElement('canvas')
   canvas.width = image.width; canvas.height = image.height
   const context = canvas.getContext('2d')!
-  context.filter = `blur(3px) saturate(1.15) contrast(0.85) brightness(1.06) ${extra}`
+  context.filter = `blur(${blur}px) saturate(1.15) contrast(0.85) brightness(1.06) ${extra}`
   context.drawImage(image, 0, 0)
   const painted = new CanvasTexture(canvas)
   painted.wrapS = painted.wrapT = RepeatWrapping
@@ -218,57 +219,72 @@ function ContactBlob({ width, depth }: { width: number; depth: number }) {
   </mesh>
 }
 
-/** Semi-real moss: rounded tufts packed into a cushion, like a painted moss ball. */
-function MossClumps({ x, z, radius, count }: { x: number; z: number; radius: number; count: number }) {
-  const mesh = useRef<InstancedMesh>(null)
-  const geometry = useMemo(() => new IcosahedronGeometry(1, 2), [])
-  useLayoutEffect(() => {
-    {
-      if (!mesh.current) return
-      const dummy = new Object3D(), colour = new Color()
-      const noise = makeNoise(x * 37 + z)
-      let seed = 3
-      const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
-      for (let index = 0; index < count; index += 1) {
-        const angle = rand() * Math.PI * 2, distance = Math.sqrt(rand()) * radius
-        const px = x + Math.cos(angle) * distance, pz = z + Math.sin(angle) * distance
-        const edge = distance / radius
-        const dome = Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.22
-        const size = (0.1 + rand() * 0.08) * (1 - edge * 0.4)
-        dummy.position.set(px, soilTop(px, pz) + dome + size * 0.15, pz)
-        dummy.rotation.set(0, rand() * 6, 0)
-        dummy.scale.set(size, size * 0.75, size)
-        dummy.updateMatrix()
-        mesh.current.setMatrixAt(index, dummy.matrix)
-        const light = noise(px * 3, pz * 3) * 0.6 + rand() * 0.4
-        colour.setRGB(0.42 + light * 0.18, 0.58 + light * 0.16 - edge * 0.05, 0.12 + light * 0.06, SRGBColorSpace)
-        mesh.current.setColorAt(index, colour)
+/** A painted moss sprig on a transparent card: a stem with soft forked leaflets (reference: GPT scene round 2, image 2). */
+function sprigTexture(seed: number) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128; canvas.height = 128
+  const context = canvas.getContext('2d')!
+  let state = seed
+  const rand = () => { state = (state * 16807) % 2147483647; return state / 2147483647 }
+  const branch = (x: number, y: number, angle: number, length: number, depth: number) => {
+    const ex = x + Math.cos(angle) * length, ey = y + Math.sin(angle) * length
+    context.strokeStyle = depth > 1 ? '#6f8f24' : '#93b23a'
+    context.lineWidth = Math.max(1.2, depth * 1.6)
+    context.beginPath(); context.moveTo(x, y); context.lineTo(ex, ey); context.stroke()
+    // leaflets along the stem
+    for (let step = 0.2; step < 1; step += 0.13) {
+      const lx = x + (ex - x) * step, ly = y + (ey - y) * step
+      for (const side of [-1, 1]) {
+        const tone = 150 + rand() * 60
+        context.fillStyle = `rgb(${tone * 0.72},${tone},${tone * 0.2})`
+        context.beginPath(); context.ellipse(lx + Math.cos(angle + side * 0.9) * 3, ly + Math.sin(angle + side * 0.9) * 3, 3.2, 1.1, angle + side * 0.9, 0, Math.PI * 2); context.fill()
       }
-      mesh.current.instanceMatrix.needsUpdate = true
-      if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true
     }
-  }, [x, z, radius, count])
-  return <instancedMesh ref={mesh} args={[geometry, undefined, count]} frustumCulled={false} castShadow receiveShadow><meshStandardMaterial map={fuzz} roughness={1} /></instancedMesh>
+    if (depth > 0) for (const turn of [-0.5, 0.45]) branch(ex, ey, angle + turn + (rand() - 0.5) * 0.3, length * 0.62, depth - 1)
+  }
+  branch(64, 126, -Math.PI / 2 + (rand() - 0.5) * 0.3, 50, 3)
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return texture
 }
 
-/** Speckled light/dark dots so moss tufts read as soft and fuzzy rather than smooth balls. */
-const fuzz = (() => {
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = 128
-  const context = canvas.getContext('2d')!
-  context.fillStyle = '#e6e6e6'; context.fillRect(0, 0, 128, 128)
-  let seed = 11
-  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
-  for (let index = 0; index < 1400; index += 1) {
-    const tone = 170 + rand() * 85
-    context.fillStyle = `rgb(${tone},${tone},${tone})`
-    context.beginPath(); context.arc(rand() * 128, rand() * 128, 0.8 + rand() * 1.6, 0, Math.PI * 2); context.fill()
-  }
-  const texture = new CanvasTexture(canvas)
-  texture.wrapS = texture.wrapT = RepeatWrapping
-  texture.repeat.set(3, 3)
-  return texture
-})()
+/** Semi-real moss: dense shrubs of painted sprig cards (two crossed planes each), like a tiny forest. */
+function MossSprigs({ x, z, radius, count }: { x: number; z: number; radius: number; count: number }) {
+  const mesh = useRef<InstancedMesh>(null)
+  const geometry = useMemo(() => {
+    const a = new PlaneGeometry(1, 1).translate(0, 0.5, 0)
+    const b = a.clone().rotateY(Math.PI / 2)
+    return mergeGeometries([a, b])
+  }, [])
+  const texture = useMemo(() => sprigTexture(Math.round(x * 100 + z * 10) + 7), [x, z])
+  useLayoutEffect(() => {
+    if (!mesh.current) return
+    const dummy = new Object3D(), colour = new Color()
+    const noise = makeNoise(x * 53 + z)
+    let seed = 5
+    const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+    for (let index = 0; index < count; index += 1) {
+      const angle = rand() * Math.PI * 2, distance = Math.sqrt(rand()) * radius
+      const px = x + Math.cos(angle) * distance, pz = z + Math.sin(angle) * distance
+      const edge = distance / radius
+      const dome = Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.16
+      const size = (0.2 + rand() * 0.14) * (1 - edge * 0.35)
+      dummy.position.set(px, soilTop(px, pz) + dome - 0.02, pz)
+      dummy.rotation.set((rand() - 0.5) * 0.5, rand() * Math.PI, (rand() - 0.5) * 0.5)
+      dummy.scale.set(size, size * (0.9 + rand() * 0.4), size)
+      dummy.updateMatrix()
+      mesh.current.setMatrixAt(index, dummy.matrix)
+      const light = 0.75 + noise(px * 3, pz * 3) * 0.35 + rand() * 0.15
+      colour.setRGB(light, light, light * 0.9, SRGBColorSpace)
+      mesh.current.setColorAt(index, colour)
+    }
+    mesh.current.instanceMatrix.needsUpdate = true
+    if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true
+  }, [x, z, radius, count])
+  return <instancedMesh ref={mesh} args={[geometry, undefined, count]} frustumCulled={false} castShadow receiveShadow>
+    <meshStandardMaterial map={texture} alphaTest={0.4} side={DoubleSide} roughness={1} />
+  </instancedMesh>
+}
 
 function ScannedSubstrate() {
   const soil = useScan('forest_ground_04', [1.6, 1.6], true)
