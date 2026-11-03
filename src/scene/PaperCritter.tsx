@@ -92,7 +92,7 @@ const shade = { far: '#8a8a80', near: '#ffffff' }
 
 function paperMaterial(texture: CanvasTexture, tint: string) {
   // A little self-light keeps printed colours readable in shade, like card under a lamp.
-  return new MeshStandardMaterial({ map: texture, color: new Color(tint), emissiveMap: texture, emissive: new Color(tint), emissiveIntensity: 0.28, alphaTest: 0.5, side: DoubleSide, roughness: 0.95, metalness: 0 })
+  return new MeshStandardMaterial({ map: texture, color: new Color(tint), emissiveMap: texture, emissive: new Color(tint), emissiveIntensity: 0.12, alphaTest: 0.5, side: DoubleSide, roughness: 0.95, metalness: 0 })
 }
 
 type Piece = { motion: PaperMotion; side: 'near' | 'far'; order: number }
