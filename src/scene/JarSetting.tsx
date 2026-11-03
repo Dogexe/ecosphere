@@ -4,10 +4,13 @@ import { CylinderGeometry, DoubleSide, RepeatWrapping, SRGBColorSpace, Vector2, 
 import type { Texture } from 'three'
 import { charcoalTexture, soilSideTexture } from '../lab/proceduralTextures'
 import { pondCenter } from '../sim/pond'
+import { nearestSoil } from '../sim/ecosystem'
+import type { SoilPatch } from '../sim/ecosystem'
 import { environmentScale, groundShape } from './scale'
 import { cellX, heightAt, inside, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
 import type { Decor, SavedSubstrate } from '../sim/substrate'
 import { LayeredGround } from './LayeredGround'
+import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
 import { Fern, MossSprigs, MossyStone, paintify, polyHaven, ScannedProp } from './semiReal'
 import type { Ground } from './semiReal'
@@ -111,22 +114,22 @@ function Sill({ bottom = gravelBottom }: { bottom?: number }) {
 const leaf = 'dry_quiver_leaf/dry_quiver_leaf_1k.gltf'
 
 /** Moss, stones, a fern and fallen leaves from the approved reference (round 2, image 2), kept clear of the pond. */
-function Dressing() {
+function Dressing({ ground = flat }: { ground?: Ground }) {
   return <>
-    <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={flat} />
-    <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={flat} />
-    <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={flat} />
-    <MossSprigs x={1.6} z={-1.9} radius={1.3} count={260} ground={flat} avoid={pond} />
-    <MossSprigs x={-2.2} z={-0.7} radius={1.0} count={170} ground={flat} avoid={pond} />
-    <MossSprigs x={-0.3} z={2.6} radius={0.9} count={130} ground={flat} avoid={pond} />
-    <MossSprigs x={2.6} z={1.7} radius={0.8} count={110} ground={flat} avoid={pond} />
-    <MossSprigs x={0} z={0} radius={3.5} count={320} flat scale={0.55} ground={flat} avoid={pond} />
-    <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={260} ground={flat} spots={bank} scale={1.1} />
-    <Fern x={-2.6} z={1.9} ground={flat} />
-    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={0.9} z={1.5} length={0.95} turn={0.4} ground={flat} />
-    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={2.2} z={0.4} length={0.8} turn={-1.6} ground={flat} />
-    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={flat} />
-    <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={flat} />
+    <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />
+    <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />
+    <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />
+    <MossSprigs x={1.6} z={-1.9} radius={1.3} count={260} ground={ground} avoid={pond} />
+    <MossSprigs x={-2.2} z={-0.7} radius={1.0} count={170} ground={ground} avoid={pond} />
+    <MossSprigs x={-0.3} z={2.6} radius={0.9} count={130} ground={ground} avoid={pond} />
+    <MossSprigs x={2.6} z={1.7} radius={0.8} count={110} ground={ground} avoid={pond} />
+    <MossSprigs x={0} z={0} radius={3.5} count={320} flat scale={0.55} ground={ground} avoid={pond} />
+    <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={260} ground={ground} spots={bank} scale={1.1} />
+    <Fern x={-2.6} z={1.9} ground={ground} />
+    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={0.9} z={1.5} length={0.95} turn={0.4} ground={ground} />
+    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={2.2} z={0.4} length={0.8} turn={-1.6} ground={ground} />
+    <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />
+    <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={ground} />
   </>
 }
 
@@ -150,7 +153,17 @@ function pondCut(floor: number) {
 }
 
 /** A jar the player built: their layers, raised so the soil sits where the simulation expects the ground. */
-function BuiltJar({ substrate }: { substrate: SavedSubstrate }) {
+/** Puddles stand while the soil under them is waterlogged (the sim's 85% line) and dry up as it drains. */
+function usePoolScale(soil: SoilPatch[]) {
+  const key = soil.map((patch) => Math.round(Math.min(1, Math.max(0, (patch.water - 85) / 15)) * 20)).join(',')
+  return useMemo(() => {
+    const levels = key.split(',').map((value) => Number(value) / 20)
+    return (x: number, z: number) => soil.length ? levels[soil.indexOf(nearestSoil(soil, x, z))] ?? 0 : 1
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+}
+
+function BuiltJar({ substrate, soil, dressed }: { substrate: SavedSubstrate; soil: SoilPatch[]; dressed: boolean }) {
   const state = useMemo(() => loadSubstrate(substrate), [substrate])
   const floor = useMemo(() => {
     let sum = 0, count = 0
@@ -162,20 +175,30 @@ function BuiltJar({ substrate }: { substrate: SavedSubstrate }) {
     return top - (count ? sum / count : 0)
   }, [state])
   const shape = useMemo(() => pondCut(floor), [floor])
+  const poolScale = usePoolScale(soil)
   const ground = useMemo(() => (x: number, z: number) => shape(x, z, heightAt(state, x, z)) + floor, [shape, state, floor])
   // Plants and animals stand on this ground instead of the flat default.
   useLayoutEffect(() => { groundShape.offset = (x, z) => ground(x, z) - top; return () => { groundShape.offset = () => 0 } }, [ground])
   return <>
-    <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} onClick /></Suspense>
+    <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} poolScale={poolScale} onClick /></Suspense>
     <Suspense fallback={null}>{state.decor.map((item, index) => <DecorPiece key={index} item={item} index={index} ground={ground} />)}</Suspense>
+    {dressed && <Suspense fallback={null}><Dressing ground={ground} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
     <Glass bottom={floor} />
   </>
 }
 
-/** Everything the jar adds around the simulation. Each part loads its scans on its own so the game never waits for them. */
-export function JarSetting({ substrate }: { substrate?: SavedSubstrate }) {
-  if (substrate) return <BuiltJar substrate={substrate} />
+/**
+ * Everything the jar adds around the simulation. A jar the player built shows
+ * their layers; every other jar uses the default one, poured the same way
+ * (scripts/pour_default_jar.mjs) and dressed with moss, stones and a fern.
+ */
+export function JarSetting({ substrate, soil = [] }: { substrate?: SavedSubstrate; soil?: SoilPatch[] }) {
+  return <BuiltJar substrate={substrate ?? defaultJar as SavedSubstrate} soil={soil} dressed={!substrate} />
+}
+
+/** The earlier hand-made default jar: flat layered cylinders. Kept for reference. */
+export function FlatJarSetting() {
   return <>
     <Suspense fallback={<mesh position={[0, top, 0]} rotation={[-Math.PI / 2, 0, 0]}><primitive object={terrainGeometry.cap} attach="geometry" /><meshStandardMaterial color="#6b5544" roughness={1} /></mesh>}><JarSubstrate /></Suspense>
     <Suspense fallback={null}><Dressing /></Suspense>

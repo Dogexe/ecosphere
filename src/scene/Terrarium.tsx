@@ -128,8 +128,8 @@ function LitterPatch({ patch }: { patch: SoilPatch }) {
 
 function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwater, swimmers, substrate }: { pond: Pond; swimmers: { id: number; x: number; z: number }[]; substrate?: SavedSubstrate; soil: SoilPatch[]; selectedSoil: number | null; onGroundClick: (x: number, z: number) => void; onPondClick: (x: number, z: number) => void; underwater: boolean }) {
   return (
-    <group onClick={(event) => { if (event.delta > 5 || (event.point.y < 0.025 && !substrate)) return; event.stopPropagation(); onGroundClick(event.point.x, event.point.z) }}>
-      {paperLook ? <JarSetting substrate={substrate} /> : <>
+    <group onClick={(event) => { if (event.delta > 5 || (event.point.y < 0.025 && !paperLook)) return; event.stopPropagation(); onGroundClick(event.point.x, event.point.z) }}>
+      {paperLook ? <JarSetting substrate={substrate} soil={soil} /> : <>
       <mesh position={[0, -0.75, 0]} receiveShadow castShadow>
         <cylinderGeometry args={[3.72, 3.43, 1.05, 48]} />
         <meshStandardMaterial color="#8b715a" roughness={1} flatShading />

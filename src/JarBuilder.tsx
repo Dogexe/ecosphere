@@ -1,9 +1,9 @@
 import { Suspense, useMemo, useRef, useState } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { Color, DoubleSide, InstancedMesh, Object3D, Vector3 } from 'three'
-import { deposit, emptySubstrate, heightAt, jarRadius, layerDepths, saveSubstrate, settle } from './sim/substrate'
+import { Color, DoubleSide, InstancedMesh, MOUSE, Object3D, TOUCH, Vector3 } from 'three'
+import { deposit, emptySubstrate, heightAt, jarRadius, layerDepths, puddles, saveSubstrate, settle } from './sim/substrate'
 import type { DecorKind, Pourable, SavedSubstrate, Substrate } from './sim/substrate'
 import { pondCenter } from './sim/pond'
 import { layerColours, updateLayered, useLayerMaterials, useLayeredGeometry } from './scene/LayeredGround'
@@ -29,11 +29,11 @@ const steps: { id: Step; label: string; hint: string; range?: [number, number] }
   { id: 'charcoal', label: 'Charcoal', hint: 'A thin layer, a few millimetres, keeps the bottom fresh.', range: [0.1, 0.5] },
   { id: 'soil', label: 'Soil', hint: 'Guides suggest 50–75 mm. Fresh soil is loose and slides; damp soil holds a hill.', range: [2.6, 3.9] },
   { id: 'decor', label: 'Stones & wood', hint: 'Tap the soil to set a stone or a piece of wood. Tap one again to take it out.' },
-  { id: 'water', label: 'Water', hint: 'Water settles the fresh soil and firms it. What it cannot hold drains to the gravel.' },
+  { id: 'water', label: 'Water', hint: 'Water settles the fresh soil and firms it. Pour fast and it puddles in the hollows before soaking in; once the gravel is full, it floods.' },
 ]
 const grainColour: Record<Pourable, Color> = { gravel: layerColours.gravel, charcoal: layerColours.charcoal, soil: layerColours.soil, water: layerColours.water }
 /** Depth (per cell) each grain adds where it lands; tuned so a layer takes about 15 s of pouring (a cell is ~3.7 mm across). */
-const perGrain: Record<Pourable, number> = { gravel: 0.6, charcoal: 0.2, soil: 0.6, water: 1 }
+const perGrain: Record<Pourable, number> = { gravel: 0.6, charcoal: 0.2, soil: 0.6, water: 0.25 }
 const MAX_GRAINS = 900
 type Grain = { alive: boolean; x: number; y: number; z: number; vx: number; vy: number; vz: number; material: Pourable }
 
@@ -96,7 +96,22 @@ function Pouring({ state, material, pouring, aim, onChange, events }: { state: S
     </instancedMesh>
     <mesh geometry={geometry.surface} material={materials.surface} receiveShadow castShadow {...events} />
     <mesh geometry={geometry.walls} material={materials.walls} />
+    <mesh geometry={geometry.puddles} material={materials.puddles} raycast={() => undefined} renderOrder={2} />
   </group>
+}
+
+/** Eases the camera round the jar when the turn buttons are pressed. */
+function Spin({ turn }: { turn: React.MutableRefObject<number> }) {
+  const { camera, controls } = useThree() as unknown as { camera: { position: Vector3 }; controls: { target: Vector3; update: () => void } | null }
+  useFrame((_, delta) => {
+    if (Math.abs(turn.current) < 1e-4 || !controls) return
+    const step = turn.current * Math.min(1, delta * 6)
+    turn.current -= step
+    const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new Vector3(0, 1, 0), step)
+    camera.position.copy(controls.target).add(offset)
+    controls.update()
+  })
+  return null
 }
 
 function Glass() {
@@ -136,7 +151,9 @@ export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: Saved
   const [, setTick] = useState(0)
   const pouring = useRef(false)
   const aim = useRef(new Vector3())
+  const turn = useRef(0)
   const depths = layerDepths(state)
+  const pools = puddles(state)
   if (location.search.includes('debug')) (window as unknown as { __jar: unknown }).__jar = { state, pouring, aim, step }
   const current = steps.find((item) => item.id === step)!
   const depthOf = (id: Step) => id === 'gravel' ? depths.gravel : id === 'charcoal' ? depths.charcoal : id === 'soil' ? depths.soil : 0
@@ -162,8 +179,14 @@ export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: Saved
         {state.decor.map((item, index) => <DecorPiece key={`${index}:${item.x}`} item={item} index={index} ground={ground} />)}
       </Suspense>
       {depths.soil > 0.3 && <PondMarker state={state} />}
-      <OrbitControls makeDefault target={[0, 2.8, 0]} enablePan={false} minDistance={7} maxDistance={26} maxPolarAngle={1.5} mouseButtons={{ LEFT: undefined as unknown as number, MIDDLE: 1, RIGHT: 0 }} touches={{ ONE: undefined as unknown as number, TWO: 2 }} />
+      {/* One finger or the left button pours; two fingers turn and zoom, the right button turns, the wheel zooms. */}
+      <OrbitControls makeDefault target={[0, 2.8, 0]} enablePan={false} minDistance={7} maxDistance={26} maxPolarAngle={1.5} mouseButtons={{ LEFT: undefined as unknown as MOUSE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE }} touches={{ ONE: undefined as unknown as TOUCH, TWO: TOUCH.DOLLY_ROTATE }} />
+      <Spin turn={turn} />
     </Canvas>
+    <div className="builder-turn" aria-label="Turn the jar">
+      <button type="button" aria-label="Turn left" onClick={() => { turn.current -= Math.PI / 4 }}>⟲</button>
+      <button type="button" aria-label="Turn right" onClick={() => { turn.current += Math.PI / 4 }}>⟳</button>
+    </div>
     <section className="builder-card" aria-label="Build your jar">
       <span className="eyebrow">BUILD YOUR JAR</span>
       <div className="builder-steps" role="tablist">
@@ -172,8 +195,8 @@ export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: Saved
       <p>{current.hint}</p>
       {current.range && <div className="builder-depth"><span>{mm(depthOf(step))} mm</span><meter min={0} max={current.range[1] * 1.4} low={current.range[0]} high={current.range[1]} optimum={(current.range[0] + current.range[1]) / 2} value={depthOf(step)} /><small>aim for {mm(current.range[0])}–{mm(current.range[1])} mm</small></div>}
       {step === 'decor' && <div className="builder-kinds"><button type="button" className={decorKind === 'stone' ? 'on' : ''} onClick={() => setDecorKind('stone')}>Stone</button><button type="button" className={decorKind === 'log' ? 'on' : ''} onClick={() => setDecorKind('log')}>Wood</button><small>{state.decor.length}/12 placed</small></div>}
-      {step === 'water' && <div className="builder-depth"><span>{Math.round(depths.loose * 100)}% loose</span><small>Fresh soil settles over the first two or three waterings.</small></div>}
-      <small className="builder-how">Hold on the jar to pour. Turn the view: right-drag or two fingers.</small>
+      {step === 'water' && <div className="builder-depth"><span>{Math.round(depths.loose * 100)}% loose</span><small>{pools.cover > 0.01 ? `Standing water over ${Math.round(pools.cover * 100)}% of the floor, ${mm(pools.depth / Math.max(pools.cover, 1e-3))} mm deep on average.` : 'Fresh soil settles over the first two or three waterings.'}</small></div>}
+      <small className="builder-how">Hold on the jar to pour. Turn it with the arrows, two fingers or a right-drag.</small>
       <div className="builder-actions">
         <button type="button" className="text-button" onClick={onCancel}>Back</button>
         <button type="button" className="load-experiment" disabled={depths.soil < 0.5} onClick={() => onFinish(saveSubstrate(state), state)}>Plant and fill it <span aria-hidden="true">↗</span></button>

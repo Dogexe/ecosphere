@@ -21,6 +21,12 @@
  * - Water the soil cannot hold drains to the gravel: soil holds about half its
  *   volume (NC State substrate guide: porosity 65-85%, air space 10-20%),
  *   gravel pores are about 35% of its volume.
+ * - Water lands on the surface first and soaks in at a limited rate. Pour
+ *   faster than that and it puddles in the low spots; once the gravel below
+ *   is full there is nowhere left to drain and the jar floods. Real soils take
+ *   in roughly 1-5 mm/h (clay) to over 30 mm/h (sand) (FAO, Irrigation Water
+ *   Management, "basic infiltration rate"); here it is sped up so a puddle
+ *   soaks into fresh mix in seconds, firm soil about half as fast.
  *
  * Pure and deterministic: no randomness, no clock. The grains you see falling
  * live in the scene; they call deposit() where they land.
@@ -43,6 +49,8 @@ export type Substrate = {
   water: Float32Array
   /** 1 = freshly poured and loose, 0 = settled and firm. */
   loose: Float32Array
+  /** Standing water on top of each cell (puddles), in units of depth. */
+  pool: Float32Array
   /** Height of drained water standing in the gravel. */
   table: number
   decor: Decor[]
@@ -60,7 +68,7 @@ export const inside = new Uint8Array(N * N)
 for (let j = 0; j < N; j += 1) for (let i = 0; i < N; i += 1) inside[index(i, j)] = Math.hypot(cellX(i), cellX(j)) <= R - substrateCell * 0.5 ? 1 : 0
 
 export function emptySubstrate(): Substrate {
-  return { gravel: new Float32Array(N * N), charcoal: new Float32Array(N * N), soil: new Float32Array(N * N), water: new Float32Array(N * N), loose: new Float32Array(N * N), table: 0, decor: [] }
+  return { gravel: new Float32Array(N * N), charcoal: new Float32Array(N * N), soil: new Float32Array(N * N), water: new Float32Array(N * N), loose: new Float32Array(N * N), pool: new Float32Array(N * N), table: 0, decor: [] }
 }
 
 export const topAt = (state: Substrate, k: number) => state.gravel[k] + state.charcoal[k] + state.soil[k]
@@ -94,7 +102,7 @@ export function deposit(state: Substrate, material: Pourable, x: number, z: numb
     if (i < 0 || j < 0 || i >= N || j >= N || !inside[index(i, j)]) continue
     const share = amount * Math.exp(-(di * di + dj * dj) / 2.5) / weight
     const k = index(i, j)
-    if (material === 'water') soak(state, k, share)
+    if (material === 'water') state.pool[k] += share
     else if (material === 'soil') {
       // Fresh soil is loose; it mixes into whatever loose fraction is there.
       state.loose[k] = (state.loose[k] * state.soil[k] + share) / (state.soil[k] + share)
@@ -103,9 +111,27 @@ export function deposit(state: Substrate, material: Pourable, x: number, z: numb
   }
 }
 
+const insideCount = inside.reduce((sum, value) => sum + value, 0)
+
+/** Mean gravel depth: the drained water table can rise this high before the gravel is full. */
+function gravelTop(state: Substrate) {
+  let sum = 0
+  for (let k = 0; k < state.gravel.length; k += 1) if (inside[k]) sum += state.gravel[k]
+  return sum / insideCount
+}
+
+/** Sends water down into the gravel; returns what did not fit because the gravel is already full. */
+function drain(state: Substrate, amount: number) {
+  const room = Math.max(0, gravelTop(state) - state.table) * insideCount * gravelPores
+  const taken = Math.min(room, amount)
+  state.table += taken / (insideCount * gravelPores)
+  return amount - taken
+}
+
 /**
  * Water soaks into the soil up to what it can hold; the rest drains to the
  * gravel. Wetting loose soil collapses its air pockets: it firms up and sinks.
+ * Whatever the gravel cannot take either stays on top as a puddle.
  */
 export function soak(state: Substrate, k: number, amount: number) {
   if (state.soil[k] > 1e-4) {
@@ -120,9 +146,41 @@ export function soak(state: Substrate, k: number, amount: number) {
   state.water[k] += kept
   // When the soil is already full, the extra stays in it briefly as mud before draining.
   const overflow = amount - kept
-  const muddy = Math.min(overflow, state.soil[k] * 0.05)
+  const muddy = Math.min(overflow, Math.max(0, state.soil[k] * holding * 1.1 - state.water[k]))
   state.water[k] += muddy
-  state.table += (overflow - muddy) / (inside.reduce((sum, value) => sum + value, 0) * gravelPores)
+  state.pool[k] += drain(state, overflow - muddy)
+}
+
+/** Depth of standing water a cell lets soak in per settle step (one frame while building). */
+export const infiltration = { looseSoil: 0.004, firmSoil: 0.002, bare: 0.05 }
+/** A film this thin (about 0.6 mm) clings to the rough surface instead of running off. */
+const detention = 0.03
+
+/** Puddles soak in at the surface's rate, and the water left on top runs downhill and levels out. */
+export function runoff(state: Substrate) {
+  for (let k = 0; k < state.pool.length; k += 1) {
+    if (!inside[k] || state.pool[k] <= 1e-6) continue
+    const rate = state.soil[k] > 1e-4 ? infiltration.firmSoil + (infiltration.looseSoil - infiltration.firmSoil) * state.loose[k] : infiltration.bare
+    const amount = Math.min(state.pool[k], rate)
+    state.pool[k] -= amount
+    soak(state, k, amount)
+  }
+  // Water levels out much faster than soil slides: keep passing until it has nearly stopped moving.
+  for (let pass = 0; pass < 12; pass += 1) {
+    let moved = 0
+    for (let j = 1; j < N - 1; j += 1) for (let i = 1; i < N - 1; i += 1) {
+      const k = index(i, j)
+      if (!inside[k]) continue
+      for (const m of [index(i + 1, j), index(i, j + 1)]) {
+        if (!inside[m]) continue
+        const difference = (topAt(state, k) + state.pool[k]) - (topAt(state, m) + state.pool[m])
+        const flow = difference > 0 ? Math.min(Math.max(0, state.pool[k] - detention), difference * 0.25) : -Math.min(Math.max(0, state.pool[m] - detention), -difference * 0.25)
+        state.pool[k] -= flow; state.pool[m] += flow
+        moved = Math.max(moved, Math.abs(flow))
+      }
+    }
+    if (pass >= 2 && moved < 0.002) break
+  }
 }
 
 /** One relaxation pass; returns how much material moved. */
@@ -168,7 +226,7 @@ export function wick(state: Substrate) {
     if (extra > 0) {
       const drained = extra * 0.05
       state.water[k] -= drained
-      state.table += drained / (inside.reduce((sum, value) => sum + value, 0) * gravelPores)
+      state.pool[k] += drain(state, drained)
     }
   }
 }
@@ -176,7 +234,15 @@ export function wick(state: Substrate) {
 /** Let the pile settle: up to `passes` relaxation passes, then one step of water movement. */
 export function settle(state: Substrate, passes = 8) {
   for (let pass = 0; pass < passes; pass += 1) if (slump(state) < 1e-5) break
+  runoff(state)
   wick(state)
+}
+
+/** Mean depth of standing water over the jar, and how much of the floor it covers (0-1). */
+export function puddles(state: Substrate) {
+  let depth = 0, wet = 0
+  for (let k = 0; k < state.pool.length; k += 1) if (inside[k]) { depth += state.pool[k]; if (state.pool[k] > 0.01) wet += 1 }
+  return { depth: depth / insideCount, cover: wet / insideCount }
 }
 
 /** Ground height at a point, smoothly interpolated between cells. */
@@ -210,13 +276,16 @@ export function pocketWetness(state: Substrate) {
 
 // ---- Saving ----------------------------------------------------------------
 
-/** What a save stores: heights to 0.01 units (0.2 mm), looseness to 0.01. Water lives in the sim's soil pockets once the game starts. */
-export type SavedSubstrate = { size: number; gravel: number[]; charcoal: number[]; soil: number[]; loose: number[]; table: number; decor: Decor[] }
+/** What a save stores: heights to 0.01 units (0.2 mm), looseness to 0.01. Soil water lives in the sim's soil pockets once the game starts; standing puddles are kept here (only when there are any). */
+export type SavedSubstrate = { size: number; gravel: number[]; charcoal: number[]; soil: number[]; loose: number[]; table: number; decor: Decor[]; pool?: number[] }
 const round = (value: number) => Math.round(value * 100) / 100
 
 export function saveSubstrate(state: Substrate): SavedSubstrate {
   const pack = (values: Float32Array) => Array.from(values, (value, k) => inside[k] ? round(value) : 0)
-  return { size: N, gravel: pack(state.gravel), charcoal: pack(state.charcoal), soil: pack(state.soil), loose: pack(state.loose), table: round(state.table), decor: state.decor.map((item) => ({ ...item, x: round(item.x), z: round(item.z), size: round(item.size), turn: round(item.turn) })) }
+  const saved: SavedSubstrate = { size: N, gravel: pack(state.gravel), charcoal: pack(state.charcoal), soil: pack(state.soil), loose: pack(state.loose), table: round(state.table), decor: state.decor.map((item) => ({ ...item, x: round(item.x), z: round(item.z), size: round(item.size), turn: round(item.turn) })) }
+  const pool = pack(state.pool)
+  if (pool.some((value) => value > 0)) saved.pool = pool
+  return saved
 }
 
 const damaged = () => new Error('This experiment file is damaged.')
@@ -232,6 +301,10 @@ export function loadSubstrate(source: unknown): Substrate {
     const values = saved[key]
     if (!Array.isArray(values) || values.length !== N * N) throw damaged()
     values.forEach((value, k) => { if (!finite(value, 0, key === 'loose' ? 1 : 12)) throw damaged(); state[key][k] = inside[k] ? value as number : 0 })
+  }
+  if (saved.pool !== undefined) {
+    if (!Array.isArray(saved.pool) || saved.pool.length !== N * N) throw damaged()
+    saved.pool.forEach((value, k) => { if (!finite(value, 0, 12)) throw damaged(); state.pool[k] = inside[k] ? value as number : 0 })
   }
   if (!finite(saved.table, 0, 12)) throw damaged()
   state.table = saved.table as number

@@ -703,3 +703,6 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
   .builder-card h2 { font-size: 18px; }
   .builder-card p { display: none; }
 }
+.builder-turn { position: absolute; right: 16px; bottom: 16px; display: flex; gap: 8px; }
+.builder-turn button { width: 48px; height: 48px; border: 1px solid var(--rule); border-radius: 50%; background: var(--paper); color: var(--ink); font-size: 22px; line-height: 1; box-shadow: 0 6px 16px rgba(75, 58, 42, .16); cursor: pointer; }
+@media (max-width: 560px) { .builder-turn { top: 16px; bottom: auto; right: 12px; } }
