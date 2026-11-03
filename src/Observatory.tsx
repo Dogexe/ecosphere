@@ -21,7 +21,13 @@ function readSlot(key: string): World | null {
   }
 }
 
-const format = (value: number, key: MetricKey) => percentMetrics.has(key) ? `${Math.round(value)}%` : Number.isInteger(value) ? String(value) : value.toFixed(1)
+const units = new Map(metrics.map((item) => [item.key, item.unit]))
+const format = (value: number, key: MetricKey) => {
+  const unit = units.get(key)
+  if (unit === '%') return key === 'jarOxygen' ? `${value.toFixed(1)}%` : `${Math.round(value)}%`
+  if (unit === 'ppm') return `${Math.round(value)} ppm`
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
 const dayLabel = (tick: number) => `Day ${Math.floor(tick / 24) + 1} · ${String(tick % 24).padStart(2, '0')}:00`
 
 function Chart({ series, metric, relative }: { series: Series[]; metric: MetricKey; relative: boolean }) {
