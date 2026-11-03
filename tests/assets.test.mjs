@@ -117,7 +117,7 @@ test('imported floating pads clear the real water anchor at juvenile and mature 
   reed.root.position.y = plantGroundY({ kind: 'reed' })
   reed.root.updateMatrixWorld(true)
   const rooted = new Box3().setFromObject(reed.root, true)
-  assert.ok(Math.abs(rooted.min.y - environmentScale.pondBedY - 0.002) < 0.00001)
+  assert.ok(Math.abs(rooted.min.y - environmentScale.pondShelfY - 0.002) < 0.00001)
   assert.ok(rooted.max.y > environmentScale.pondSurfaceY + 0.7)
   reed.dispose()
 })

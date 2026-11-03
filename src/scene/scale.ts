@@ -7,7 +7,9 @@ import { maturity, pondCenter } from '../sim/pond.ts'
 export const environmentScale = {
   islandRadius: 3.77, playableRadius: 3.15, pondRadius: pondCenter.radius,
   soilSurfaceY: 0.039,
-  pondBedY: -0.20, pondSurfaceY: 0.07, pondVisualDepth: 0.27,
+  // The pond is about 2 cm deep in the middle (1.05 units) and shelves up to
+  // the bank; reeds root on that shallow margin shelf, about 6 mm under water.
+  pondBedY: -0.98, pondSurfaceY: 0.07, pondVisualDepth: 1.05, pondShelfY: -0.23,
   logLength: 1.45, logRadius: 0.12,
   rockSmall: 0.3, rockMedium: 0.48, rockLarge: 0.65,
   mushroomMin: 0.14, mushroomMax: 0.27,
@@ -61,7 +63,7 @@ export function plantGrowthScale(plant: Plant) {
 
 export function plantGroundY(plant: Plant) {
   if (plant.kind === 'lily') return environmentScale.pondSurfaceY + 0.002 - 0.025 * plantModelScale('lily')[1] * plantGrowthScale(plant)
-  if (plant.kind === 'reed') return environmentScale.pondBedY + 0.002
+  if (plant.kind === 'reed') return environmentScale.pondShelfY + 0.002
   if (['seed', 'germinating', 'seedling'].includes(plantStage(plant))) return environmentScale.soilSurfaceY
   return 0.045
 }
