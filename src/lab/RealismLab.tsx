@@ -403,21 +403,55 @@ function leafTexture() {
 
 function Leaf({ x, z, turn }: { x: number; z: number; turn: number }) {
   const texture = useMemo(leafTexture, [])
-  return <mesh position={[x, soilTop(x, z) + 0.03, z]} rotation={[-Math.PI / 2 + 0.08, 0, turn]} receiveShadow castShadow>
-    <planeGeometry args={[0.9, 0.45]} />
+  // A dry leaf curls: lift the tip and both edges a little.
+  const geometry = useMemo(() => {
+    const plane = new PlaneGeometry(0.9, 0.45, 16, 8)
+    const position = plane.getAttribute('position') as BufferAttribute
+    for (let index = 0; index < position.count; index += 1) {
+      const u = position.getX(index) / 0.45, v = position.getY(index) / 0.225
+      position.setZ(index, v * v * 0.06 + Math.max(0, u) ** 2 * 0.07)
+    }
+    plane.computeVertexNormals()
+    return plane
+  }, [])
+  return <mesh geometry={geometry} position={[x, soilTop(x, z) + 0.02, z]} rotation={[-Math.PI / 2, 0, turn]} receiveShadow castShadow>
     <meshStandardMaterial map={texture} transparent alphaTest={0.3} side={DoubleSide} roughness={0.9} />
   </mesh>
 }
+
+/** Painted bark: soft lengthwise streaks and a few knots. */
+const bark = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 64; canvas.height = 256
+  const context = canvas.getContext('2d')!
+  context.fillStyle = '#86603f'; context.fillRect(0, 0, 64, 256)
+  let seed = 3
+  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+  for (let index = 0; index < 40; index += 1) {
+    const tone = rand() > 0.5 ? 'rgba(60,38,22,0.35)' : 'rgba(180,140,100,0.3)'
+    context.fillStyle = tone; context.fillRect(rand() * 64, rand() * 256, 1.5 + rand() * 3, 20 + rand() * 60)
+  }
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return texture
+})()
 
 function Twig({ from, to }: { from: [number, number]; to: [number, number] }) {
   const a = new Vector3(from[0], soilTop(...from) + 0.05, from[1]), b = new Vector3(to[0], soilTop(...to) + 0.05, to[1])
   const middle = a.clone().add(b).multiplyScalar(0.5), length = a.distanceTo(b)
   const direction = b.clone().sub(a).normalize()
   const quaternion = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), direction)
-  return <mesh position={middle} quaternion={quaternion} castShadow receiveShadow>
-    <cylinderGeometry args={[0.035, 0.05, length, 8]} />
-    <meshStandardMaterial color="#7a5638" roughness={0.9} />
-  </mesh>
+  return <group position={middle} quaternion={quaternion}>
+    <mesh castShadow receiveShadow>
+      <cylinderGeometry args={[0.035, 0.05, length, 8]} />
+      <meshStandardMaterial map={bark} roughness={0.9} />
+    </mesh>
+    {/* a short side shoot, like the twig in the reference */}
+    <mesh position={[0.08, length * 0.12, 0]} rotation={[0, 0, -0.7]} castShadow>
+      <cylinderGeometry args={[0.018, 0.028, length * 0.3, 6]} />
+      <meshStandardMaterial map={bark} roughness={0.9} />
+    </mesh>
+  </group>
 }
 
 function ScannedSill() {
@@ -550,9 +584,10 @@ function Lab() {
         <Moss x={-2.7} z={-1.4} radius={0.8} count={4000} />
         <MossSprigs x={0} z={0} radius={3.5} count={260} flat scale={0.6} />
         <Fern x={0.1} z={-0.3} />
-        <Leaf x={1.7} z={1.3} turn={0.5} />
+        <Leaf x={0.15} z={1.05} turn={0.4} />
+        <Leaf x={2.0} z={0.75} turn={-1.1} />
         <Leaf x={1.9} z={-1.6} turn={-0.9} />
-        <Twig from={[0.3, 1.3]} to={[1.1, 2.0]} />
+        <Twig from={[-0.1, 0.35]} to={[0.85, 0.05]} />
       </>}
     </Suspense>
     {!scanned && <Grit count={260} />}
