@@ -7,6 +7,7 @@ import { Vector3 } from 'three'
 import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
 import { PaperAnimal, paperLook } from './PaperCritter'
+import { JarSetting } from './JarSetting'
 import { modelUnavailable, OrganismAsset, PlantAsset } from './OrganismAsset'
 import { worldPickRadius, animalTargetPixels } from './picking'
 import { terrainGeometry } from './terrainGeometry'
@@ -128,6 +129,7 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
   const waterColor = new Color('#77b9b0').lerp(new Color('#8b9c68'), Math.min(0.8, pond.algae / 15 + Math.max(0, 0.5 - pond.oxygen / Math.max(1, pond.water))))
   return (
     <group onClick={(event) => { if (event.delta > 5 || event.point.y < 0.025) return; event.stopPropagation(); onGroundClick(event.point.x, event.point.z) }}>
+      {paperLook ? <JarSetting /> : <>
       <mesh position={[0, -0.75, 0]} receiveShadow castShadow>
         <cylinderGeometry args={[3.72, 3.43, 1.05, 48]} />
         <meshStandardMaterial color="#8b715a" roughness={1} flatShading />
@@ -148,6 +150,7 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
         <torusGeometry args={[environmentScale.islandRadius, 0.035, 8, 64]} />
         <meshStandardMaterial color="#c7bda4" roughness={0.72} metalness={0.05} />
       </mesh>
+      </>}
 
       {soil.map((patch) => (
         <group key={patch.id} position={[patch.x, 0.052, patch.z]}>
@@ -166,15 +169,15 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
       <group position={[pondCenter.x, environmentScale.pondBedY, pondCenter.z]} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onPondClick(event.point.x, event.point.z) }}>
         <mesh position={[0, 0.255, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <ringGeometry args={[environmentScale.pondRadius, 1.03, 48]} />
-          <meshStandardMaterial color="#a1b7a1" roughness={1} />
+          <meshStandardMaterial color={paperLook ? '#5e4b3b' : '#a1b7a1'} roughness={1} />
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[environmentScale.pondRadius, 48]} />
-          <meshStandardMaterial color="#8f9d83" roughness={1} />
+          <meshStandardMaterial color={paperLook ? '#4d4532' : '#8f9d83'} roughness={1} />
         </mesh>
         <mesh position={[0, 0.125, 0]} receiveShadow>
           <cylinderGeometry args={[environmentScale.pondRadius, environmentScale.pondRadius, 0.25, 48, 1, true]} />
-          <meshStandardMaterial color="#9ca58a" roughness={1} side={DoubleSide} />
+          <meshStandardMaterial color={paperLook ? '#5a4a38' : '#9ca58a'} roughness={1} side={DoubleSide} />
         </mesh>
         <mesh visible={pond.water > 1} position={[0, environmentScale.pondVisualDepth, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => undefined}>
           <circleGeometry args={[environmentScale.pondRadius, 48]} />
@@ -186,6 +189,7 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
         </mesh>
       </group>
 
+      {!paperLook && <>
       <GrassField />
       {rockPositions.map(([x, z], index) => {
         const size = [environmentScale.rockMedium, environmentScale.rockSmall, environmentScale.rockSmall, environmentScale.rockMedium, environmentScale.rockMedium, environmentScale.rockLarge, environmentScale.rockSmall, environmentScale.rockMedium, environmentScale.rockMedium][index] / 1.7
@@ -203,6 +207,7 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
         <cylinderGeometry args={[0.045, 0.06, 0.55, 7]} />
         <meshStandardMaterial color="#a38b69" roughness={1} flatShading />
       </mesh>
+      </>}
     </group>
   )
 }

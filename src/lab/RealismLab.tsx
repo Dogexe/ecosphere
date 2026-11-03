@@ -1,12 +1,12 @@
-import { Suspense, useLayoutEffect, useMemo, useRef } from 'react'
+import { Suspense, useMemo, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { BrightnessContrast, DepthOfField, EffectComposer, HueSaturation, Vignette } from '@react-three/postprocessing'
 import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
 import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, Matrix3, SRGBColorSpace, Vector2, Vector3 } from 'three'
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { PaperAnimal } from '../scene/PaperCritter'
+import { Fern, MossSprigs, paintify, ScannedProp } from '../scene/semiReal'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
 
 /*
@@ -132,7 +132,7 @@ function Moss({ x, z, radius, count }: { x: number; z: number; radius: number; c
     geometry.computeVertexNormals()
     return geometry
   }, [x, z, radius])
-  if (semi) return <MossSprigs x={x} z={z} radius={radius} count={Math.round(count / 4)} />
+  if (semi) return <MossSprigs x={x} z={z} radius={radius} count={Math.round(count / 4)} ground={soilTop} />
   return <group>
     <mesh geometry={cushion} castShadow receiveShadow><meshStandardMaterial {...textures} roughness={0.95} /></mesh>
     <instancedMesh ref={mesh} args={[geometry, undefined, count]} castShadow receiveShadow><meshStandardMaterial roughness={0.95} /></instancedMesh>
@@ -185,22 +185,6 @@ function useScan(id: string, repeat: [number, number], height = false) {
   return useMemo(() => semi ? { ...set, map: paintify(set.map, '', 1), normalScale: new Vector2(0.6, 0.6) } : set, [set])
 }
 
-/** Semi-real: soften a photo texture into broad painted patches (blur, lift, a little saturation). */
-function paintify(texture: Texture, extra = '', blur = 3) {
-  const image = texture.image as HTMLImageElement
-  const canvas = document.createElement('canvas')
-  canvas.width = image.width; canvas.height = image.height
-  const context = canvas.getContext('2d')!
-  context.filter = `blur(${blur}px) saturate(1.15) contrast(0.85) brightness(1.06) ${extra}`
-  context.drawImage(image, 0, 0)
-  const painted = new CanvasTexture(canvas)
-  painted.wrapS = painted.wrapT = RepeatWrapping
-  painted.repeat.copy(texture.repeat)
-  painted.colorSpace = SRGBColorSpace
-  painted.anisotropy = 8
-  return painted
-}
-
 /** A soft dark blob under a creature so it sits on the ground instead of floating. */
 function ContactBlob({ width, depth }: { width: number; depth: number }) {
   const texture = useMemo(() => {
@@ -216,77 +200,6 @@ function ContactBlob({ width, depth }: { width: number; depth: number }) {
     <planeGeometry args={[width, depth]} />
     <meshBasicMaterial map={texture} transparent depthWrite={false} />
   </mesh>
-}
-
-/** A painted moss sprig on a transparent card: a stem with soft forked leaflets (reference: GPT scene round 2, image 2). */
-function sprigTexture(seed: number) {
-  const canvas = document.createElement('canvas')
-  canvas.width = 128; canvas.height = 128
-  const context = canvas.getContext('2d')!
-  let state = seed
-  const rand = () => { state = (state * 16807) % 2147483647; return state / 2147483647 }
-  const branch = (x: number, y: number, angle: number, length: number, depth: number) => {
-    const ex = x + Math.cos(angle) * length, ey = y + Math.sin(angle) * length
-    context.strokeStyle = depth > 1 ? '#6f8f24' : '#93b23a'
-    context.lineWidth = Math.max(1.2, depth * 1.6)
-    context.beginPath(); context.moveTo(x, y); context.lineTo(ex, ey); context.stroke()
-    // leaflets along the stem
-    for (let step = 0.2; step < 1; step += 0.13) {
-      const lx = x + (ex - x) * step, ly = y + (ey - y) * step
-      for (const side of [-1, 1]) {
-        const tone = 150 + rand() * 60
-        context.fillStyle = `rgb(${tone * 0.72},${tone},${tone * 0.2})`
-        context.beginPath(); context.ellipse(lx + Math.cos(angle + side * 0.9) * 3, ly + Math.sin(angle + side * 0.9) * 3, 3.2, 1.1, angle + side * 0.9, 0, Math.PI * 2); context.fill()
-      }
-    }
-    if (depth > 0) for (const turn of [-0.5, 0.45]) branch(ex, ey, angle + turn + (rand() - 0.5) * 0.3, length * 0.62, depth - 1)
-  }
-  branch(64, 126, -Math.PI / 2 + (rand() - 0.5) * 0.3, 50, 3)
-  const texture = new CanvasTexture(canvas)
-  texture.colorSpace = SRGBColorSpace
-  return texture
-}
-
-/** Semi-real moss: dense shrubs of painted sprig cards (two crossed planes each), like a tiny forest. */
-function MossSprigs({ x, z, radius, count, flat = false, spots, scale = 1 }: { x: number; z: number; radius: number; count: number; flat?: boolean; spots?: Vector3[]; scale?: number }) {
-  const mesh = useRef<InstancedMesh>(null)
-  const geometry = useMemo(() => {
-    const a = new PlaneGeometry(1, 1).translate(0, 0.5, 0)
-    const b = a.clone().rotateY(Math.PI / 2)
-    return mergeGeometries([a, b])
-  }, [])
-  const texture = useMemo(() => sprigTexture(Math.round(x * 100 + z * 10) + 7), [x, z])
-  useLayoutEffect(() => {
-    if (!mesh.current) return
-    const dummy = new Object3D(), colour = new Color()
-    const noise = makeNoise(x * 53 + z)
-    let seed = 5
-    const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
-    for (let index = 0; index < count; index += 1) {
-      const angle = rand() * Math.PI * 2
-      // Ragged, organic patch edge instead of a perfect circle.
-      const reach = flat ? 1 : 0.7 + noise(Math.cos(angle) * 2 + x, Math.sin(angle) * 2 + z) * 0.6
-      const distance = Math.sqrt(rand()) * radius * reach
-      const spot = spots?.[Math.floor(rand() * spots.length)]
-      const px = spot ? spot.x : x + Math.cos(angle) * distance, pz = spot ? spot.z : z + Math.sin(angle) * distance
-      const edge = spot || flat ? 0.5 : distance / radius
-      const dome = spot || flat ? 0 : Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.16
-      const size = (0.2 + rand() * 0.14) * (1 - edge * 0.35) * scale
-      dummy.position.set(px, spot ? spot.y - 0.03 : soilTop(px, pz) + dome - 0.02, pz)
-      dummy.rotation.set((rand() - 0.5) * 0.5, rand() * Math.PI, (rand() - 0.5) * 0.5)
-      dummy.scale.set(size, size * (0.9 + rand() * 0.4), size)
-      dummy.updateMatrix()
-      mesh.current.setMatrixAt(index, dummy.matrix)
-      const light = 0.75 + noise(px * 3, pz * 3) * 0.35 + rand() * 0.15
-      colour.setRGB(light, light, light * 0.9, SRGBColorSpace)
-      mesh.current.setColorAt(index, colour)
-    }
-    mesh.current.instanceMatrix.needsUpdate = true
-    if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true
-  }, [x, z, radius, count])
-  return <instancedMesh ref={mesh} args={[geometry, undefined, count]} frustumCulled={false} castShadow receiveShadow>
-    <meshStandardMaterial map={texture} alphaTest={0.4} side={DoubleSide} roughness={1} />
-  </instancedMesh>
 }
 
 function ScannedSubstrate() {
@@ -346,64 +259,8 @@ function ScannedStone() {
   }, [rock])
   return <>
     <mesh geometry={rock.geometry} material={material} {...placement} castShadow receiveShadow />
-    {top.length > 0 && <MossSprigs x={0} z={0} radius={1} count={420} spots={top} scale={0.8} />}
+    {top.length > 0 && <MossSprigs x={0} z={0} radius={1} count={420} spots={top} scale={0.8} ground={soilTop} />}
   </>
-}
-
-/** Semi-real props from the reference: a fern sprout, a dry leaf and a twig. */
-function frondTexture() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 128; canvas.height = 256
-  const context = canvas.getContext('2d')!
-  context.strokeStyle = '#7f9a2c'; context.lineWidth = 3
-  context.beginPath(); context.moveTo(64, 256); context.quadraticCurveTo(58, 120, 78, 8); context.stroke()
-  for (let step = 0.12; step < 0.96; step += 0.07) {
-    const t = step, y = 256 - t * 248, x = 64 + (t * t) * 14 - Math.sin(t * 3) * 3
-    const length = 40 * Math.sin(Math.PI * Math.min(1, t * 1.05)) + 6
-    for (const side of [-1, 1]) {
-      const tone = 160 + Math.random() * 40
-      context.fillStyle = `rgb(${tone * 0.66},${tone},${tone * 0.3})`
-      context.beginPath(); context.ellipse(x + side * length * 0.5, y - 4, length * 0.5, 5, side * -0.35, 0, Math.PI * 2); context.fill()
-    }
-  }
-  const texture = new CanvasTexture(canvas)
-  texture.colorSpace = SRGBColorSpace
-  return texture
-}
-
-function Fern({ x, z }: { x: number; z: number }) {
-  const texture = useMemo(frondTexture, [])
-  const frond = useMemo(() => new PlaneGeometry(0.55, 1.2).translate(0, 0.6, 0), [])
-  const fronds = [[0, 0.25], [2.1, 0.45], [4.2, 0.35], [1.1, 0.1], [3.2, 0.6]]
-  return <group position={[x, soilTop(x, z) - 0.03, z]}>
-    {fronds.map(([turn, lean], index) => <group key={index} rotation={[0, turn, 0]}>
-      <mesh geometry={frond} rotation={[lean, 0, 0]} castShadow>
-        <meshStandardMaterial map={texture} alphaTest={0.4} side={DoubleSide} roughness={0.9} />
-      </mesh>
-    </group>)}
-  </group>
-}
-
-/** A Poly Haven CC0 scan placed on the soil: one node, painted like the rest of the set, scaled to `length` units. */
-function ScannedProp({ file, node, x, z, length, turn, lift = 0 }: { file: string; node: string; x: number; z: number; length: number; turn: number; lift?: number }) {
-  const { nodes } = useGLTF(`${ph}${file}`)
-  const mesh = nodes[node] as Mesh
-  const { geometry, material, scale } = useMemo(() => {
-    const geometry = mesh.geometry.clone()
-    geometry.computeBoundingBox()
-    // Scans of branches stand upright; lay anything taller than it is wide down on the soil.
-    const upright = geometry.boundingBox!.getSize(new Vector3())
-    if (upright.y > Math.max(upright.x, upright.z)) { geometry.rotateZ(Math.PI / 2); geometry.computeBoundingBox() }
-    const box = geometry.boundingBox!
-    const size = box.getSize(new Vector3()), centre = box.getCenter(new Vector3())
-    geometry.translate(-centre.x, -box.min.y, -centre.z)
-    const source = mesh.material as MeshStandardMaterial
-    const material = source.clone()
-    if (source.map) { material.map = paintify(source.map, 'saturate(0.9)', 1.5); material.map.repeat.set(1, 1); material.map.flipY = source.map.flipY }
-    material.normalScale = new Vector2(0.6, 0.6)
-    return { geometry, material, scale: length / Math.max(size.x, size.y, size.z) }
-  }, [mesh])
-  return <mesh geometry={geometry} material={material} position={[x, soilTop(x, z) - 0.02 + lift, z]} rotation={[0, turn, 0]} scale={scale} castShadow receiveShadow />
 }
 
 function ScannedSill() {
@@ -538,13 +395,13 @@ function Lab() {
         <Moss x={2.5} z={1.9} radius={0.8} count={4500} />
         <Moss x={-0.7} z={0.5} radius={0.55} count={2500} />
         <Moss x={-2.7} z={-1.4} radius={0.8} count={4000} />
-        <MossSprigs x={0} z={0} radius={3.5} count={260} flat scale={0.6} />
-        <Fern x={0.1} z={-0.3} />
+        <MossSprigs x={0} z={0} radius={3.5} count={260} flat scale={0.6} ground={soilTop} />
+        <Fern x={0.1} z={-0.3} ground={soilTop} />
         {/* Owner: the hand-drawn leaf and twig did not match the scanned set, so these are Poly Haven CC0 scans too. */}
-        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={0.15} z={1.05} length={0.95} turn={0.4} />
-        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={2.0} z={0.75} length={0.8} turn={-1.6} />
-        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={1.9} z={-1.6} length={0.8} turn={-0.9} />
-        <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={0.4} z={0.2} length={1.3} turn={0.3} />
+        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={0.15} z={1.05} length={0.95} turn={0.4} ground={soilTop} />
+        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={2.0} z={0.75} length={0.8} turn={-1.6} ground={soilTop} />
+        <ScannedProp file="dry_quiver_leaf/dry_quiver_leaf_1k.gltf" node="dry_quiver_leaf_a" x={1.9} z={-1.6} length={0.8} turn={-0.9} ground={soilTop} />
+        <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={0.4} z={0.2} length={1.3} turn={0.3} ground={soilTop} />
       </>}
     </Suspense>
     {!scanned && <Grit count={260} />}
