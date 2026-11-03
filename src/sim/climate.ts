@@ -1,7 +1,8 @@
 import type { Creature, World } from './ecosystem'
 import type { Climate } from './pond'
+import { greenhouseGain } from './seal.ts'
 
-type ClockWorld = { tick: number; light: number; climate?: Climate }
+type ClockWorld = { tick: number; light: number; climate?: Climate; sealed?: unknown }
 const solarAt = (hour: number) => hour <= 6 || hour >= 18 ? 0 : Math.sin((hour - 6) * Math.PI / 12)
 // Existing rates are daily-average potentials. Convert to a 12-hour light pulse
 // with the same 24-step integral, not an extra daily material grant.
@@ -12,7 +13,9 @@ export function environmentAt(world: ClockWorld) {
   const cycling = world.climate?.photoperiod === true
   const solar = cycling ? solarAt(hour) : 1
   const phase = !cycling ? 'constant' : hour < 5 || hour >= 20 ? 'night' : hour < 7 ? 'dawn' : hour < 16 ? 'daylight' : hour < 18 ? 'sunset' : 'twilight'
-  const temperatureC = Math.max(0, Math.min(40, (world.climate?.temperatureC ?? 22) + (cycling ? 3 * Math.sin((hour - 9) * Math.PI / 12) : 0)))
+  // Glass traps the heat of the light that reaches a sealed jar (greenhouse).
+  const trapped = world.sealed ? greenhouseGain * world.light * solar : 0
+  const temperatureC = Math.max(0, Math.min(world.sealed ? 45 : 40, (world.climate?.temperatureC ?? 22) + (cycling ? 3 * Math.sin((hour - 9) * Math.PI / 12) : 0) + trapped))
   return { cycling, hour, solar, phase, light: world.light * solar, photosynthesis: cycling ? solar * daylightNormalization : 1, temperatureC }
 }
 

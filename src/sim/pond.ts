@@ -6,7 +6,7 @@ export interface Pond { water: number; nutrients: number; organic: number; oxyge
 export const defaultClimate = (): Climate => ({ temperatureC: 22, rainfall: 0 })
 export const defaultPond = (): Pond => ({ water: 60, nutrients: 5, organic: 4, oxygen: 48, algae: 1 })
 export const maturity = { grazer: 36, woodlouse: 60, beetle: 72, springtail: 24, flea: 12, fish: 96 } as const
-export const lifespan = { grazer: 960, woodlouse: 2400, beetle: 1920, springtail: 720, flea: 480, fish: 2880 } as const
+export const lifespan = { grazer: 960, woodlouse: 17520, beetle: 1920, springtail: 4320, flea: 480, fish: 2880 } as const
 export const rateAt = (temperature: number) => Math.max(0.25, Math.min(2.4, 2 ** ((temperature - 22) / 10)))
 export const pondCenter = { x: -1.1, z: 0.72, radius: 0.93 }
 export const isAquatic = (kind: string) => kind === 'flea' || kind === 'fish' || kind === 'lily' || kind === 'reed'
@@ -31,14 +31,20 @@ function swim(creature: Creature, x: number, z: number, stride: number) {
   return { x: nextX, z: nextZ, heading: Math.atan2(nextX - creature.x, nextZ - creature.z) }
 }
 
-export function stepPond(source: Pond, animals: Creature[], light: number, climate: Climate, seed: number, nextId: number, tick = 0) {
+/** Potential algal growth this hour before any CO2 limit. */
+export function algaeGrowth(pond: Pond, light: number, climate: Climate) {
+  const wet = Math.min(1, pond.water / 25)
+  const temperatureFit = Math.max(0, 1 - Math.abs(climate.temperatureC - 22) / 24)
+  return Math.min(pond.nutrients / 0.6, 0.08 * pond.algae * light * (climate.photoperiod ? daylightNormalization : 1) * wet * temperatureFit * Math.max(0, 1 - pond.algae / 12))
+}
+
+export function stepPond(source: Pond, animals: Creature[], light: number, climate: Climate, seed: number, nextId: number, tick = 0, carbon = 1, breath = 1) {
   const pond = { ...source }
   const events: SimulationEvent[] = []
   const bodies: Creature[] = []
   const rate = rateAt(climate.temperatureC)
   const wet = Math.min(1, pond.water / 25)
-  const temperatureFit = Math.max(0, 1 - Math.abs(climate.temperatureC - 22) / 24)
-  const growth = Math.min(pond.nutrients / 0.6, 0.08 * pond.algae * light * (climate.photoperiod ? daylightNormalization : 1) * wet * temperatureFit * Math.max(0, 1 - pond.algae / 12))
+  const growth = algaeGrowth(pond, light, climate) * carbon
   pond.algae += growth
   pond.nutrients -= growth * 0.6
   pond.oxygen += growth * 0.8
@@ -50,7 +56,8 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
   pond.nutrients += processed * 0.7
   pond.oxygen = Math.max(0, pond.oxygen - processed * 2.5 - pond.algae * 0.012 * rate)
   // Open atmospheric exchange; warm water has a lower saturation target.
-  const saturation = pond.water * Math.max(0.45, 0.85 - (climate.temperatureC - 22) * 0.012)
+  // In a sealed jar the pond exchanges with the jar air, which can run low on O2.
+  const saturation = pond.water * Math.max(0.45, 0.85 - (climate.temperatureC - 22) * 0.012) * breath
   pond.oxygen += (saturation - pond.oxygen) * 0.018
   const survivors: Creature[] = []
   for (const creature of animals) {

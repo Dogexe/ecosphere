@@ -5,6 +5,7 @@ import { woodlouseLife } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
 import { parseColony } from './colonySave.ts'
 import type { Seal } from './seal'
+import { startingCO2, startingO2 } from './seal.ts'
 
 const damaged = () => new Error('This experiment is incomplete or damaged.')
 
@@ -144,7 +145,9 @@ export function parseSave(text: string): World {
     // Optional Seal Mode state (2026-11-03); older saves simply have none.
     if (envelope.version !== 3) throw damaged()
     const seal = record(source.sealed)
-    sealed = { since: number(seal, 'since', 0, tick, true), goalDays: number(seal, 'goalDays', 1, 365, true), vapor: number(seal, 'vapor', -1e-6, 1e6) }
+    // Jar air and airings joined later the same day; default to fresh air.
+    const optional = (key: string, fallback: number, min: number, max: number, integer = false) => seal[key] === undefined ? fallback : number(seal, key, min, max, integer)
+    sealed = { since: number(seal, 'since', 0, tick, true), goalDays: number(seal, 'goalDays', 1, 365, true), vapor: number(seal, 'vapor', -1e-6, 1e6), co2: optional('co2', startingCO2, -1e3, 1e6), o2: optional('o2', startingO2, -1e3, 1e6), airings: optional('airings', 0, 0, 1e6, true) }
     if (climate.rainfall !== 0) throw damaged()
   }
   return {

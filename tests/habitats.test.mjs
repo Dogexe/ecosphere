@@ -71,7 +71,8 @@ test('identical plants change their competitive ranking with moisture and light 
 test('plant outlook uses the actual growth equation and identifies real constraints', () => {
   for (const [water, light, nutrients, factor] of [[3, 0.75, 100, 'water'], [45, 0.18, 100, 'light'], [45, 0.75, 0.1, 'nutrients']]) {
     const base = commonPlants(water, light, nutrients)
-    const world = { ...base, plants: [base.plants[0]] }
+    // No litter, so this hour's bacterial mineralisation cannot move nutrients before growth.
+    const world = { ...base, plants: [base.plants[0]], soil: base.soil.map((patch) => ({ ...patch, organic: 0 })) }
     const original = structuredClone(world)
     const outlook = plantOutlook(world, world.plants[0])
     assert.equal(outlook.limiting, factor)

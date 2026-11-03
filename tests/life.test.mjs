@@ -4,6 +4,7 @@ import { createWorld, introduceLife, simulateStep, stepWorld } from '../src/sim/
 import { bodyStock, decayRemains, plantFlowering, plantLifetime, plantStage, woodlouseLife } from '../src/sim/life.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
 import { createHabitatWorld } from '../src/sim/habitats.ts'
+import { lifespan } from '../src/sim/pond.ts'
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
 function habitat() {
@@ -136,7 +137,7 @@ test('fleeing does not suspend gestation or hydration and death retains body, br
   const matureWhileFleeing = stepWorld({ ...habitat(), creatures: [almostAdult, hunter] })
   assert.equal(matureWhileFleeing.creatures.find((c) => c.id === 0).stage, 'adult')
   assert.doesNotThrow(() => parseSave(serializeSave(matureWhileFleeing)))
-  const dead = { ...parent, age: 2399 }
+  const dead = { ...parent, age: lifespan.woodlouse - 1 }
   const result = stepWorld({ ...habitat(), creatures: [dead] })
   assert.equal(result.creatures.length, 0)
   near(result.remains[0].material, bodyStock(dead, 0.22))
