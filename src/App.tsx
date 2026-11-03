@@ -391,7 +391,7 @@ export function App() {
   const hour = String(world.tick % 24).padStart(2, '0')
 
   return (
-    <main className={`app-shell ${followCreature !== null || followAnt !== null || focusedRemains || focusPlant !== null || underwater || underground ? 'is-watching' : ''} ${underwater ? 'is-underwater' : ''} ${underground ? 'is-underground' : ''} ${environment.cycling && environment.solar < 0.3 ? environment.phase === 'night' ? 'is-night' : 'is-twilight' : ''}`}>
+    <main className={`app-shell ${paperLook ? 'cozy' : ''} ${followCreature !== null || followAnt !== null || focusedRemains || focusPlant !== null || underwater || underground ? 'is-watching' : ''} ${underwater ? 'is-underwater' : ''} ${underground ? 'is-underground' : ''} ${environment.cycling && environment.solar < 0.3 ? environment.phase === 'night' ? 'is-night' : 'is-twilight' : ''}`}>
       <div className="ambient ambient-one" aria-hidden="true" />
       <div className="ambient ambient-two" aria-hidden="true" />
 

@@ -455,3 +455,120 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .diorama-blur.top { top: 0; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 25%, transparent 100%); mask-image: linear-gradient(to bottom, #000 0%, #000 25%, transparent 100%); }
 .diorama-blur.bottom { bottom: 0; -webkit-mask-image: linear-gradient(to top, #000 0%, #000 25%, transparent 100%); mask-image: linear-gradient(to top, #000 0%, #000 25%, transparent 100%); }
 .window-light { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light; background: linear-gradient(115deg, rgba(255, 214, 150, .55) 0%, rgba(255, 200, 140, .18) 45%, rgba(40, 30, 60, .12) 100%); }
+
+/* Cozy theme (with ?look=paper): a field notebook on a sunny windowsill.
+   Cream paper, brown ink, sage and honey accents, serif headings. System fonts only. */
+.app-shell.cozy {
+  --paper: #f7f0e1;
+  --paper-deep: #efe4cf;
+  --ink: #4b3a2a;
+  --ink-soft: #85705a;
+  --sage: #6e8b5c;
+  --sage-soft: #dfe6cf;
+  --honey: #d6a24f;
+  --clay: #b8714a;
+  --rule: #e2d4bb;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .36 0 0 0 0 .25 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  background: radial-gradient(ellipse at 58% 38%, #fff6df 0%, #f6ead2 34%, #ead9bd 68%, #dcc8a6 100%);
+}
+.cozy .ambient { border-color: rgba(150, 118, 78, .1); }
+.cozy .scene-halo { background: #ffe9b8; opacity: .55; }
+.app-shell.cozy:not(.is-night):not(.is-twilight) :is(.brand, .intro h1, .day-indicator strong, .status-line strong) { color: var(--ink); }
+.app-shell.cozy:not(.is-night):not(.is-twilight) :is(.intro p, .status-line small, .header-note, .eyebrow, .day-indicator, .scene-hint) { color: var(--ink-soft); }
+.app-shell.cozy:not(.is-night):not(.is-twilight):not(.is-watching) .text-button { color: var(--ink); border-color: #b99e7a; }
+.cozy .brand { font-family: var(--serif); font-weight: 700; letter-spacing: .12em; }
+.cozy .intro h1 { font-family: var(--serif); font-weight: 600; letter-spacing: -.02em; }
+.cozy .intro h1 em { font-style: italic; color: var(--sage); }
+.cozy .eyebrow-line { background: var(--honey); }
+.cozy .status-orb, .cozy .live-dot { background: var(--honey); box-shadow: 0 0 0 5px rgba(214, 162, 79, .18); }
+.cozy .day-indicator strong { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; }
+.cozy .step-hour { border-color: #c9b18e; background: #fbf4e488; }
+
+/* Paper cards: soft cream sheet with grain, a strip of washi tape, warm drop shadow. */
+.cozy :is(.pulse-panel, .control-dock) {
+  border: 1px solid #eadcc2;
+  background: var(--grain), linear-gradient(180deg, #fbf6ea, var(--paper));
+  box-shadow: 0 1px 0 #fffaf0 inset, 0 14px 30px rgba(110, 80, 40, .13), 0 2px 4px rgba(110, 80, 40, .08);
+  color: var(--ink);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.cozy .pulse-panel { border-radius: 6px 18px 14px 16px; }
+.cozy .pulse-panel::before {
+  content: ''; position: relative; display: block; width: 86px; height: 20px; margin: -32px auto 6px;
+  transform: rotate(-3deg); background: rgba(214, 162, 79, .42); box-shadow: 0 1px 2px rgba(110, 80, 40, .1);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0 3px, #000 3px calc(100% - 3px), transparent calc(100% - 3px));
+  mask-image: linear-gradient(90deg, transparent 0 3px, #000 3px calc(100% - 3px), transparent calc(100% - 3px));
+}
+.cozy .pulse-panel { overflow-x: visible; }
+.cozy .control-dock { border-radius: 18px; }
+.cozy :is(.panel-top, .panel-kicker, .dock-heading, .slot-label) { color: var(--ink-soft); }
+.cozy .panel-star { color: var(--honey); }
+.cozy .pulse-panel h2, .cozy .experiment-dialog h2, .cozy .experiment-slot h3, .cozy .habitat-copy strong {
+  font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; color: var(--ink);
+}
+.cozy :is(.meter-top, .focus-view p, .overview-note, .nursery-help, .patch-litter) { color: var(--ink-soft); }
+.cozy :is(.meter-top strong, .panel-foot b, .control-label) { color: var(--ink); }
+.cozy .meter-track { height: 7px; background: #eadfca; box-shadow: inset 0 1px 1px rgba(110, 80, 40, .12); }
+.cozy .meter-fill { background: var(--sage); }
+.cozy .meter-fill.blue { background: #6fa3a6; }
+.cozy .meter-fill.gold { background: var(--honey); }
+.cozy .panel-foot { border-top: 1px dashed var(--rule); color: var(--ink-soft); }
+.cozy .back-link { color: var(--clay); }
+.cozy :is(.nursery-toggle, .plant-focus-button) { border-color: #d8c6a4; background: #f3e9d4; color: var(--ink); }
+.cozy .mixture-toggle { color: var(--sage); }
+.cozy .nursery-card { border-color: var(--rule); background: #fbf5e8; color: var(--ink); }
+.cozy .nursery-card.chosen { border-color: var(--sage); background: var(--sage-soft); box-shadow: inset 0 0 0 1px var(--sage); }
+
+/* Dock buttons look like little seed packets. */
+.cozy .action-button { border: 1px solid #e3d3b5; border-radius: 12px; background: #fbf4e4; color: var(--ink); box-shadow: 0 2px 0 #e6d6b8; }
+.cozy .action-button:hover { background: #fff8ea; box-shadow: 0 3px 0 #e1cfae, 0 6px 14px rgba(110, 80, 40, .08); }
+.cozy .action-button:active { transform: translateY(2px); box-shadow: 0 0 0 #e6d6b8; }
+.cozy .water-button { background: #f2f3e9; }
+.cozy .action-button small, .cozy .control-label strong, .cozy .range-labels { color: #a08a6d; }
+.cozy .action-symbol { border-radius: 50%; }
+.cozy .water-symbol { background: #dcebe4; color: #4f8f95; }
+.cozy .compost-symbol { background: #eadfc4; color: #8b6b3d; }
+.cozy .action-plus { color: var(--honey); }
+.cozy .time-control { border-left: 1px dashed var(--rule); }
+.cozy .speed-buttons { background: #efe3cc; }
+.cozy .speed-buttons button { color: #a08a6d; }
+.cozy .speed-buttons button.active { background: #fffaf0; color: var(--ink); box-shadow: 0 2px 5px rgba(110, 80, 40, .14); }
+.cozy .sun-control input::-webkit-slider-runnable-track { background: linear-gradient(90deg, #c7cfb5, #e8b45e); }
+.cozy .sun-control input::-moz-range-track { background: linear-gradient(90deg, #c7cfb5, #e8b45e); }
+.cozy .sun-control input::-webkit-slider-thumb { background: var(--honey); border-color: #fffaf0; }
+
+/* Notes and toasts: a handwritten-feel note pinned by the jar. */
+.cozy .notice { border-radius: 4px 14px 12px 14px; background: var(--grain), #fff6dc; color: var(--ink); box-shadow: 0 8px 18px rgba(110, 80, 40, .18); border: 1px solid #ecd9ad; font-family: var(--serif); }
+.cozy .placing-hint { background: #fff6dc; color: var(--ink); border: 1px solid #ecd9ad; }
+.cozy .scene-view-button { border-color: #e2d0ae; background: #fbf4e4ee; color: var(--ink); box-shadow: 0 5px 16px rgba(110, 80, 40, .12); }
+.cozy .scene-view-button:hover { background: #fffaf0; }
+
+/* Dialogs: an open notebook page. */
+.cozy .experiment-dialog { border: 1px solid #eadcc2; border-radius: 14px; background: var(--grain), linear-gradient(90deg, #f1e6d0 0, var(--paper) 18px); color: var(--ink); box-shadow: 0 30px 80px rgba(70, 45, 20, .3); }
+.cozy .experiment-dialog::backdrop { background: rgba(80, 58, 32, .35); }
+.cozy :is(.experiment-intro, .storage-note, .habitat-copy > span, .habitat-copy small, .experiment-slot dt, .seed-field, .mixture-foot p) { color: var(--ink-soft); }
+.cozy :is(.experiment-slot, .habitat-card, .observatory-figure) { border-color: var(--rule); background: #fdf9ef; }
+.cozy :is(.current-snapshot, .habitat-details, .plant-outlook, .mixture-target, .cycle-control, .pond-readout, .file-preview) { border-color: var(--rule); background: #f1e7d3; color: var(--ink-soft); }
+.cozy :is(.experiment-slot dd, .seal-readout dd, .current-snapshot strong, .habitat-details strong, .plant-outlook strong) { color: var(--ink); }
+.cozy .load-experiment { border-color: var(--sage); background: var(--sage); color: #fffaf0; }
+.cozy .load-experiment:hover { background: #5d7a4c; }
+.cozy .save-experiment { border-color: #d8c6a4; color: var(--ink-soft); }
+.cozy .save-experiment:hover, .cozy .dialog-close:hover { background: #efe3cc; }
+.cozy .dialog-close { color: var(--ink-soft); }
+.cozy .habitat-card.chosen { border-color: var(--sage); box-shadow: 0 0 0 1px var(--sage); }
+.cozy :is(.observatory-tabs button, .observatory-metrics button, .recipe-buttons button, .cycle-control button) { border-color: #d8c6a4; background: #fbf5e8; color: var(--ink); }
+.cozy :is(.observatory-tabs button.active, .observatory-metrics button.active, .cycle-control button[aria-pressed="true"]) { border-color: var(--sage); background: var(--sage); color: #fffaf0; }
+.cozy .observatory-chart .grid { stroke: #eadfca; }
+.cozy .observatory-chart .axis { fill: #a08a6d; }
+.cozy .seal-progress { background: #eadfca; }
+.cozy button:focus-visible, .cozy input:focus-visible { outline-color: var(--honey); }
+.cozy .is-watching .site-header, .app-shell.cozy.is-watching .site-header { background: rgba(75, 58, 42, .72); }
+@media (max-width: 760px) {
+  .cozy .pulse-panel::before { margin-top: -26px; }
+}
+.cozy .brand { gap: 16px; }
+/* Warm dusk and a lamp-lit night instead of cold blue. */
+.app-shell.cozy::after { background: radial-gradient(ellipse at 56% 40%, #f6d3a6 0%, #d9a07c 42%, #93707a 78%, #6b5a6e 100%); }
+.app-shell.cozy::before { background: radial-gradient(ellipse at 56% 42%, #4a4256 0%, #2f2a3d 60%, #1f1b2a 100%); }
+.cozy.is-night .scene-halo { background: #ffcf8a; opacity: .12; }
