@@ -56,6 +56,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .text-button:hover { color: #1f4734; border-color: #1f4734; }
 .is-night .text-button:hover, .is-twilight .text-button:hover { color: #fff7de; border-color: #d0e0df; }
 .header-actions { display: flex; align-items: center; gap: 22px; }
+@media (max-width: 520px) {
+  .header-actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 0; column-gap: 12px; min-width: 0; }
+  .header-actions .text-button span { display: none; }
+}
 
 .intro { position: absolute; z-index: 3; left: 4.4%; top: 20%; width: min(26vw, 335px); pointer-events: none; }
 .is-watching .intro { visibility: hidden; }
