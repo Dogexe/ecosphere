@@ -20,13 +20,25 @@ const cell = (2 * R) / (N - 1)
 type Material = 'gravel' | 'charcoal' | 'soil' | 'water'
 const layers = ['gravel', 'charcoal', 'soil'] as const
 type Layer = typeof layers[number]
-/** Angle of repose as max height step between neighbouring cells (tan of the angle × cell size). */
-const repose: Record<Layer, number> = { gravel: Math.tan(0.62) * cell, charcoal: Math.tan(0.7) * cell, soil: Math.tan(0.78) * cell }
+/*
+ * Angle of repose as the max height step between neighbouring cells (tan of the angle × cell size).
+ * Engineering ToolBox "Angles of Repose": gravel 40°, loose dry earth 28°, damp sand 40°, coal 24–30°.
+ * Damp soil holds a steeper slope, so the soil angle rises from 30° (dry) to 45° (wet) — a game choice
+ * within those bounds, so the player can sculpt a hill after watering.
+ */
+const degrees = (value: number) => Math.tan(value * Math.PI / 180) * cell
+const repose: Record<Layer, number> = { gravel: degrees(40), charcoal: degrees(30), soil: degrees(30) }
+const reposeAt = (state: State, layer: Layer, k: number) => layer !== 'soil' || state.soil[k] <= 0 ? repose[layer] : degrees(30 + 15 * Math.min(1, state.water[k] / (state.soil[k] * holding)))
 const colour: Record<Material, Color> = { gravel: new Color('#b9b2a6'), charcoal: new Color('#2b2a2a'), soil: new Color('#7a5236'), water: new Color('#7fb4d8') }
 const wetSoil = new Color('#3f2a1b')
-/** Soil holds up to this much water per unit thickness before it drains. */
-const holding = 0.35
-const porosity = 0.38
+/**
+ * Soil holds up to this much water per unit thickness before it drains (container capacity).
+ * NC State "how to test" media guide: total porosity 65–85%, air space 10–20%, so water held
+ * is roughly 45–75% of volume; 0.5 sits at the low end for a light, airy terrarium mix.
+ */
+const holding = 0.5
+/** Gravel pore space that fills with drained water (typical gravel porosity 25–40%). */
+const porosity = 0.35
 
 const index = (i: number, j: number) => j * N + i
 const inside = new Uint8Array(N * N)
@@ -40,8 +52,9 @@ function makeState() {
       const k = j * N + i
       if (!inside[k]) continue
       const x = -R + i * cell, z = -R + j * cell
-      state.gravel[k] = 0.55; state.charcoal[k] = 0.12
-      state.soil[k] = 0.8 + Math.max(0, 1 - Math.hypot(x + 1.2, z + 0.8) / 2.2) * 0.9
+      // UVM Extension terrarium guide: 1–2 in gravel, a thin charcoal layer, 2–3 in soil (1 unit ≈ 19 mm).
+      state.gravel[k] = 1.6; state.charcoal[k] = 0.25
+      state.soil[k] = 2.9 + Math.max(0, 1 - Math.hypot(x + 1.2, z + 0.8) / 2.2) * 0.9
     }
   }
   return state
@@ -87,7 +100,7 @@ function slump(state: State) {
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const n = index(i + di, j + dj)
       if (!inside[n]) continue
-      const drop = h - top(state, n) - repose[layer]
+      const drop = h - top(state, n) - reposeAt(state, layer, k)
       if (drop <= 0) continue
       const flow = Math.min(drop * 0.45, state[layer][k])
       state[layer][k] -= flow; state[layer][n] += flow
