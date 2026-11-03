@@ -40,7 +40,7 @@ export function useLayeredGeometry() {
     // UVs in world units so the grain keeps its size: about 4 tiles across the jar.
     const uv = surface.getAttribute('uv') as BufferAttribute, position = surface.getAttribute('position') as BufferAttribute
     for (let v = 0; v < uv.count; v += 1) uv.setXY(v, position.getX(v) / 1.9, position.getZ(v) / 1.9)
-    const ring = 160, bands = 4
+    const ring = 160, bands = 5
     const walls = new BufferGeometry()
     walls.setAttribute('position', new BufferAttribute(new Float32Array(ring * bands * 6 * 3), 3).setUsage(DynamicDrawUsage))
     walls.setAttribute('color', new BufferAttribute(new Float32Array(ring * bands * 6 * 3), 3).setUsage(DynamicDrawUsage))
@@ -79,10 +79,12 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
   const wallUv = geometry.walls.getAttribute('uv') as BufferAttribute
   const wallPebbles = geometry.walls.getAttribute('pebble') as BufferAttribute
   let n = 0, pebble = 0
-  const put = (x: number, y: number, z: number, colour: Color, u: number) => { wall.setXYZ(n, x, y, z); wallColours.setXYZ(n, colour.r, colour.g, colour.b); wallUv.setXY(n, u * 12, y / 1.9); wallPebbles.setX(n, pebble); n += 1 }
+  const put = (x: number, y: number, z: number, colour: Color, u: number, flat = false) => { wall.setXYZ(n, x, y, z); wallColours.setXYZ(n, colour.r, colour.g, colour.b); if (flat) wallUv.setXY(n, x / 1.9, z / 1.9); else wallUv.setXY(n, u * 12, y / 1.9); wallPebbles.setX(n, pebble); n += 1 }
+  const topColour = (k: number, into: Color) => { const layer = topLayer(state, k); return !layer ? into.set('#eef2f0') : layer === 'soil' ? into.copy(layerColours.soil).lerp(layerColours.wetSoil, wetness(state, k)) : into.copy(layerColours[layer]) }
+  const capA = new Color(), capB = new Color()
   const edge = (angle: number) => {
     const k = sampleCell(Math.cos(angle) * R, Math.sin(angle) * R)
-    return { x: Math.cos(angle) * (R + 0.02), z: Math.sin(angle) * (R + 0.02), g: state.gravel[k], c: state.charcoal[k], s: state.soil[k], wet: wetness(state, k) }
+    return { x: Math.cos(angle) * (R + 0.02), z: Math.sin(angle) * (R + 0.02), ix: Math.cos(angle) * RIM, iz: Math.sin(angle) * RIM, k, g: state.gravel[k], c: state.charcoal[k], s: state.soil[k], wet: wetness(state, k) }
   }
   for (let step = 0; step < geometry.ring; step += 1) {
     const a = edge(step / geometry.ring * Math.PI * 2), b = edge((step + 1) / geometry.ring * Math.PI * 2)
@@ -99,6 +101,11 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
     band(a.g, a.g + a.c, b.g, b.g + b.c, layerColours.charcoal, layerColours.charcoal)
     const sa = tint.copy(layerColours.soil).lerp(layerColours.wetSoil, a.wet).clone(), sb = new Color().copy(layerColours.soil).lerp(layerColours.wetSoil, b.wet)
     band(a.g + a.c, a.g + a.c + a.s, b.g + b.c, b.g + b.c + b.s, sa, sb)
+    // A flat lip from the rim band of cells out to the glass: the grid's square edge never leaves a gap to see through.
+    const ta = a.g + a.c + a.s, tb = b.g + b.c + b.s
+    topColour(a.k, capA); topColour(b.k, capB); pebble = topLayer(state, a.k) === 'gravel' ? 1 : 0
+    put(a.ix, ta, a.iz, capA, 0, true); put(b.x, tb, b.z, capB, 0, true); put(b.ix, tb, b.iz, capB, 0, true)
+    put(a.ix, ta, a.iz, capA, 0, true); put(a.x, ta, a.z, capA, 0, true); put(b.x, tb, b.z, capB, 0, true)
   }
   wall.needsUpdate = true; wallColours.needsUpdate = true; wallUv.needsUpdate = true; wallPebbles.needsUpdate = true
   geometry.walls.computeVertexNormals()
