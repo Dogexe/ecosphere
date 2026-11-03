@@ -39,7 +39,7 @@ def trace(path, detail):
         src, out = os.path.join(tmp, 'in.png'), os.path.join(tmp, 'out.svg')
         crop.save(src)
         vtracer.convert_image_to_svg_py(src, out, colormode='color', hierarchical='stacked', mode='spline',
-                                        color_precision=7, layer_difference=detail, filter_speckle=10,
+                                        color_precision=8, layer_difference=detail, filter_speckle=10,
                                         corner_threshold=60, length_threshold=5.0, splice_threshold=45, path_precision=1)
         text = open(out).read()
     paths = re.findall(r'<path [^>]*/>', text)
@@ -82,8 +82,9 @@ def main(config_path, out_path):
            '</defs>\n'
            + ''.join(antenna_group(i, *a) for i, a in enumerate(config['antenna']['bases'])) + '\n'
            + ''.join(leg_group('far', i, x + far_dx, y + far_lift) for i, (x, y) in enumerate(hips)) + '\n'
-           + f'<g id="body" data-motion="body" data-pivot="{config["body"]["pivot"]}"><g transform="translate({bx:.1f} {by:.1f}) scale({scale})">{body}</g></g>\n'
-           + ''.join(leg_group('near', i, x, y) for i, (x, y) in enumerate(hips)) + '\n</svg>\n')
+           # Near legs sit behind the body too: the plates cover their tops, as in the painted design.
+           + ''.join(leg_group('near', i, x, y) for i, (x, y) in enumerate(hips)) + '\n'
+           + f'<g id="body" data-motion="body" data-pivot="{config["body"]["pivot"]}"><g transform="translate({bx:.1f} {by:.1f}) scale({scale})">{body}</g></g>\n</svg>\n')
     open(out_path, 'w').write(svg)
     print(f'wrote {out_path} ({len(svg) // 1024} KB)')
 
