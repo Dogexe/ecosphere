@@ -188,6 +188,8 @@ export function runoff(state: Substrate) {
   }
 }
 
+const slumpNeighbours = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, Math.SQRT2], [-1, 1, Math.SQRT2], [1, -1, Math.SQRT2], [-1, -1, Math.SQRT2]] as const
+
 /** One relaxation pass; returns how much material moved. */
 export function slump(state: Substrate) {
   let moved = 0
@@ -197,12 +199,14 @@ export function slump(state: Substrate) {
     const layer = topLayer(state, k)
     if (!layer) continue
     const limit = reposeStep(state, k, layer)
-    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    // Eight neighbours, the diagonals a cell and a half away: a slope then holds the same angle in
+    // every direction, so a scooped hollow slumps into a round bowl rather than a diamond.
+    for (const [di, dj, reach] of slumpNeighbours) {
       const n = index(i + di, j + dj)
       if (!inside[n]) continue
-      const drop = topAt(state, k) - topAt(state, n) - limit
+      const drop = topAt(state, k) - topAt(state, n) - limit * reach
       if (drop <= 0) continue
-      const flow = Math.min(drop * 0.4, state[layer][k])
+      const flow = Math.min(drop * (reach > 1 ? 0.2 : 0.4), state[layer][k])
       if (flow <= 0) continue
       if (layer === 'soil') {
         // Soil carries its water and looseness with it; what slides is loose again.

@@ -105,14 +105,20 @@ function soften(geometry: BufferGeometry, up = 0.6) {
   return geometry
 }
 
-/** An upright card, base at the origin, facing +z, optionally cupped across and curved back along its height. */
-function upright(texture: Texture, height: number, { cup = 0, curl = 0, rows = 4 } = {}) {
+/**
+ * An upright card, base at the origin, facing +z. Real leaves are never flat
+ * boards: `cup` curves it across, `curl` arches it back along its height (a
+ * leaf bowing on its stalk), `lean` bends it sideways and `twist` turns its
+ * top about the stalk.
+ */
+function upright(texture: Texture, height: number, { cup = 0, curl = 0, lean = 0, twist = 0, rows = 8 } = {}) {
   const width = height * aspect(texture)
   const geometry = new PlaneGeometry(width, height, 4, rows).translate(0, height / 2, 0)
   const position = geometry.getAttribute('position')
   for (let v = 0; v < position.count; v += 1) {
-    const x = position.getX(v) / width, t = position.getY(v) / height
-    position.setZ(v, -cup * x * x * width - curl * t * t * height)
+    const px = position.getX(v), x = px / width, t = position.getY(v) / height
+    const z = -cup * x * x * width - curl * t * t * height, turn = twist * t
+    position.setXYZ(v, px * Math.cos(turn) - z * Math.sin(turn) + lean * t * t * height, position.getY(v) * (1 - curl * curl * t * 0.3), px * Math.sin(turn) + z * Math.cos(turn))
   }
   return soften(geometry)
 }
@@ -185,9 +191,11 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     for (let index = 0; index < count; index += 1) {
       const angle = turn + index * golden, reach = spread * (0.12 + rand() * 0.26), top = height * (0.45 + rand() * 0.45)
       const tip = new Vector3(Math.cos(angle) * reach, top, Math.sin(angle) * reach)
-      add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.25, top * 0.55, tip.z * 0.25), tip], 0.012), null)
+      // Stalks rise from the crown, wander a little and bow out under the leaf.
+      const side = (rand() - 0.5) * 0.25
+      add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.1 - tip.z * side, top * 0.4, tip.z * 0.1 + tip.x * side), new Vector3(tip.x * 0.55, top * 0.92, tip.z * 0.55), tip], 0.01), null)
       const leaf = textures[`leaf-${1 + index % 3}`]
-      add(place(flat(leaf, spread * (0.26 + rand() * 0.08), 0.12), { x: tip.x, y: tip.y, z: tip.z, yaw: -angle + Math.PI / 2 + rand() - 0.5, tilt: (rand() - 0.5) * 0.4, roll: 0.25 }), leaf)
+      add(place(flat(leaf, spread * (0.22 + rand() * 0.12), 0.08 + rand() * 0.12), { x: tip.x, y: tip.y, z: tip.z, yaw: -angle + Math.PI / 2 + (rand() - 0.5) * 1.4, tilt: (rand() - 0.5) * 0.4, roll: 0.05 + rand() * 0.25 }), leaf, true)
     }
     if (flowering) for (let index = 0; index < 2; index += 1) {
       const angle = turn + 1 + index * 2.8, reach = spread * 0.15, top = height * 0.98
@@ -201,7 +209,7 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     // Violet: heart leaves tilted out from the crown, flowers nodding on arched stems.
     for (let index = 0; index < 5; index += 1) {
       const angle = turn + index * golden, leaf = textures[`leaf-${1 + index % 3}`]
-      add(place(upright(leaf, height * (0.5 + rand() * 0.15), { cup: 0.2, curl: 0.1 }), { yaw: Math.PI / 2 - angle, tilt: 0.55 + rand() * 0.35 }), leaf)
+      add(place(upright(leaf, height * (0.42 + rand() * 0.25), { cup: 0.15 + rand() * 0.2, curl: 0.1 + rand() * 0.2, lean: (rand() - 0.5) * 0.3, twist: (rand() - 0.5) * 0.6 }), { yaw: Math.PI / 2 - angle + (rand() - 0.5) * 0.4, tilt: 0.35 + rand() * 0.6, roll: (rand() - 0.5) * 0.3 }), leaf, true)
     }
     if (flowering) for (let index = 0; index < 2; index += 1) {
       const angle = turn + 0.8 + index * 3.1, reach = spread * 0.22, top = height * (0.85 + index * 0.12)
@@ -218,7 +226,8 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     // Calathea: each leaf on its own petiole from the base, leaning out, the youngest most upright.
     for (let index = 0; index < 6; index += 1) {
       const angle = turn + index * golden, leaf = textures[`leaf-${1 + index % 4}`]
-      add(place(upright(leaf, height * (0.62 + rand() * 0.34), { cup: 0.25, curl: 0.06 }), { yaw: Math.PI / 2 - angle, tilt: 0.12 + index / 6 * 0.45 }), leaf, true)
+      // Petioles bow out and the blades tip and turn to the light, each its own way.
+      add(place(upright(leaf, height * (0.55 + rand() * 0.42), { cup: 0.18 + rand() * 0.2, curl: 0.12 + rand() * 0.22, lean: (rand() - 0.5) * 0.35, twist: (rand() - 0.5) * 0.9 }), { yaw: Math.PI / 2 - angle + (rand() - 0.5) * 0.5, tilt: 0.05 + index / 6 * 0.4 + rand() * 0.25, roll: (rand() - 0.5) * 0.35 }), leaf, true)
     }
     const base = textures.base
     for (const cross of [0, Math.PI / 2]) add(place(upright(base, height * 0.12), { yaw: turn + cross }), base)
@@ -229,7 +238,7 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     for (let index = 0; index < 7; index += 1) {
       const angle = turn + index * golden, texture = textures[`frond-${1 + index % 3}`]
       const length = spread * (0.42 + rand() * 0.16)
-      add(place(frond(texture, length, 1.25 - index * 0.06, -0.2 - rand() * 0.3), { yaw: Math.PI / 2 - angle }), texture, true)
+      add(place(frond(texture, length, 1.3 - index * 0.07 - rand() * 0.15, -0.1 - rand() * 0.5), { yaw: Math.PI / 2 - angle + (rand() - 0.5) * 0.35, roll: (rand() - 0.5) * 0.5 }), texture, true)
     }
   }
 
@@ -237,7 +246,7 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     // Pads float flat; a flower when the plant is flowering.
     for (let index = 0; index < 3; index += 1) {
       const angle = turn + index * golden, reach = index === 0 ? 0 : spread * 0.28, pad = textures[`pad-${index + 1}`]
-      add(place(flat(pad, spread * (0.55 - index * 0.1)), { x: Math.cos(angle) * reach, y: 0.004 + index * 0.002, z: Math.sin(angle) * reach, yaw: rand() * Math.PI * 2 }), pad)
+      add(place(flat(pad, spread * (0.55 - index * 0.1), 0.03 + rand() * 0.04), { x: Math.cos(angle) * reach, y: 0.004 + index * 0.002, z: Math.sin(angle) * reach, yaw: rand() * Math.PI * 2 }), pad)
     }
     if (flowering) {
       const size = spread * 0.3
