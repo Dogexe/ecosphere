@@ -10,8 +10,9 @@ import { animalScaleMode, groundShape } from './scale'
  * Paper look (prototype, `?look=paper`): hand-drawn side-view cut-outs
  * standing in the real 3D jar. Each animal is a folder of full-canvas PNG
  * layers plus rig.json (see ASSETS.md "Paper cut-out sprites"). The sheet
- * turns to face the camera, flips like card when the animal changes
- * direction, and its parts are animated in code. Visual only: nothing here
+ * lies along the animal's heading and turns toward the camera only as far
+ * as it must (paperStyle), flips like card when the other side faces the
+ * lens, and its parts are animated in code. Visual only: nothing here
  * reads or changes the simulation.
  */
 export const paperLook = (() => {
@@ -124,6 +125,34 @@ const cameraRight = new Vector3()
 const forward = new Vector3()
 const shade = { far: '#8a8a80', near: '#ffffff' }
 
+/**
+ * How a sheet turns toward the camera. `turn`: the sheet lies along the
+ * animal's real heading and turns toward the camera only as far as needed to
+ * stay readable (at most `maxTurn` radians off its true side view), so
+ * orbiting shows the animal in perspective instead of every card spinning to
+ * the lens; a soft contact shadow replaces the card's sun shadow, which
+ * changed shape as the camera moved. `lean` tips the card back when the
+ * camera looks down so it never goes edge-on. `turn: false` is the old full
+ * billboard (lab ?style=old, for comparison).
+ */
+export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55 }
+
+const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))
+
+/** A soft paper-grey oval: the contact shadow under a cut-out. */
+const contactShadow = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 64; canvas.height = 64
+  const context = canvas.getContext('2d')!
+  const gradient = context.createRadialGradient(32, 32, 2, 32, 32, 31)
+  gradient.addColorStop(0, 'rgba(60,48,36,0.42)'); gradient.addColorStop(0.55, 'rgba(60,48,36,0.22)'); gradient.addColorStop(1, 'rgba(60,48,36,0)')
+  context.fillStyle = gradient; context.fillRect(0, 0, 64, 64)
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
+})()
+const flatPlane = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2)
+
 /** A woodlouse/caterpillar frass pellet: a tiny dark oval of paper. */
 const frass = (() => {
   const canvas = document.createElement('canvas')
@@ -231,6 +260,9 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
   const snooze = useRef<Mesh>(null)
   const profile = useRef<number[]>([])
   const facing = useRef(1)
+  /** The sheet's smoothed world yaw (turn style). */
+  const sheetYaw = useRef<number | null>(null)
+  const blob = useRef<Mesh>(null)
   const tint = useMemo(() => {
     const colour = new Color('#ffffff').lerp(new Color('#c9c6b2'), 1 - health)
     if (juvenile) colour.lerp(new Color('#f3eedc'), 0.5)
@@ -278,19 +310,41 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     // Eating: the head dips in quick nibbles. Asleep: everything slows and settles.
     const nibble = feeding && !resting ? Math.abs(Math.sin(now * 9)) : 0
     const breath = resting ? Math.sin(now * 1.1) * 0.025 : Math.sin(now * 2.2) * 0.012
-    // Face the camera around the vertical axis; the parent still turns with the animal, so undo that.
     const parent = sheet.current.parent!
     const yaw = heading?.current ?? parent.rotation.y
     parent.getWorldPosition(worldPosition)
-    sheet.current.rotation.y = Math.atan2(camera.position.x - worldPosition.x, camera.position.z - worldPosition.z) - yaw
-    // Face left or right on screen depending on which way the animal walks.
-    cameraRight.setFromMatrixColumn(camera.matrixWorld, 0)
-    forward.set(Math.sin(yaw), 0, Math.cos(yaw))
-    const side = forward.dot(cameraRight)
-    if (Math.abs(side) > 0.15) facing.current = Math.sign(side)
+    const toCamera = Math.atan2(camera.position.x - worldPosition.x, camera.position.z - worldPosition.z)
     const factor = 1 - Math.exp(-delta * 10)
+    if (paperStyle.turn) {
+      // Lie along the real heading (head toward +x, or mirrored), whichever side faces the lens; turn toward it only as far as needed.
+      const right = wrapAngle(yaw - Math.PI / 2 - toCamera), left = wrapAngle(yaw + Math.PI / 2 - toCamera)
+      const kept = facing.current > 0 ? right : left, other = facing.current > 0 ? left : right
+      if (Math.abs(other) + 0.2 < Math.abs(kept)) facing.current = -facing.current
+      const target = toCamera + MathUtils.clamp(facing.current > 0 ? right : left, -paperStyle.maxTurn, paperStyle.maxTurn)
+      const current = sheetYaw.current ?? target
+      sheetYaw.current = current + wrapAngle(target - current) * factor
+      sheet.current.rotation.order = 'YXZ'
+      sheet.current.rotation.y = sheetYaw.current - yaw
+      // Looking down: tip the card back so it is never seen edge-on.
+      const across = Math.hypot(camera.position.x - worldPosition.x, camera.position.z - worldPosition.z)
+      const elevation = Math.atan2(camera.position.y - worldPosition.y, across)
+      sheet.current.rotation.x = -Math.max(0, elevation - 0.3) * paperStyle.lean
+    } else {
+      // Old full billboard: face the camera around the vertical axis; the parent still turns with the animal, so undo that.
+      sheet.current.rotation.y = toCamera - yaw
+      sheet.current.rotation.x = 0
+      cameraRight.setFromMatrixColumn(camera.matrixWorld, 0)
+      forward.set(Math.sin(yaw), 0, Math.cos(yaw))
+      const side = forward.dot(cameraRight)
+      if (Math.abs(side) > 0.15) facing.current = Math.sign(side)
+    }
     flip.current.scale.x = MathUtils.lerp(flip.current.scale.x, facing.current, factor)
     flip.current.rotation.y = (1 - Math.abs(flip.current.scale.x)) * 0.6 * facing.current
+    if (blob.current && marks) {
+      blob.current.visible = paperStyle.turn
+      blob.current.position.set(0, base + 0.002, (marks.tail + marks.head) / 2)
+      blob.current.scale.set(marks.length * 0.32, 1, marks.length * 0.85)
+    }
     const stroke = rowing ? oarStroke(time, walking) : 0
     const ground = bend === 'none' || !marks ? null : groundProfile(sheet.current, flip.current.scale.x, marks.tail, marks.head, profile.current, factor)
     // Rigid plates between real joints, each joint turning only so far: legs and feelers ride along.
@@ -358,16 +412,19 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
 
   if (!loaded) return null
   return (
+    <>
+    <mesh ref={blob} geometry={flatPlane} material={contactShadow} renderOrder={-1} raycast={() => undefined} />
     <group ref={sheet}>
       <group ref={flip}>
         {pieces.map(({ x, y, depth, centreX, centreY, width, height, material, geometry }, index) => (
           <group key={index} ref={(group) => { pivots.current[index] = group }} position={[x, y, depth]}>
-            <mesh geometry={geometry} material={material} position={[centreX, centreY, 0]} scale={[width, height, 1]} castShadow />
+            <mesh geometry={geometry} material={material} position={[centreX, centreY, 0]} scale={[width, height, 1]} castShadow={!paperStyle.turn} />
           </group>
         ))}
         <mesh ref={pellet} geometry={plane} material={frass} visible={false} />
         <mesh ref={snooze} geometry={plane} material={zMaterial} visible={false} />
       </group>
     </group>
+    </>
   )
 }

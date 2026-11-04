@@ -5,7 +5,7 @@ import { BrightnessContrast, DepthOfField, EffectComposer, HueSaturation, Vignet
 import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
 import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, Matrix3, SRGBColorSpace, Vector2, Vector3 } from 'three'
-import { PaperAnimal } from '../scene/PaperCritter'
+import { PaperAnimal, paperStyle } from '../scene/PaperCritter'
 import { animalDimensions, groundShape, millimetresPerUnit, realAdultLengthMm } from '../scene/scale'
 import type { CreatureKind } from '../sim/ecosystem'
 import { Fern, MossSprigs, paintify, ScannedProp } from '../scene/semiReal'
@@ -20,6 +20,7 @@ import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture
  */
 
 const query = new URLSearchParams(window.location.search)
+if (query.get('style') === 'old') paperStyle.turn = false
 /**
  * ?animal=<paper animal> shows another cut-out; ?animal=all lines every
  * one up at its real adult size (scale.ts realAdultLengthMm).
@@ -437,7 +438,39 @@ function Lineup() {
   </Canvas>
 }
 
+/**
+ * ?animal=ring: animals walking in eight directions on a shadowed card, for
+ * checking how the cut-outs read as the camera orbits.
+ * &cam=azimuth,elevation (degrees) places the camera; &style=old|new picks
+ * how the sheets turn (paperStyle in PaperCritter).
+ */
+function Ring() {
+  const cam = (query.get('cam') ?? '0,30').split(',').map(Number)
+  const [azimuth, elevation] = [MathUtils.degToRad(cam[0]), MathUtils.degToRad(cam[1])]
+  const distance = 2.4
+  const kinds = ['woodlouse', 'tiger-beetle', 'caterpillar', 'woodlouse', 'tiger-beetle', 'caterpillar', 'woodlouse', 'tiger-beetle']
+  const walkers = kinds.map((animal, index) => {
+    const angle = index * Math.PI / 4
+    return { animal, x: Math.cos(angle) * 0.62, z: Math.sin(angle) * 0.62, heading: { current: angle } }
+  })
+  const moving = useRef(true)
+  return <Canvas shadows dpr={[1, 2]} camera={{ position: [Math.sin(azimuth) * Math.cos(elevation) * distance, Math.sin(elevation) * distance + 0.05, Math.cos(azimuth) * Math.cos(elevation) * distance], fov: 34 }} frameloop={still ? 'demand' : 'always'}>
+    <color attach="background" args={['#efe6d2']} />
+    <ambientLight intensity={1.4} />
+    <directionalLight position={[1.5, 4, 2.5]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-1.5} shadow-camera-right={1.5} shadow-camera-top={1.5} shadow-camera-bottom={-1.5} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><planeGeometry args={[4, 4]} /><meshStandardMaterial color="#e4d6b8" /></mesh>
+    <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.61, 0.63, 64]} /><meshBasicMaterial color="#c9b896" /></mesh>
+    <Suspense fallback={null}>
+      {walkers.map(({ animal, x, z, heading }, index) => <group key={index} position={[x, 0, z]} rotation={[0, heading.current, 0]} scale={paperRealScale(animal) * 1.2}>
+        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
+      </group>)}
+    </Suspense>
+    <OrbitControls makeDefault target={[0, 0.05, 0]} />
+  </Canvas>
+}
+
 function Lab() {
+  if (query.get('animal') === 'ring') return <Ring />
   if (query.get('animal') === 'all') return <Lineup />
   const heading = useRef(Math.PI / 2 + 0.25)
   const moving = useRef(true)
