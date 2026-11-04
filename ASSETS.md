@@ -116,3 +116,4 @@ Kenney flower variants A/B/C remain excluded. Original GLB source hashes for rej
 ## Paper-look scanned plants (2026-11-03)
 
 Poly Haven CC0 models in `public/assets/lab/polyhaven/` (see its `manifest.json`): `calathea_orbifolia_01` (tree kind, a young Calathea), `shrub_sorrel_01` (clover kind, Oxalis), `fern_02` (fern kind). Downloaded at 1k; the diffuse JPG was merged with Poly Haven's 1k alpha map into an RGBA PNG so the leaf cutouts work. Used by `src/scene/ScanPlant.tsx`, scaled to `plantDimensions` in `src/scene/scale.ts`.
+Mushrooms (Mycena-like bonnets), floating pads (frogbit-like, lily kind), hairgrass (reed kind) and fallen leaflets in the paper look are modelled in code with canvas-painted textures (`src/scene/paperNature.tsx`); no third-party files.

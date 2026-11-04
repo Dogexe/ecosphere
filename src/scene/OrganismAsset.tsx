@@ -10,6 +10,7 @@ import type { ModelShape, OrganismFile } from './organismModel'
 import { plantDimensions, plantModelScale } from './scale'
 import type { PlantKind } from '../sim/ecosystem'
 import { hasScanPlant, ScanPlant } from './ScanPlant'
+import { FloatingRosette, HairgrassTuft } from './paperNature'
 import { paperLook } from './PaperCritter'
 
 const models = new Map<OrganismFile, Promise<GLTF | null>>()
@@ -71,6 +72,8 @@ export function OrganismAsset({ file, shape, fallback, moving, feeding = false, 
 
 export function PlantAsset({ kind, health, flowering, fallback, seed = 0 }: { kind: PlantKind; health: number; flowering: boolean; fallback: ReactNode; seed?: number }) {
   if (paperLook && hasScanPlant(kind)) return <ScanPlant kind={kind} seed={seed} health={health} fallback={fallback} />
+  if (paperLook && kind === 'lily') return <FloatingRosette health={health} seed={seed} />
+  if (paperLook && kind === 'reed') return <HairgrassTuft health={health} seed={seed} height={plantDimensions.reed.height} spread={plantDimensions.reed.spread} />
   if (kind !== 'clover' && kind !== 'grass' && kind !== 'bloom' && kind !== 'tree' && kind !== 'lily' && kind !== 'reed') return <>{fallback}</>
   const { spread, height } = plantDimensions[kind]
   // Match the existing floating-pad anchor without changing the fallback/root.
