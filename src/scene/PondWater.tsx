@@ -126,7 +126,7 @@ function PebbleBed({ geometry }: { geometry: LatheGeometry }) {
     for (const texture of Object.values(set)) { texture.wrapS = texture.wrapT = RepeatWrapping; texture.repeat.set(...pebbleRepeat) }
     set.map.colorSpace = SRGBColorSpace
     // Silt settles over the pebbles; a muddy tint keeps them from reading as a fish-tank floor.
-    return { map: paintify(set.map, 'brightness(0.85) saturate(0.75)', 0.5), normalMap: set.normalMap, normalScale: new Vector2(0.5, 0.5), color: new Color('#c9b89a'), roughness: 0.9 }
+    return { map: paintify(set.map, 'brightness(0.85) saturate(0.75)', 0), normalMap: set.normalMap, normalScale: new Vector2(0.9, 0.9), color: new Color('#c9b89a'), roughness: 0.9, userData: { realistic: true } }
   }, [set])
   return <mesh geometry={geometry} receiveShadow><meshStandardMaterial {...material} side={DoubleSide} /></mesh>
 }
@@ -149,7 +149,7 @@ export function PondWater({ pond, underwater, swimmers, onPondClick }: { pond: P
     shade.setAttribute('color', new BufferAttribute(colours, 4))
     return { geometry, shade, ripples: rippleNormals(), caustics: causticTexture() }
   }, [])
-  const surfaceMaterial = useMemo(() => new MeshPhysicalMaterial({ transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, normalMap: parts.ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }), [parts])
+  const surfaceMaterial = useMemo(() => { const material = new MeshPhysicalMaterial({ transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, normalMap: parts.ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }); material.userData.realistic = true; return material }, [parts])
   const causticMaterial = useMemo(() => new MeshBasicMaterial({ map: parts.caustics, transparent: true, blending: AdditiveBlending, depthWrite: false }), [parts])
   const water = useRef<Mesh>(null)
   const rings = useRef<Group>(null)
@@ -234,7 +234,7 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     for (let v = 0; v < position.count; v += 1) uv.setXY(v, position.getX(v) / 3, position.getZ(v) / 3)
     const ripples = rippleNormals()
     ripples.repeat.set(1, 1)
-    return { geometry, ripples, material: new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, normalMap: ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }) }
+    return { geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, normalMap: ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }), { userData: { realistic: true } }) }
   }, [N])
   // Deepest water in the hollow sets how far the level can fall.
   const deepest = useMemo(() => { let most = 0; for (let k = 0; k < cells.length; k += 1) if (cells[k]) most = Math.max(most, level - (ground(-R + (k % N) * cell, -R + Math.floor(k / N) * cell) - floor)); return most }, [cells, level, ground, floor, N, cell])

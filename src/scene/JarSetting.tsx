@@ -46,7 +46,8 @@ const pond = [{ x: pondCenter.x, z: pondCenter.z, radius: pondCenter.radius + 0.
 const nowhere: { x: number; z: number; radius: number }[] = []
 const noRaycast = () => undefined
 
-function useScan(id: string, repeat: [number, number]) {
+/** `realistic`: soil and stone keep the scan's own detail and full relief (watercolour look paints the rest). */
+function useScan(id: string, repeat: [number, number], realistic = false) {
   const set = useTexture({ map: `${polyHaven}${id}/${id}_diff_1k.jpg`, normalMap: `${polyHaven}${id}/${id}_nor_gl_1k.jpg`, roughnessMap: `${polyHaven}${id}/${id}_rough_1k.jpg` }) as Record<string, Texture>
   return useMemo(() => {
     for (const [key, texture] of Object.entries(set)) {
@@ -56,8 +57,8 @@ function useScan(id: string, repeat: [number, number]) {
       if (key === 'map') texture.colorSpace = SRGBColorSpace
       texture.needsUpdate = true
     }
-    return { ...set, map: paintify(set.map, '', 1), normalScale: new Vector2(0.6, 0.6) }
-  }, [set, repeat])
+    return realistic ? { ...set, normalScale: new Vector2(1, 1), userData: { realistic: true } } : { ...set, map: paintify(set.map, '', 1), normalScale: new Vector2(0.6, 0.6) }
+  }, [set, repeat, realistic])
 }
 
 /** The soil band is about 3x taller than the lab's, so tile its cross-section texture more to keep crumbs small. */
@@ -81,13 +82,13 @@ const sillRepeat: [number, number] = [1.5, 0.7]
 
 /** The soil surface and the layers seen through the glass. */
 export function JarSubstrate() {
-  const soil = useScan('forest_ground_04', soilRepeat)
-  const pebbles = useScan('clean_pebbles', pebbleRepeat)
+  const soil = useScan('forest_ground_04', soilRepeat, true)
+  const pebbles = useScan('clean_pebbles', pebbleRepeat, true)
   const side = useMemo(() => ({ charcoal: charcoalTexture(), soil: deepSoil(), bands: { gravel: band(gravelBottom, charcoalBottom), charcoal: band(charcoalBottom, soilBottom), soil: band(soilBottom, top) } }), [])
   return <group>
     <mesh geometry={side.bands.gravel} raycast={noRaycast}><meshStandardMaterial {...pebbles} side={DoubleSide} /></mesh>
-    <mesh geometry={side.bands.charcoal} raycast={noRaycast}><meshStandardMaterial map={side.charcoal} roughness={0.6} side={DoubleSide} /></mesh>
-    <mesh geometry={side.bands.soil} raycast={noRaycast}><meshStandardMaterial map={side.soil} roughness={0.95} side={DoubleSide} /></mesh>
+    <mesh geometry={side.bands.charcoal} raycast={noRaycast}><meshStandardMaterial map={side.charcoal} roughness={0.6} side={DoubleSide} userData={{ realistic: true }} /></mesh>
+    <mesh geometry={side.bands.soil} raycast={noRaycast}><meshStandardMaterial map={side.soil} roughness={0.95} side={DoubleSide} userData={{ realistic: true }} /></mesh>
     {/* Damp soil reads darker; the scan is dry forest floor. */}
     <mesh position={[0, top, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
       <primitive object={terrainGeometry.cap} attach="geometry" />
@@ -105,7 +106,7 @@ function Glass({ bottom = gravelBottom }: { bottom?: number }) {
     </mesh>
     <mesh position={[0, glassTop, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
       <torusGeometry args={[R + 0.1, 0.12, 12, 96]} />
-      <meshPhysicalMaterial color="#dfe8e4" transmission={0.6} roughness={0.1} thickness={0.2} />
+      <meshPhysicalMaterial color="#dfe8e4" transparent opacity={0.55} roughness={0.1} clearcoat={1} clearcoatRoughness={0.05} />
     </mesh>
   </group>
 }

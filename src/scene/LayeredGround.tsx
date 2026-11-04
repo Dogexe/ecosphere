@@ -135,13 +135,14 @@ export function useLayerMaterials() {
   const [scan, pebbleScan] = useTexture([`${polyHaven}forest_ground_04/forest_ground_04_diff_1k.jpg`, `${polyHaven}clean_pebbles/clean_pebbles_diff_1k.jpg`]) as Texture[]
   return useMemo(() => {
     scan.colorSpace = SRGBColorSpace
-    const grain = paintify(scan, 'saturate(0) brightness(1.5) contrast(1.1)', 0.6)
+    const grain = paintify(scan, 'saturate(0) brightness(1.5) contrast(1.1)', 0)
     grain.wrapS = grain.wrapT = RepeatWrapping
     pebbleScan.colorSpace = SRGBColorSpace
     const pebble = paintify(pebbleScan, 'saturate(0.45) brightness(1.15) contrast(1.15)', 0)
     pebble.wrapS = pebble.wrapT = RepeatWrapping
     const make = (roughness: number, double: boolean) => {
       const material = new MeshStandardMaterial({ vertexColors: true, map: grain, roughness, side: double ? DoubleSide : undefined })
+      material.userData.realistic = true
       material.onBeforeCompile = (shader) => {
         shader.uniforms.pebbleMap = { value: pebble }
         shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nvarying float vPebble;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;')

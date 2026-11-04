@@ -9,6 +9,12 @@ import { Vector3 } from 'three'
 import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
 import { PaperAnimal, paperLook } from './PaperCritter'
+import { Watercolor } from './watercolor'
+
+/** Paper look paints the jar like a watercolour (soil, stone and water stay real); ?paint=0 shows it unpainted. */
+const watercolorLook = (() => { try { return new URLSearchParams(window.location.search).get('paint') !== '0' } catch { return true } })()
+/** Phones and tablets draw at most 1.25 device pixels per CSS pixel: most of the GPU time goes on pixels. */
+const coarsePointer = (() => { try { return window.matchMedia('(pointer: coarse)').matches } catch { return false } })()
 import { JarSetting } from './JarSetting'
 import { PondWater } from './PondWater'
 import { modelUnavailable, OrganismAsset, PlantAsset } from './OrganismAsset'
@@ -813,6 +819,13 @@ function RenderProbe({ onSample }: { onSample: (sample: RenderSample) => void })
   return null
 }
 
+/** ?debug: exposes the scene and renderer as window.__three for profiling scripts. */
+function DebugHandle() {
+  const { scene, gl } = useThree()
+  useEffect(() => { if (location.search.includes('debug')) (window as unknown as { __three: unknown }).__three = { scene, gl } }, [scene, gl])
+  return null
+}
+
 export function Terrarium({ world, events, worldRevision, selectedPlant, selectedCreature, selectedSoil, placing, onSelectPlant, onSelectCreature, onSelectSoil, onPlace, onClearSelection, onSelectPond, followCreature, focusPlant, speed, underwater, underground, selectedAnt, followAnt, onSelectAnt, onSelectColony, focusBrood, selectedBrood, onSelectBrood, focusChamber, onSelectChamber, showAntFood, focusedRemains, onSelectRemains }: SceneProps) {
   const [profile, setProfile] = useState<RenderSample | null>(null)
   const broodCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
@@ -836,12 +849,14 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
     <>
     <Canvas
       shadows
-      dpr={[1, 1.7]}
+      dpr={[1, coarsePointer ? 1.25 : 1.7]}
       camera={{ position: [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onPointerMissed={() => { if (!placing) onClearSelection() }}
       style={{ cursor: placing ? 'crosshair' : 'grab' }}
     >
+      <DebugHandle />
+      {paperLook && watercolorLook && <Watercolor />}
       {!underground && <Daylight world={world} />}
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}

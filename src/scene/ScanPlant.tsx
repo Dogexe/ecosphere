@@ -2,6 +2,7 @@ import { Suspense, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { Box3, Color, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three'
+import { lighter } from './scanLod'
 import type { Material } from 'three'
 import type { PlantKind } from '../sim/ecosystem'
 import { plantDimensions } from './scale'
@@ -53,7 +54,7 @@ function Scanned({ kind, scan, seed, health }: { kind: PlantKind; scan: Scan; se
     const name = scan.variants[Math.abs(seed) % scan.variants.length]
     const source = nodes[name] as Mesh | undefined
     if (!source) return null
-    const mesh = new Mesh(source.geometry, healthMaterial(source.material as Material, scan.id, health))
+    const mesh = new Mesh(lighter(source.geometry, 0.35), healthMaterial(source.material as Material, scan.id, health))
     mesh.castShadow = true; mesh.receiveShadow = true
     const box = new Box3().setFromBufferAttribute(source.geometry.getAttribute('position') as never)
     const size = box.getSize(new Vector3()), centre = box.getCenter(new Vector3())

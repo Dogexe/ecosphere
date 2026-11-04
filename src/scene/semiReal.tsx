@@ -11,6 +11,8 @@ import { makeNoise } from '../lab/proceduralTextures'
  * Poly Haven CC0 props. Reference: GPT scene round 2, image 2.
  */
 
+import { lighter } from './scanLod'
+
 export const polyHaven = `${import.meta.env.BASE_URL}assets/lab/polyhaven/`
 export type Ground = (x: number, z: number) => number
 const noRaycast = () => undefined
@@ -152,7 +154,7 @@ export function ScannedProp({ file, node, x, z, length, turn, ground, lift = 0 }
   const { nodes } = useGLTF(`${polyHaven}${file}`)
   const mesh = nodes[node] as Mesh
   const { geometry, material, scale } = useMemo(() => {
-    const geometry = mesh.geometry.clone()
+    const geometry = lighter(mesh.geometry, 0.12).clone()
     const largest = seat(geometry, true)
     const source = mesh.material as MeshStandardMaterial
     const material = source.clone()
@@ -168,14 +170,15 @@ export function MossyStone({ node, x, z, width, turn, ground, sink = 0.2, moss =
   const { nodes } = useGLTF(`${polyHaven}rock_moss_set_01/rock_moss_set_01_1k.gltf`)
   const rock = nodes[node] as Mesh
   const { geometry, material, scale } = useMemo(() => {
-    const geometry = rock.geometry.clone()
+    const geometry = lighter(rock.geometry, 0.4).clone()
     geometry.computeBoundingBox()
     const size = geometry.boundingBox!.getSize(new Vector3())
     seat(geometry, false)
     const source = rock.material as MeshStandardMaterial
     const material = source.clone()
-    if (source.map) { material.map = paintify(source.map, 'saturate(0.25) brightness(1.25)'); material.map.repeat.set(1, 1); material.map.flipY = source.map.flipY }
-    material.normalScale = new Vector2(0.4, 0.4)
+    if (source.map) { material.map = paintify(source.map, 'saturate(0.45) brightness(1.15)', 0); material.map.repeat.set(1, 1); material.map.flipY = source.map.flipY }
+    material.normalScale = new Vector2(1, 1)
+    material.userData.realistic = true
     material.color = new Color('#ece8e2')
     return { geometry, material, scale: width / Math.max(size.x, size.z) }
   }, [rock, width])
