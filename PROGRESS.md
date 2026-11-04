@@ -46,3 +46,7 @@ Recovery note: a documentation write failed due Windows default encoding and tru
 
 > Older entries are archived verbatim in `docs/archive/PROGRESS-history-to-2026-10-29.md`. Read them only when a task needs that history.
 
+
+## Time away — 2026-11-04
+
+`src/sim/away.ts` + `src/AwayPanel.tsx`: on load (from the autosave's `savedAt`) and when a hidden tab returns, the jar lives one model hour per real hour away (max 60 days), in 96-hour slices behind a "catching up" veil, then shows a "While you were away" notebook page (duration, plants/animals/soil water before → after, new growth, births, losses, hunts, ants, drying warning, sealed-goal/collapse). Observatory history includes the away hours. Hours already run while a tab was hidden are not lived twice. No save-format change: spare minutes are carried by writing `savedAt` earlier. Tests: tests/away.test.mjs (7).
