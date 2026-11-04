@@ -716,3 +716,49 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .away-catchup strong { display: block; margin: 8px 0 12px; font-size: 16px; line-height: 1.35; }
 .cozy .away-catchup { background: rgba(80, 58, 32, .3); }
 .cozy .away-catchup > div { border: 1px solid #eadcc2; border-radius: 14px; background: var(--grain), var(--paper); color: var(--ink); font-family: var(--serif); }
+
+/* Field notebook (2026-11-04): a naturalist's notebook of what the player saw. */
+.notebook-dialog { width: min(760px, calc(100% - 24px)); }
+.notebook-button .notebook-count { margin-left: 6px; font-size: .85em; opacity: .7; }
+.notebook-button.has-fresh { position: relative; }
+.notebook-button.has-fresh::after { content: ''; position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: #d6a24f; box-shadow: 0 0 0 3px #fff6df; }
+.notebook-tabs { display: flex; gap: 6px; margin-top: 12px; }
+.notebook-tabs button { min-height: 36px; padding: 6px 14px; border: 1px solid #d8c6a4; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 13px; cursor: pointer; }
+.notebook-tabs button.active { background: #4b3a2a; border-color: #4b3a2a; color: #fbf4e4; }
+.notebook-section { margin-top: 16px; }
+.notebook-section h3 { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px dashed #d8c6a4; font-family: var(--serif, Georgia, serif); font-size: 17px; font-weight: 600; }
+.notebook-section h3 span { font-family: system-ui, sans-serif; font-size: 11px; letter-spacing: .1em; opacity: .65; }
+.notebook-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.notebook-card { display: flex; flex-direction: column; gap: 3px; min-height: 64px; padding: 10px 11px; border: 1px solid #e2d4bb; border-radius: 4px 10px 8px 9px; background: #fffaf0; color: inherit; text-align: left; font: inherit; cursor: pointer; box-shadow: 0 2px 0 #eadcc2; transform: rotate(-.3deg); }
+.notebook-card:nth-child(2n) { transform: rotate(.35deg); }
+.notebook-card strong { font-family: var(--serif, Georgia, serif); font-size: 14.5px; font-weight: 600; line-height: 1.2; }
+.notebook-card small { font-size: 11px; line-height: 1.35; opacity: .75; }
+.notebook-card.seen small { font-style: italic; }
+.notebook-card.blank { border-style: dashed; background: transparent; box-shadow: none; }
+.notebook-card.blank strong { opacity: .45; }
+.notebook-card:hover { background: #fff4dc; }
+.notebook-page { padding: 4px 0 6px; background-image: repeating-linear-gradient(180deg, transparent 0 27px, #e7dac2 27px 28px); }
+.notebook-page .back-link { border: 0; background: none; padding: 6px 0; font: inherit; font-size: 13px; cursor: pointer; color: #b8714a; }
+.notebook-latin { margin: -4px 0 10px; font-size: 14px; opacity: .8; }
+.notebook-note { margin: 0 0 12px; font-family: var(--serif, Georgia, serif); font-size: 17px; line-height: 1.65; max-width: 600px; }
+.notebook-injar { margin: 0 0 12px; font-size: 13px; line-height: 1.55; padding: 8px 10px; border-left: 3px solid #d6a24f; background: #fbf1dc; }
+.notebook-stamp { margin: 0 0 10px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.notebook-sources span { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; opacity: .65; }
+.notebook-sources ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.notebook-sources a { color: #6e8b5c; }
+.notebook-write { display: flex; gap: 8px; align-items: stretch; margin: 6px 0 12px; }
+.notebook-write textarea { flex: 1; min-height: 48px; padding: 9px 11px; border: 1px solid #d8c6a4; border-radius: 8px; background: #fffaf0; color: inherit; font: inherit; font-family: var(--serif, Georgia, serif); font-size: 15px; resize: vertical; }
+.notebook-write button { flex: none; }
+.notebook-journal { list-style: none; margin: 0; padding: 0; max-height: min(52dvh, 460px); overflow-y: auto; }
+.notebook-journal li { display: grid; grid-template-columns: 112px 1fr; gap: 2px 10px; padding: 6px 0; border-bottom: 1px solid #ecdfc8; font-size: 14px; line-height: 1.45; }
+.journal-date { grid-column: 1 / -1; margin-top: 8px; font-family: var(--serif, Georgia, serif); font-size: 15px; font-weight: 600; }
+.journal-time { font-size: 11px; letter-spacing: .05em; opacity: .65; padding-top: 2px; }
+.journal-link { padding: 0; border: 0; background: none; color: #6e8b5c; font: inherit; text-align: left; cursor: pointer; text-decoration: underline dotted; }
+.entry-note .journal-text { font-family: var(--serif, Georgia, serif); font-style: italic; }
+.entry-away .journal-text, .entry-jar .journal-text { font-weight: 600; }
+@media (max-width: 560px) {
+  .notebook-grid { grid-template-columns: 1fr 1fr; }
+  .notebook-journal li { grid-template-columns: 1fr; }
+  .notebook-write { flex-direction: column; }
+  .notebook-note { font-size: 16px; }
+}
