@@ -6,6 +6,8 @@ import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
 import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, Matrix3, SRGBColorSpace, Vector2, Vector3 } from 'three'
 import { PaperAnimal } from '../scene/PaperCritter'
+import { animalDimensions, millimetresPerUnit, realAdultLengthMm } from '../scene/scale'
+import type { CreatureKind } from '../sim/ecosystem'
 import { Fern, MossSprigs, paintify, ScannedProp } from '../scene/semiReal'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
 
@@ -18,6 +20,16 @@ import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture
  */
 
 const query = new URLSearchParams(window.location.search)
+/**
+ * ?animal=<paper animal> shows another cut-out; ?animal=all lines every
+ * one up at its real adult size (scale.ts realAdultLengthMm).
+ */
+const paperKinds: Record<string, CreatureKind> = { woodlouse: 'woodlouse', caterpillar: 'grazer', springtail: 'springtail', 'tiger-beetle': 'beetle', 'water-flea': 'flea' }
+const lineup = query.get('animal') === 'all' ? Object.keys(paperKinds) : [query.get('animal') ?? 'woodlouse']
+const paperRealScale = (animal: string) => {
+  const kind = paperKinds[animal] ?? 'woodlouse'
+  return realAdultLengthMm[kind] / millimetresPerUnit / animalDimensions[kind].sourceLength
+}
 const shot = query.get('shot')
 /** Camera presets for screenshots: sill (whole windowsill), jar (default), close, macro (magnifier). */
 const shots: Record<string, { position: [number, number, number]; target: [number, number, number]; fov: number }> = {
@@ -374,7 +386,45 @@ function MagnifierRig({ subject }: { subject: Vector3 }) {
   </EffectComposer>
 }
 
+/**
+ * ?animal=all: every paper animal side by side at real adult size on a plain
+ * card with a millimetre ruler (one world unit = 19 mm), for checking scale.
+ */
+function Lineup() {
+  const heading = useRef(Math.PI / 2)
+  const moving = useRef(false)
+  const unit = 1 / millimetresPerUnit
+  let cursor = 0
+  const spots = lineup.map((animal) => {
+    const kind = paperKinds[animal]
+    const length = realAdultLengthMm[kind] * unit
+    const x = cursor + length / 2
+    cursor += length + 6 * unit
+    return { animal, x, y: kind === 'flea' ? 0.06 : 0 }
+  })
+  const middle = cursor / 2
+  return <Canvas dpr={[1, 2]} camera={{ position: [middle, cursor * 0.18, cursor * 1.4], fov: 30 }} frameloop={still ? 'demand' : 'always'}>
+    <color attach="background" args={['#efe6d2']} />
+    <ambientLight intensity={1.6} />
+    <directionalLight position={[2, 4, 5]} intensity={1.4} />
+    <mesh position={[middle, -0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[cursor + 1, 1.5]} /><meshStandardMaterial color="#e4d6b8" /></mesh>
+    {Array.from({ length: Math.ceil(cursor / unit) + 1 }, (_, mm) => (
+      <mesh key={mm} position={[mm * unit, -0.03 - (mm % 10 === 0 ? 0.06 : mm % 5 === 0 ? 0.035 : 0.0175), 0.3]}>
+        <boxGeometry args={[0.008, mm % 10 === 0 ? 0.12 : mm % 5 === 0 ? 0.07 : 0.035, 0.001]} /><meshBasicMaterial color="#5b4a3a" />
+      </mesh>
+    ))}
+    <mesh position={[cursor / 2, -0.03, 0.3]}><boxGeometry args={[cursor + 0.008, 0.008, 0.001]} /><meshBasicMaterial color="#5b4a3a" /></mesh>
+    <Suspense fallback={null}>
+      {spots.map(({ animal, x, y }) => <group key={animal} position={[x, y, 0]} rotation={[0, heading.current, 0]} scale={paperRealScale(animal)}>
+        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
+      </group>)}
+    </Suspense>
+    <OrbitControls makeDefault target={[middle, 0.15, 0]} />
+  </Canvas>
+}
+
 function Lab() {
+  if (query.get('animal') === 'all') return <Lineup />
   const heading = useRef(Math.PI / 2 + 0.25)
   const moving = useRef(true)
   const bug: [number, number] = [1.0, 0.9]
@@ -405,10 +455,13 @@ function Lab() {
       </>}
     </Suspense>
     {!scanned && <Grit count={260} />}
-    <group position={[bug[0], soilTop(bug[0], bug[1]) - (scanned ? 0.05 : 0), bug[1]]} rotation={[0, heading.current, 0]}>
-      {semi && <ContactBlob width={0.85} depth={0.32} />}
-      <PaperAnimal animal="woodlouse" base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
-    </group>
+    {lineup.map((animal, index) => {
+      const x = bug[0] + (index - (lineup.length - 1) / 2) * 0.9, z = bug[1]
+      return <group key={animal} position={[x, soilTop(x, z) - (scanned ? 0.05 : 0), z]} rotation={[0, heading.current, 0]} scale={paperRealScale(animal)}>
+        {semi && <ContactBlob width={0.85} depth={0.32} />}
+        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
+      </group>
+    })}
     <Jar />
     <OrbitControls makeDefault target={view.target} minDistance={1.1} maxDistance={40} enableDamping />
     <MagnifierRig subject={subject} />

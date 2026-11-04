@@ -1,0 +1,190 @@
+{
+ "name": "tiger-beetle",
+ "canvas": [
+  887,
+  444
+ ],
+ "scale": 0.5,
+ "length": "72 710 0.75",
+ "ground": 388,
+ "detail": 10,
+ "shapes": {
+  "body": {
+   "image": "tiger-beetle-cartoon/parts/body.png"
+  },
+  "leg": {
+   "image": "tiger-beetle-cartoon/parts/leg.png"
+  },
+  "antenna": {
+   "image": "tiger-beetle-cartoon/parts/antenna.png"
+  }
+ },
+ "parts": [
+  {
+   "id": "antenna-far",
+   "motion": "antenna",
+   "shape": "antenna",
+   "pivot": [
+    670,
+    145
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0,
+     1
+    ],
+    "width": 195,
+    "rotate": -5
+   }
+  },
+  {
+   "id": "leg-far-0",
+   "motion": "leg",
+   "side": "far",
+   "order": 0,
+   "shape": "leg",
+   "pivot": [
+    250,
+    221
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0.85,
+     0.04
+    ],
+    "height": 160,
+    "rotate": 15
+   }
+  },
+  {
+   "id": "leg-far-1",
+   "motion": "leg",
+   "side": "far",
+   "order": 1,
+   "shape": "leg",
+   "pivot": [
+    455,
+    211
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0.85,
+     0.04
+    ],
+    "height": 160,
+    "rotate": -8
+   }
+  },
+  {
+   "id": "leg-far-2",
+   "motion": "leg",
+   "side": "far",
+   "order": 2,
+   "shape": "leg",
+   "pivot": [
+    600,
+    186
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0.85,
+     0.04
+    ],
+    "height": 160,
+    "flip": true,
+    "rotate": 42
+   }
+  },
+  {
+   "id": "body",
+   "motion": "body",
+   "shape": "body",
+   "pivot": [
+    390,
+    250
+   ]
+  },
+  {
+   "id": "leg-near-0",
+   "motion": "leg",
+   "side": "near",
+   "order": 0,
+   "shape": "leg",
+   "pivot": [
+    210,
+    235
+   ],
+   "far": false,
+   "place": {
+    "anchor": [
+     0.85,
+     0.04
+    ],
+    "height": 160,
+    "rotate": 15
+   }
+  },
+  {
+   "id": "leg-near-1",
+   "motion": "leg",
+   "side": "near",
+   "order": 1,
+   "shape": "leg",
+   "pivot": [
+    415,
+    225
+   ],
+   "far": false,
+   "place": {
+    "anchor": [
+     0.85,
+     0.04
+    ],
+    "height": 160,
+    "rotate": -8
+   }
+  },
+  {
+   "id": "leg-near-2",
+   "motion": "leg",
+   "side": "near",
+   "order": 2,
+   "shape": "leg",
+   "pivot": [
+    560,
+    200
+   ],
+   "far": false,
+   "place": {
+    "anchor": [
+     0.85,
+     0.04
+    ],
+    "height": 160,
+    "flip": true,
+    "rotate": 42
+   }
+  },
+  {
+   "id": "antenna-near",
+   "motion": "antenna",
+   "shape": "antenna",
+   "pivot": [
+    670,
+    152
+   ],
+   "place": {
+    "anchor": [
+     0,
+     1
+    ],
+    "width": 195,
+    "rotate": 14
+   }
+  }
+ ]
+}

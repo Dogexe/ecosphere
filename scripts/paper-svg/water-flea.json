@@ -1,0 +1,65 @@
+{
+ "name": "water-flea",
+ "canvas": [
+  887,
+  444
+ ],
+ "scale": 0.5,
+ "length": "165 620 0.14",
+ "ground": 245,
+ "detail": 10,
+ "shapes": {
+  "body": {
+   "image": "water-flea-cartoon/parts/body.png"
+  },
+  "antenna": {
+   "image": "water-flea-cartoon/parts/antenna.png"
+  }
+ },
+ "parts": [
+  {
+   "id": "oar-far",
+   "motion": "oar",
+   "shape": "antenna",
+   "pivot": [
+    555,
+    168
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0.02,
+     0.97
+    ],
+    "width": 225,
+    "rotate": -14
+   }
+  },
+  {
+   "id": "body",
+   "motion": "body",
+   "shape": "body",
+   "pivot": [
+    440,
+    245
+   ]
+  },
+  {
+   "id": "oar-near",
+   "motion": "oar",
+   "shape": "antenna",
+   "pivot": [
+    595,
+    163
+   ],
+   "place": {
+    "anchor": [
+     0.02,
+     0.97
+    ],
+    "width": 225,
+    "rotate": 12
+   }
+  }
+ ]
+}

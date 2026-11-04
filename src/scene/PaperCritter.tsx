@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CanvasTexture, Color, DoubleSide, Group, MathUtils, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three'
-import { legSwing, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
+import { crawlLift, legSwing, oarStroke, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
 import type { PaperMotion, PaperRig } from './paperRig'
 import { animalScaleMode } from './scale'
 
@@ -131,13 +131,17 @@ function paperMaterial(texture: CanvasTexture, tint: string) {
 
 type Piece = { motion: PaperMotion; side: 'near' | 'far'; order: number }
 
+/** A crawling body bends along its length, so it gets its own finely split sheet. */
+const crawlSegments = 32
+
 /**
  * Side-view cut-out of one animal. `heading` is the parent group's current
- * yaw (the animal's smoothed heading); the sheet cancels it to face the camera.
+ * yaw (the animal's smoothed heading; defaults to the parent's rotation.y);
+ * the sheet cancels it to face the camera.
  * `base` is the local height of the feet, matching the 3D model it replaces.
  */
 export function PaperAnimal({ animal, base, heading, moving, speed, health, juvenile, feeding }: {
-  animal: string; base: number; heading: RefObject<number>; moving: RefObject<boolean>; speed: number; health: number; juvenile: boolean; feeding: boolean
+  animal: string; base: number; heading?: RefObject<number>; moving: RefObject<boolean>; speed: number; health: number; juvenile: boolean; feeding: boolean
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   useEffect(() => {
@@ -171,35 +175,50 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
       const centreY = (pivot[1] - (drawn.top + drawn.height / 2 + offset[1])) * scale
       // Later layers sit a hair in front so paper layers never z-fight.
       const depth = index * 0.0015 - (part.motion === 'leg' && part.side === 'far' ? 0.004 : 0)
-      return { piece: { motion: part.motion, side: part.side, order } as Piece, x, y, depth, centreX, centreY, width: drawn.width * scale, height: drawn.height * scale, material: materials.get(key)! }
+      const geometry = part.motion === 'crawl' ? new PlaneGeometry(1, 1, crawlSegments, 1) : plane
+      return { piece: { motion: part.motion, side: part.side, order } as Piece, x, y, depth, centreX, centreY, width: drawn.width * scale, height: drawn.height * scale, material: materials.get(key)!, geometry }
     })
   }, [loaded, base, tint])
 
+  const rowing = pieces.some(({ piece }) => piece.motion === 'oar')
   useFrame(({ camera }, delta) => {
     if (!sheet.current || !flip.current) return
     const walking = !!moving.current
     clock.current += Math.min(delta, 0.05) * (walking ? Math.max(speed, 1) : 0.25)
     const time = clock.current
     // Face the camera around the vertical axis; the parent still turns with the animal, so undo that.
-    sheet.current.parent!.getWorldPosition(worldPosition)
-    sheet.current.rotation.y = Math.atan2(camera.position.x - worldPosition.x, camera.position.z - worldPosition.z) - (heading.current ?? 0)
+    const parent = sheet.current.parent!
+    const yaw = heading?.current ?? parent.rotation.y
+    parent.getWorldPosition(worldPosition)
+    sheet.current.rotation.y = Math.atan2(camera.position.x - worldPosition.x, camera.position.z - worldPosition.z) - yaw
     // Face left or right on screen depending on which way the animal walks.
     cameraRight.setFromMatrixColumn(camera.matrixWorld, 0)
-    forward.set(Math.sin(heading.current ?? 0), 0, Math.cos(heading.current ?? 0))
+    forward.set(Math.sin(yaw), 0, Math.cos(yaw))
     const side = forward.dot(cameraRight)
     if (Math.abs(side) > 0.15) facing.current = Math.sign(side)
     const factor = 1 - Math.exp(-delta * 10)
     flip.current.scale.x = MathUtils.lerp(flip.current.scale.x, facing.current, factor)
     flip.current.rotation.y = (1 - Math.abs(flip.current.scale.x)) * 0.6 * facing.current
-    pieces.forEach(({ piece, y }, index) => {
+    const stroke = rowing ? oarStroke(time, walking) : 0
+    pieces.forEach(({ piece, y, geometry }, index) => {
       const pivot = pivots.current[index]
       if (!pivot) return
+      if (piece.motion === 'crawl') {
+        const position = geometry.attributes.position
+        for (let vertex = 0; vertex < position.count; vertex += 1) {
+          const u = vertex % (crawlSegments + 1) / crawlSegments
+          position.setY(vertex, (vertex <= crawlSegments ? 0.5 : -0.5) + crawlLift(u, time, walking))
+        }
+        position.needsUpdate = true
+        return
+      }
+      if (piece.motion === 'oar') { pivot.rotation.z = 0.3 - stroke * 0.75; return }
       if (piece.motion === 'leg') pivot.rotation.z = legSwing(time, piece.order, piece.side, walking)
       else if (piece.motion === 'antenna') pivot.rotation.z = Math.sin(time * 3.1 + piece.order) * 0.12 + Math.sin(time * 7.7) * 0.05 + (feeding ? Math.sin(time * 15) * 0.1 - 0.15 : 0)
       else if (piece.motion === 'tail') pivot.rotation.z = Math.sin(time * 2.4) * 0.08
       else if (piece.motion === 'body') {
         pivot.scale.y = 1 + Math.sin(time * 2.2) * 0.012
-        pivot.position.y = y + (walking ? Math.abs(Math.sin(time * 19)) * 0.006 : 0)
+        pivot.position.y = y + (rowing ? stroke * 0.012 : walking ? Math.abs(Math.sin(time * 19)) * 0.006 : 0)
       }
     })
   })
@@ -208,9 +227,9 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
   return (
     <group ref={sheet}>
       <group ref={flip}>
-        {pieces.map(({ x, y, depth, centreX, centreY, width, height, material }, index) => (
+        {pieces.map(({ x, y, depth, centreX, centreY, width, height, material, geometry }, index) => (
           <group key={index} ref={(group) => { pivots.current[index] = group }} position={[x, y, depth]}>
-            <mesh geometry={plane} material={material} position={[centreX, centreY, 0]} scale={[width, height, 1]} castShadow />
+            <mesh geometry={geometry} material={material} position={[centreX, centreY, 0]} scale={[width, height, 1]} castShadow />
           </group>
         ))}
       </group>

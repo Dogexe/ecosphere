@@ -1,0 +1,201 @@
+{
+ "name": "springtail",
+ "canvas": [
+  887,
+  444
+ ],
+ "scale": 0.5,
+ "length": "32 759 0.39",
+ "ground": 355,
+ "detail": 10,
+ "shapes": {
+  "body": {
+   "image": "springtail-cartoon/parts/body.png"
+  },
+  "leg": {
+   "image": "springtail-cartoon/parts/leg.png"
+  },
+  "antenna": {
+   "image": "springtail-cartoon/parts/antenna.png"
+  },
+  "furcula": {
+   "image": "springtail-cartoon/parts/furcula.png"
+  }
+ },
+ "parts": [
+  {
+   "id": "antenna-far",
+   "motion": "antenna",
+   "shape": "antenna",
+   "pivot": [
+    745,
+    185
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0,
+     1
+    ],
+    "width": 100
+   }
+  },
+  {
+   "id": "leg-far-0",
+   "motion": "leg",
+   "side": "far",
+   "order": 0,
+   "shape": "leg",
+   "pivot": [
+    514,
+    266
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0.5,
+     0.02
+    ],
+    "height": 88
+   }
+  },
+  {
+   "id": "leg-far-1",
+   "motion": "leg",
+   "side": "far",
+   "order": 1,
+   "shape": "leg",
+   "pivot": [
+    584,
+    266
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0.5,
+     0.02
+    ],
+    "height": 88
+   }
+  },
+  {
+   "id": "leg-far-2",
+   "motion": "leg",
+   "side": "far",
+   "order": 2,
+   "shape": "leg",
+   "pivot": [
+    659,
+    256
+   ],
+   "far": true,
+   "place": {
+    "anchor": [
+     0.5,
+     0.02
+    ],
+    "height": 88
+   }
+  },
+  {
+   "id": "furcula",
+   "motion": "static",
+   "shape": "furcula",
+   "pivot": [
+    60,
+    288
+   ],
+   "place": {
+    "anchor": [
+     0,
+     0.5
+    ],
+    "width": 180,
+    "rotate": 8
+   }
+  },
+  {
+   "id": "body",
+   "motion": "body",
+   "shape": "body",
+   "pivot": [
+    400,
+    290
+   ]
+  },
+  {
+   "id": "leg-near-0",
+   "motion": "leg",
+   "side": "near",
+   "order": 0,
+   "shape": "leg",
+   "pivot": [
+    500,
+    280
+   ],
+   "far": false,
+   "place": {
+    "anchor": [
+     0.5,
+     0.02
+    ],
+    "height": 88
+   }
+  },
+  {
+   "id": "leg-near-1",
+   "motion": "leg",
+   "side": "near",
+   "order": 1,
+   "shape": "leg",
+   "pivot": [
+    570,
+    280
+   ],
+   "far": false,
+   "place": {
+    "anchor": [
+     0.5,
+     0.02
+    ],
+    "height": 88
+   }
+  },
+  {
+   "id": "leg-near-2",
+   "motion": "leg",
+   "side": "near",
+   "order": 2,
+   "shape": "leg",
+   "pivot": [
+    645,
+    270
+   ],
+   "far": false,
+   "place": {
+    "anchor": [
+     0.5,
+     0.02
+    ],
+    "height": 88
+   }
+  },
+  {
+   "id": "antenna-near",
+   "motion": "antenna",
+   "shape": "antenna",
+   "pivot": [
+    755,
+    210
+   ],
+   "place": {
+    "anchor": [
+     0,
+     1
+    ],
+    "width": 100,
+    "rotate": 12
+   }
+  }
+ ]
+}

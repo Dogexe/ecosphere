@@ -5,7 +5,13 @@
  * turns. Pure data and maths only; the scene component does the drawing.
  */
 
-export type PaperMotion = 'body' | 'leg' | 'antenna' | 'tail' | 'static'
+/**
+ * body breathes; leg steps in a back-to-front wave; antenna twitches; tail
+ * sways; crawl bends one body sheet with a hump that runs tail to head (a
+ * caterpillar's prolegs lift as the wave passes); oar rows with a fast
+ * down-stroke and slow recovery (Daphnia swimming antennae).
+ */
+export type PaperMotion = 'body' | 'leg' | 'antenna' | 'tail' | 'crawl' | 'oar' | 'static'
 
 export type PaperPart = {
   /** PNG file next to rig.json, drawn on the full canvas. */
@@ -30,7 +36,7 @@ export type PaperRig = {
   parts: PaperPart[]
 }
 
-const motions: PaperMotion[] = ['body', 'leg', 'antenna', 'tail', 'static']
+const motions: PaperMotion[] = ['body', 'leg', 'antenna', 'tail', 'crawl', 'oar', 'static']
 const fail = (why: string) => new Error(`Paper rig: ${why}`)
 
 function point(value: unknown, width: number, height: number, label: string): [number, number] {
@@ -122,4 +128,17 @@ export function rigFromSvg(meta: SvgMeta): PaperRig {
       }
     }),
   })
+}
+
+/** Crawl wave lift at u (0 tail .. 1 head), as a fraction of the sheet height. */
+export function crawlLift(u: number, time: number, walking: boolean) {
+  if (!walking) return 0
+  const wave = Math.sin(u * Math.PI * 2.2 - time * 5)
+  return Math.max(0, wave) ** 2 * 0.09
+}
+
+/** Oar stroke 0..1: quick power stroke (down), slow recovery. Beats slowly at rest. */
+export function oarStroke(time: number, walking: boolean) {
+  const phase = (time * (walking ? 2.6 : 1.3)) % 1
+  return phase < 0.28 ? phase / 0.28 : 1 - (phase - 0.28) / 0.72
 }

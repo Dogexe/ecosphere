@@ -1,0 +1,3 @@
+{"name": "caterpillar", "canvas": [1090, 300], "scale": 0.5, "length": "24 1058 0.87", "ground": 286, "detail": 10,
+ "shapes": {"body": {"image": "caterpillar-cartoon/variant-3.png"}},
+ "parts": [{"id": "body", "motion": "crawl", "shape": "body", "pivot": [540, 286]}]}
