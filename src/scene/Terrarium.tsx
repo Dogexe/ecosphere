@@ -1,4 +1,5 @@
 import { fogLevel } from '../sim/seal'
+import { fallenLeaf, Mushroom } from './paperNature'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -113,6 +114,17 @@ function GrassField() {
 function LitterPatch({ patch }: { patch: SoilPatch }) {
   const size = Math.min(1.45, 0.35 + Math.sqrt(patch.organic) / 5)
   const count = patch.organic > 0.04 ? Math.min(6, Math.ceil(patch.organic / 3)) : 0
+  if (paperLook) {
+    // Fallen leaflets of the jar's own plants, 6-10 mm long (Oxalis leaflets are 4-13 mm, VicFlora).
+    const leaf = fallenLeaf()
+    return <group position={[patch.x, 0.042, patch.z]}>
+      {Array.from({ length: count * 2 }, (_, index) => {
+        const angle = index * 2.4 + patch.id, reach = (0.12 + index * 0.05) * size
+        const x = Math.sin(angle) * reach, z = Math.cos(angle) * reach
+        return <mesh key={index} geometry={leaf.geometry} material={leaf.materials[(index + patch.id) % leaf.materials.length]} position={[x, groundShape.offset(patch.x + x, patch.z + z) + index * 0.002, z]} rotation={[((index * 7) % 5 - 2) * 0.08, angle * 1.7, ((index * 3) % 5 - 2) * 0.06]} scale={0.32 + (index * 13 % 5) * 0.05} receiveShadow castShadow raycast={() => undefined} />
+      })}
+    </group>
+  }
   return (
     <group position={[patch.x, 0.068, patch.z]}>
       {Array.from({ length: count }, (_, index) => {
@@ -196,6 +208,17 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
 
 function FungalPatch({ patch }: { patch: SoilPatch }) {
   const count = Math.min(5, Math.floor(patch.fungi * 1.5))
+  // Paper look: bonnets at their real size, cap 2.5-7.5 mm on a 5-20 mm stem (Mycena adscendens).
+  if (paperLook) return <group position={[patch.x, 0.04, patch.z]}>
+    {Array.from({ length: count }, (_, index) => {
+      const angle = index * 2.4 + patch.id, radius = 0.15 + index * 0.1
+      const x = Math.cos(angle) * radius, z = Math.sin(angle) * radius
+      const grown = Math.min(1, 0.55 + patch.fungi * 0.08)
+      return <group key={index} position={[x, groundShape.offset(patch.x + x, patch.z + z), z]}>
+        <Mushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} cap={(0.2 + (index * 23 % 4) * 0.05) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} />
+      </group>
+    })}
+  </group>
   return (
     <group position={[patch.x, 0.045, patch.z]}>
       {Array.from({ length: count }, (_, index) => {
