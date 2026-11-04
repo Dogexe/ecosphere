@@ -441,14 +441,16 @@ function Lineup() {
 /**
  * ?animal=ring: animals walking in eight directions on a shadowed card, for
  * checking how the cut-outs read as the camera orbits.
- * &cam=azimuth,elevation (degrees) places the camera; &style=old|new picks
+ * &cam=azimuth,elevation (degrees) places the camera; &only=<animal> fills
+ * the ring with one kind; &solid=<animal> draws it as paper 3D; &style=old|new picks
  * how the sheets turn (paperStyle in PaperCritter).
  */
 function Ring() {
   const cam = (query.get('cam') ?? '0,30').split(',').map(Number)
   const [azimuth, elevation] = [MathUtils.degToRad(cam[0]), MathUtils.degToRad(cam[1])]
   const distance = 2.4
-  const kinds = ['woodlouse', 'tiger-beetle', 'caterpillar', 'woodlouse', 'tiger-beetle', 'caterpillar', 'woodlouse', 'tiger-beetle']
+  const only = query.get('only')
+  const kinds = only ? Array.from({ length: 8 }, () => only) : ['woodlouse', 'tiger-beetle', 'caterpillar', 'woodlouse', 'tiger-beetle', 'caterpillar', 'woodlouse', 'tiger-beetle']
   const walkers = kinds.map((animal, index) => {
     const angle = index * Math.PI / 4
     return { animal, x: Math.cos(angle) * 0.62, z: Math.sin(angle) * 0.62, heading: { current: angle } }

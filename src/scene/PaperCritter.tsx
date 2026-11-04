@@ -5,6 +5,8 @@ import { CanvasTexture, Color, DoubleSide, Group, MathUtils, Mesh, MeshBasicMate
 import { bodyPath, crawlLift, legSwing, oarStroke, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
 import type { PaperMotion, PaperRig } from './paperRig'
 import { animalScaleMode, groundShape } from './scale'
+import { shellGeometry } from './paperShell'
+import type { Shell } from './paperShell'
 
 /**
  * Paper look (prototype, `?look=paper`): hand-drawn side-view cut-outs
@@ -135,7 +137,19 @@ const shade = { far: '#8a8a80', near: '#ffffff' }
  * camera looks down so it never goes edge-on. `turn: false` is the old full
  * billboard (lab ?style=old, for comparison).
  */
-export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55 }
+export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55, solid: new Set<string>() }
+
+/**
+ * "Paper 3D" (paperStyle.solid): the painted body is wrapped onto a rounded
+ * shell and the legs and feelers stand out from its flanks, so the animal
+ * is a small 3D model that never needs to face the camera. Half-width of the
+ * body as a share of its drawn length (Porcellio is about half as wide as
+ * long).
+ */
+try {
+  for (const name of (new URLSearchParams(window.location.search).get('solid') ?? '').split(',')) if (name) paperStyle.solid.add(name)
+} catch { /* no window in tests */ }
+const solidHalfWidth: Record<string, number> = { woodlouse: 0.25, 'tiger-beetle': 0.17, caterpillar: 0.07, springtail: 0.1 }
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))
 
@@ -269,15 +283,16 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     return colour
   }, [health, juvenile])
 
+  const solid = paperStyle.solid.has(animal)
   const pieces = useMemo(() => {
     if (!loaded) return []
     const { rig, sheets } = loaded
     const scale = unitsPerPixel(rig)
     const materials = new Map<string, MeshStandardMaterial>()
-    return placements(rig).map(({ part, pivot, offset, order }, index) => {
+    const list = placements(rig).map(({ part, pivot, offset, order }, index) => {
       const drawn = sheets.get(part.file)!
       const key = `${part.file}:${part.side}`
-      if (!materials.has(key)) materials.set(key, paperMaterial(drawn.texture, `#${new Color(part.motion === 'leg' ? shade[part.side] : '#ffffff').multiply(tint).getHexString()}`))
+      if (!materials.has(key)) materials.set(key, paperMaterial(drawn.texture, `#${new Color(part.motion === 'leg' && !solid ? shade[part.side] : '#ffffff').multiply(tint).getHexString()}`))
       const [x, y] = toLocal(rig, pivot, base)
       // Centre of the drawn pixels relative to this copy's pivot, in units.
       const centreX = (drawn.left + drawn.width / 2 + offset[0] - pivot[0]) * scale
@@ -285,10 +300,29 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
       // Later layers sit a hair in front so paper layers never z-fight.
       const depth = index * 0.0015 - (part.motion === 'leg' && part.side === 'far' ? 0.004 : 0)
       const bends = part.motion === 'crawl' || (part.motion === 'body' && bend === 'ground')
-      const geometry = bends ? new PlaneGeometry(1, 1, crawlSegments, 1) : plane
-      return { piece: { motion: part.motion, side: part.side, order } as Piece, x, y, depth, centreX, centreY, width: drawn.width * scale, height: drawn.height * scale, material: materials.get(key)!, geometry }
+      const shell: Shell | null = solid && part.motion === 'body' ? shellGeometry(drawn.texture, drawn.width * scale, solidHalfWidth[animal] ?? 0.15) : null
+      const geometry = shell ? shell.geometry : bends ? new PlaneGeometry(1, 1, crawlSegments, 1) : plane
+      return { piece: { motion: part.motion, side: part.side, order } as Piece, x, y, depth, centreX, centreY, width: drawn.width * scale, height: drawn.height * scale, material: materials.get(key)!, geometry, shell, mount: [0, 0] as [number, number] }
     })
-  }, [loaded, base, tint, bend])
+    if (solid) {
+      // Legs and feelers stand out from the flanks of the shell: near ones on this side, far ones on the other, splayed outward.
+      const body = list.find(({ shell }) => shell)
+      if (body?.shell) {
+        const at = (localX: number) => body.shell!.halfWidth((localX - body.x - body.centreX) / body.width + 0.5)
+        let feeler = 0
+        for (const entry of list) {
+          if (entry.piece.motion === 'leg') {
+            const side = entry.piece.side === 'near' ? 1 : -1
+            entry.mount = [side * at(entry.x) * 0.8, -side * 0.55]
+          } else if (entry.piece.motion === 'antenna') {
+            const side = feeler++ % 2 === 0 ? 1 : -1
+            entry.mount = [side * Math.max(at(entry.x), body.shell.halfWidth(0.85)) * 0.75, side * 0.45]
+          }
+        }
+      }
+    }
+    return list
+  }, [loaded, base, tint, bend, solid, animal])
 
   const rowing = pieces.some(({ piece }) => piece.motion === 'oar')
   // Where the tail and head sit, and how tall the body is, for the pellet and the sleep "z".
@@ -315,7 +349,11 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     parent.getWorldPosition(worldPosition)
     const toCamera = Math.atan2(camera.position.x - worldPosition.x, camera.position.z - worldPosition.z)
     const factor = 1 - Math.exp(-delta * 10)
-    if (paperStyle.turn) {
+    if (solid) {
+      // A 3D body: simply lies along its heading, head forward, and gets real shadows.
+      sheet.current.rotation.set(0, -Math.PI / 2, 0)
+      facing.current = 1
+    } else if (paperStyle.turn) {
       // Lie along the real heading (head toward +x, or mirrored), whichever side faces the lens; turn toward it only as far as needed.
       const right = wrapAngle(yaw - Math.PI / 2 - toCamera), left = wrapAngle(yaw + Math.PI / 2 - toCamera)
       const kept = facing.current > 0 ? right : left, other = facing.current > 0 ? left : right
@@ -341,7 +379,7 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     flip.current.scale.x = MathUtils.lerp(flip.current.scale.x, facing.current, factor)
     flip.current.rotation.y = (1 - Math.abs(flip.current.scale.x)) * 0.6 * facing.current
     if (blob.current && marks) {
-      blob.current.visible = paperStyle.turn
+      blob.current.visible = paperStyle.turn && !solid
       blob.current.position.set(0, base + 0.002, (marks.tail + marks.head) / 2)
       blob.current.scale.set(marks.length * 0.32, 1, marks.length * 0.85)
     }
@@ -349,10 +387,15 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     const ground = bend === 'none' || !marks ? null : groundProfile(sheet.current, flip.current.scale.x, marks.tail, marks.head, profile.current, factor)
     // Rigid plates between real joints, each joint turning only so far: legs and feelers ride along.
     const flex = ground && marks ? bodyPath(ground, marks.tail, marks.head, marks.joints, marks.limit) : null
-    pieces.forEach(({ piece, x, y, centreX, width, height, geometry }, index) => {
+    pieces.forEach(({ piece, x, y, centreX, width, height, geometry, shell }, index) => {
       const pivot = pivots.current[index]
       if (!pivot) return
-      if (geometry !== plane && piece.motion === 'body') {
+      if (shell) {
+        // The shell lies along the jointed path too.
+        const position = geometry.attributes.position
+        for (let vertex = 0; vertex < position.count; vertex += 1) position.setY(vertex, shell.baseY[vertex] + (flex ? flex(x + centreX + (shell.u[vertex] - 0.5) * width) / height : 0))
+        position.needsUpdate = true
+      } else if (geometry !== plane && piece.motion === 'body') {
         // The body lies along the jointed path: straight plates, bends only at joints.
         const position = geometry.attributes.position
         for (let vertex = 0; vertex < position.count; vertex += 1) {
@@ -385,7 +428,7 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
         pivot.scale.y = 1 + breath
         pivot.rotation.z = -nibble * 0.035
         pivot.position.x = courting ? Math.sin(now * 3) * 0.008 : MathUtils.lerp(pivot.position.x, 0, factor)
-        pivot.position.y = y + (geometry === plane && flex ? flex(x) : 0) + (rowing ? stroke * 0.012 : walking ? Math.abs(Math.sin(time * 19)) * 0.006 : resting ? -0.004 : 0)
+        pivot.position.y = y + (geometry === plane && flex && !shell ? flex(x) : 0) + (rowing ? stroke * 0.012 : walking ? Math.abs(Math.sin(time * 19)) * 0.006 : resting ? -0.004 : 0)
       }
     })
     if (marks && pellet.current) {
@@ -416,9 +459,11 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     <mesh ref={blob} geometry={flatPlane} material={contactShadow} renderOrder={-1} raycast={() => undefined} />
     <group ref={sheet}>
       <group ref={flip}>
-        {pieces.map(({ x, y, depth, centreX, centreY, width, height, material, geometry }, index) => (
-          <group key={index} ref={(group) => { pivots.current[index] = group }} position={[x, y, depth]}>
-            <mesh geometry={geometry} material={material} position={[centreX, centreY, 0]} scale={[width, height, 1]} castShadow={!paperStyle.turn} />
+        {pieces.map(({ x, y, depth, centreX, centreY, width, height, material, geometry, mount }, index) => (
+          <group key={index} ref={(group) => { pivots.current[index] = group }} position={[x, y, solid ? 0 : depth]}>
+            <group position={[0, 0, mount[0]]} rotation={[mount[1], 0, 0]}>
+              <mesh geometry={geometry} material={material} position={[centreX, centreY, 0]} scale={[width, height, 1]} castShadow={solid || !paperStyle.turn} receiveShadow={solid} />
+            </group>
           </group>
         ))}
         <mesh ref={pellet} geometry={plane} material={frass} visible={false} />
