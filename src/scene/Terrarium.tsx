@@ -10,6 +10,7 @@ import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
 import { PaperAnimal, paperLook } from './PaperCritter'
 import { Watercolor } from './watercolor'
+import { Polish, polishLook } from './Polish'
 
 /** Paper look paints the jar like a watercolour (soil, stone and water stay real); ?paint=0 shows it unpainted. */
 const watercolorLook = (() => { try { return new URLSearchParams(window.location.search).get('paint') !== '0' } catch { return true } })()
@@ -858,7 +859,8 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       <DebugHandle />
       {paperLook && watercolorLook && <Watercolor />}
       {!underground && <Daylight world={world} dramatic={paperLook && watercolorLook} />}
-      {paperLook && watercolorLook && !underground && !underwater && <color attach="background" args={['#23272f']} />}
+      {paperLook && watercolorLook && !underground && !underwater && <><color attach="background" args={['#23272f']} /><fog attach="fog" args={['#23272f', 16, 44]} /></>}
+      {paperLook && watercolorLook && polishLook && <Polish light={coarsePointer} />}
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>

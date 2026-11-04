@@ -26,7 +26,8 @@ const chunk = /* glsl */ `
     vec3 albedo = diffuseColor.rgb;
     float base = max(dot(albedo, vec3(0.299, 0.587, 0.114)), 0.02);
     float lit = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114)) / base;
-    float tone = mix(0.68, 1.04, smoothstep(0.32, 0.5, lit));
+    // Two soft tones, but shadow and occlusion still darken it, so it sits in the scene.
+    float tone = mix(0.4, 1.04, smoothstep(0.16, 0.55, lit));
     vec3 paint = albedo * tone;
     // A little of the light's colour, so sunset still reads.
     vec3 hue = gl_FragColor.rgb / max(max(gl_FragColor.r, max(gl_FragColor.g, gl_FragColor.b)), 0.001);
@@ -58,7 +59,7 @@ function paint(material: MeshStandardMaterial) {
     // (Not on tiled surfaces such as the wooden sill, where it smears into streaks.)
     const tiled = !!material.map && (material.map.repeat.x > 1.01 || material.map.repeat.y > 1.01)
     shader.fragmentShader = shader.fragmentShader
-      .replace('vec4 sampledDiffuseColor = texture2D( map, vMapUv );', tiled ? 'vec4 sampledDiffuseColor = texture2D( map, vMapUv );' : 'vec4 sampledDiffuseColor = texture2D( map, vMapUv, 4.0 );')
+      .replace('vec4 sampledDiffuseColor = texture2D( map, vMapUv );', tiled ? 'vec4 sampledDiffuseColor = texture2D( map, vMapUv );' : 'vec4 sampledDiffuseColor = texture2D( map, vMapUv, 1.5 );')
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n${chunk}`)
   }
   const key = material.customProgramCacheKey?.bind(material)
