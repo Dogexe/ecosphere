@@ -1,5 +1,6 @@
 import { fogLevel } from '../sim/seal'
 import { fallenLeaf, Mushroom } from './paperNature'
+import { Room } from './Room'
 import { DrawnMushroom, drawnLook, useFallenLeaves } from './DrawnPlant'
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentRef } from 'react'
@@ -875,8 +876,8 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
     >
       <DebugHandle />
       {paperLook && watercolorLook && <Watercolor />}
-      {!underground && <Daylight world={world} dramatic={paperLook && watercolorLook} />}
-      {paperLook && watercolorLook && !underground && !underwater && <><color attach="background" args={['#23272f']} /><fog attach="fog" args={['#23272f', 16, 44]} /></>}
+      {!underground && <Daylight world={world} dramatic={paperLook && watercolorLook} room={paperLook && watercolorLook && !underwater} />}
+      {paperLook && watercolorLook && !underground && !underwater && <Room world={world} />}
       {paperLook && watercolorLook && polishLook && <Polish light={coarsePointer} />}
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}

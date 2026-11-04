@@ -3,21 +3,25 @@ import { useFrame } from '@react-three/fiber'
 import { AmbientLight, Color, DirectionalLight, HemisphereLight, MathUtils, Vector3 } from 'three'
 import type { World } from '../sim/ecosystem'
 import { environmentAt } from '../sim/climate'
+import { lightingWorld, windowLight } from './Room'
 
 /**
  * `dramatic` (paper look, after Drawquarium): low fill light and a strong key
  * so real soil, stone and water read with deep shadows, plus a warm grazing
  * accent from behind; the cartoon parts are near self-lit, so they pop.
+ * `room`: the key light shines from the Room's window and the room's lamp
+ * replaces the warm accent, so every light has a source you can see.
  */
-export function Daylight({ world, dramatic = false }: { world: World; dramatic?: boolean }) {
+export function Daylight({ world, dramatic = false, room = false }: { world: World; dramatic?: boolean; room?: boolean }) {
   const ambient = useRef<AmbientLight>(null)
   const hemisphere = useRef<HemisphereLight>(null)
   const key = useRef<DirectionalLight>(null)
-  const sky = environmentAt(world)
+  const sky = environmentAt(lightingWorld(world))
   const sun = new Color('#e0eee9').lerp(new Color('#fff4da'), world.light)
   const night = sky.phase === 'night'
   const tint = !sky.cycling ? sun : new Color(night ? '#a5bbdf' : '#e6bba4').lerp(sun, sky.solar)
-  const position = !sky.cycling ? new Vector3(-5, 9, 6) : sky.solar > 0
+  // In the room the key light comes in through the window, so its source is in view.
+  const position = room ? new Vector3(...windowLight(sky.cycling ? sky.solar : 1, sky.cycling ? sky.hour : 12)) : !sky.cycling ? new Vector3(-5, 9, 6) : sky.solar > 0
     ? new Vector3(-7 * Math.cos((sky.hour - 6) * Math.PI / 12), 2 + sky.solar * 7, 4)
     : new Vector3(4, 7, -4)
   const brightness = sky.cycling ? sky.solar : 1
@@ -36,6 +40,6 @@ export function Daylight({ world, dramatic = false }: { world: World; dramatic?:
     <ambientLight ref={ambient} intensity={0.8} color={sky.cycling ? '#d9e5ec' : '#e4eee3'} />
     <hemisphereLight ref={hemisphere} args={['#edf6e9', '#a38368', 1]} />
     <directionalLight ref={key} position={[-5, 9, 6]} intensity={1} color={tint} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-5} shadow-camera-right={5} shadow-camera-top={5} shadow-camera-bottom={-5} shadow-bias={-0.0002} />
-    {dramatic && <pointLight position={[4.5, 3.2, -4.5]} intensity={28} distance={14} decay={1.6} color="#ffb46b" />}
+    {dramatic && !room && <pointLight position={[4.5, 3.2, -4.5]} intensity={28} distance={14} decay={1.6} color="#ffb46b" />}
   </>
 }
