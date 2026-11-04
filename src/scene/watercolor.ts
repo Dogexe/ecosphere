@@ -11,6 +11,9 @@ import type { Material, Object3D } from 'three'
  * each material's own shader (no extra full-screen pass), so it costs
  * almost nothing.
  *
+ * Materials that define SEMI_REAL (the drawn plants) keep their painted colour
+ * unboosted and half the physical shading.
+ *
  * Materials marked `userData.realistic` (soil, stones, pebbles, water) keep
  * their physical shading. Small stylised things stop casting sun shadows,
  * since at this size the shadow map spends most of its time on them.
@@ -32,9 +35,15 @@ const chunk = /* glsl */ `
     // A little of the light's colour, so sunset still reads.
     vec3 hue = gl_FragColor.rgb / max(max(gl_FragColor.r, max(gl_FragColor.g, gl_FragColor.b)), 0.001);
     paint *= mix(vec3(1.0), hue, 0.2);
-    // Brighter, more saturated colour.
-    float grey = dot(paint, vec3(0.333));
-    paint = mix(vec3(grey), paint, 1.25) * 1.06;
+    #ifdef SEMI_REAL
+      // Drawn plants (owner, 2026-11-04: stylish, semi-real): the painting's own colour,
+      // with about half of the real light and shade kept so leaves have form.
+      paint = mix(paint, gl_FragColor.rgb * 1.15, 0.45);
+    #else
+      // Brighter, more saturated colour.
+      float grey = dot(paint, vec3(0.333));
+      paint = mix(vec3(grey), paint, 1.25) * 1.06;
+    #endif
     // Ink line where the surface turns away from the eye.
     vec3 viewDir = normalize(vViewPosition);
     float rim = 1.0 - abs(dot(normalize(normal), viewDir));

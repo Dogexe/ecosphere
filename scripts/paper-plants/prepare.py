@@ -12,7 +12,7 @@ mushroom 3, fallen-leaf 2 (oak). cut_sheet numbers pieces in reading order;
 import os
 import sys
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 out = 'public/assets/paper/plants'
 
@@ -45,13 +45,64 @@ def thin(image):
     return Image.fromarray(pixels)
 
 
+def shift(mask, dy, dx):
+    out = np.zeros_like(mask)
+    h, w = mask.shape
+    out[max(0, dy):h + min(0, dy), max(0, dx):w + min(0, dx)] = mask[max(0, -dy):h + min(0, -dy), max(0, -dx):w + min(0, -dx)]
+    return out
+
+
+def dilate(mask):
+    grown = mask.copy()
+    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)): grown |= shift(mask, dy, dx)
+    return grown
+
+
+def strip_border(image, reach=26, tolerance=14, line=0):
+    """No paper border (owner, 2026-11-04: stylish, semi-real).
+
+    The cream border is eaten inward from the transparent outside, through
+    pixels close to the border's own colour, at most `reach` pixels deep, so
+    pale parts inside a painting (lily petals, mushroom gills) stay. `line`
+    first strips that many pixels of a thin dark line drawn outside the border
+    (the mushroom sheet has one). The new
+    edge is darkened a little, like a cut edge in shade, instead of a line.
+    """
+    pixels = np.array(image.convert('RGBA')).astype(int)
+    alpha = pixels[..., 3]
+    outside = alpha < 128
+    for _ in range(line): outside = dilate(outside)
+    rim = dilate(dilate(dilate(outside))) & ~outside
+    if not rim.any(): return image
+    colour = np.median(pixels[rim][:, :3], axis=0)
+    close = (np.abs(pixels[..., :3] - colour).max(axis=2) < tolerance) | (alpha < 250) | (pixels[..., :3].min(axis=2) > 240)
+    region = outside.copy()
+    for _ in range(reach):
+        grown = dilate(region) & close
+        if (grown == region).all(): break
+        region = grown
+    keep = ~region
+    if line:
+        # Opening: the thin outer line drops away, the thick body stays.
+        for _ in range(line): keep = ~dilate(~keep)
+        for _ in range(line): keep = dilate(keep) & ~outside
+    edge = keep & dilate(dilate(region))
+    pixels[..., :3] = np.where(edge[..., None], pixels[..., :3] * 0.72, pixels[..., :3])
+    soft = Image.fromarray((keep * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.7))
+    out = Image.fromarray(pixels.clip(0, 255).astype(np.uint8))
+    out.putalpha(Image.fromarray(np.minimum(np.array(soft), alpha.astype(np.uint8))))
+    return out
+
+
 def main(cut):
     total = 0
     for kind, names in parts.items():
         os.makedirs(f'{out}/{kind}', exist_ok=True)
         for number, name in names.items():
             image = Image.open(f'{cut}/{kind}-{number}.png').convert('RGBA')
-            if kind in ('grass', 'reed'): image = thin(image)
+            image = strip_border(image, line=5 if kind == 'mushroom' else 0)
+            # Grass and reed blades, and the lily pad's notch, enclose paper and white the outside flood can't reach.
+            if kind in ('grass', 'reed') or name.startswith('pad'): image = thin(image)
             longest = 512 if kind in ('tree', 'fern', 'moss', 'lily') else 384
             path = f'{out}/{kind}/{name}.webp'
             fit(image, longest).save(path, 'WEBP', quality=86, method=6)

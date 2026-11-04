@@ -1,11 +1,12 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
-import { BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Matrix4, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
+import { InstancedMesh, Object3D, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Matrix4, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
 import type { Material, Texture } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { PlantKind } from '../sim/ecosystem'
 import { plantDimensions } from './scale'
+import { sprigTexture } from './semiReal'
 
 /*
  * Drawn plants (owner, 2026-11-04). The look follows Drawquarium: hand-drawn
@@ -24,7 +25,8 @@ import { plantDimensions } from './scale'
  * - Mushrooms: a side painting on crossed cards, with the cap painting laid
  *   over it as seen from above.
  *
- * Moss stays the sprig carpet (owner, 2026-11-04).
+ * - Moss: a patch of small sprig cards, two crossed planes each, like the jar's
+ *   moss carpet (owner, 2026-11-04: keep the sprig patches, in the new palette).
  *
  * Art: the owner's picks (paper-gen/plants/) painted again as separate parts
  * (paper-gen/plant-parts/ on design-candidates), then cut out by
@@ -36,7 +38,7 @@ import { plantDimensions } from './scale'
 const folder = `${import.meta.env.BASE_URL}assets/paper/plants/`
 /** `?drawn=0` keeps the earlier plants, for comparing. */
 export const drawnLook = (() => { try { return new URLSearchParams(window.location.search).get('drawn') !== '0' } catch { return true } })()
-export const drawnKinds: PlantKind[] = ['grass', 'clover', 'bloom', 'tree', 'fern', 'lily', 'reed']
+export const drawnKinds: PlantKind[] = ['moss', 'grass', 'clover', 'bloom', 'tree', 'fern', 'lily', 'reed']
 export const hasDrawnPlant = (kind: PlantKind) => drawnKinds.includes(kind)
 
 const files: Partial<Record<PlantKind, string[]>> = {
@@ -67,6 +69,7 @@ function paperMaterial(map: Texture | null, health: number, bend: boolean) {
   if (material) return material
   const standard = new MeshStandardMaterial({ map, alphaTest: map ? 0.5 : 0, side: DoubleSide, roughness: 0.9, metalness: 0, color: map ? '#ffffff' : stemGreen })
   standard.color.lerp(dry, (1 - healthStep(health)) * 0.7)
+  ;(standard as unknown as { defines: Record<string, string> }).defines = { SEMI_REAL: '' }
   standard.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;')
     if (!bend) return
@@ -264,7 +267,46 @@ function Clock() {
   return null
 }
 
+const sprigCard = (() => {
+  let geometry: BufferGeometry | null = null
+  return () => geometry ??= soften(mergeGeometries([new PlaneGeometry(1, 1).translate(0, 0.5, 0), new PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateY(Math.PI / 2)])!, 0.5)
+})()
+const sprigMaps = new Map<number, Texture>()
+
+/** A moss plant as a patch of sprigs, domed in the middle and ragged at the edge. */
+function MossPatch({ health, seed }: { health: number; seed: number }) {
+  const mesh = useRef<InstancedMesh>(null)
+  const { spread } = plantDimensions.moss
+  const count = 110, radius = spread * 0.9
+  const material = useMemo(() => {
+    const variant = Math.abs(seed) % 3
+    let map = sprigMaps.get(variant)
+    if (!map) { map = sprigTexture(variant * 131 + 7); sprigMaps.set(variant, map) }
+    return paperMaterial(map, health, true)
+  }, [seed, health])
+  useLayoutEffect(() => {
+    if (!mesh.current) return
+    const rand = random(seed + 3), dummy = new Object3D()
+    for (let index = 0; index < count; index += 1) {
+      const angle = rand() * Math.PI * 2, edge = Math.sqrt(rand()) * (0.75 + 0.25 * Math.sin(angle * 3 + seed))
+      const size = (0.2 + rand() * 0.12) * (1 - edge * 0.35)
+      dummy.position.set(Math.cos(angle) * edge * radius, Math.sqrt(Math.max(0, 1 - edge * edge)) * radius * 0.12 - 0.02, Math.sin(angle) * edge * radius)
+      dummy.rotation.set((rand() - 0.5) * 0.5, rand() * Math.PI, (rand() - 0.5) * 0.5)
+      dummy.scale.set(size, size * (0.9 + rand() * 0.4), size)
+      dummy.updateMatrix()
+      mesh.current.setMatrixAt(index, dummy.matrix)
+    }
+    mesh.current.instanceMatrix.needsUpdate = true
+  }, [seed, radius])
+  return <instancedMesh ref={mesh} args={[sprigCard(), material, count]} frustumCulled={false} raycast={() => undefined} />
+}
+
 export function DrawnPlant({ kind, health, seed, flowering = false }: { kind: PlantKind; health: number; seed: number; flowering?: boolean }) {
+  if (kind === 'moss') return <><Clock /><MossPatch health={health} seed={seed} /></>
+  return <PaperPlant kind={kind} health={health} seed={seed} flowering={flowering} />
+}
+
+function PaperPlant({ kind, health, seed, flowering }: { kind: PlantKind; health: number; seed: number; flowering: boolean }) {
   const names = files[kind] ?? []
   const loaded = useTexture(names.map((name) => url(kind, name))) as Texture[]
   const meshes = useMemo(() => {

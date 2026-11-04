@@ -35,28 +35,40 @@ export function paintify(texture: Texture, extra = '', blur = 3) {
 }
 
 /** A painted moss sprig on a transparent card: a stem with soft forked leaflets. */
-function sprigTexture(seed: number) {
+/**
+ * A moss sprig painted to match the drawn plants (2026-11-04): olive stem,
+ * small pointed leaves in two tones from the GPT moss painting's palette
+ * (olive in shade to bright yellow-green tips), each with a faint darker edge.
+ */
+export function sprigTexture(seed: number) {
   const canvas = document.createElement('canvas')
   canvas.width = 128; canvas.height = 128
   const context = canvas.getContext('2d')!
-  let state = seed
+  let state = Math.abs(Math.round(seed)) % 2147483646 + 1
   const rand = () => { state = (state * 16807) % 2147483647; return state / 2147483647 }
+  const shade = [[96, 124, 24], [112, 142, 30], [128, 156, 36]], light = [[150, 176, 44], [170, 192, 56], [190, 206, 74]]
+  const leaf = (x: number, y: number, angle: number, size: number, tip: number) => {
+    const tone = (tip > 0.5 ? light : shade)[Math.floor(rand() * 3)]
+    context.save(); context.translate(x, y); context.rotate(angle)
+    context.beginPath(); context.moveTo(0, 0); context.quadraticCurveTo(size * 0.5, -size * 0.32, size, 0); context.quadraticCurveTo(size * 0.5, size * 0.32, 0, 0)
+    context.fillStyle = `rgb(${tone.join(',')})`; context.fill()
+    context.strokeStyle = 'rgba(38, 48, 4, 0.45)'; context.lineWidth = 0.7; context.stroke()
+    context.restore()
+  }
   const branch = (x: number, y: number, angle: number, length: number, depth: number) => {
     const ex = x + Math.cos(angle) * length, ey = y + Math.sin(angle) * length
-    context.strokeStyle = depth > 1 ? '#6f8f24' : '#93b23a'
-    context.lineWidth = Math.max(1.2, depth * 1.6)
+    context.strokeStyle = depth > 1 ? '#56661a' : '#6f8424'
+    context.lineWidth = Math.max(1, depth * 1.3)
+    context.lineCap = 'round'
     context.beginPath(); context.moveTo(x, y); context.lineTo(ex, ey); context.stroke()
-    for (let step = 0.2; step < 1; step += 0.13) {
+    for (let step = 0.18; step < 1.02; step += 0.12) {
       const lx = x + (ex - x) * step, ly = y + (ey - y) * step
-      for (const side of [-1, 1]) {
-        const tone = 150 + rand() * 60
-        context.fillStyle = `rgb(${tone * 0.72},${tone},${tone * 0.2})`
-        context.beginPath(); context.ellipse(lx + Math.cos(angle + side * 0.9) * 3, ly + Math.sin(angle + side * 0.9) * 3, 3.2, 1.1, angle + side * 0.9, 0, Math.PI * 2); context.fill()
-      }
+      for (const side of [-1, 1]) leaf(lx, ly, angle + side * (0.7 + rand() * 0.3), 6 + rand() * 3, (3 - depth) / 3 * 0.6 + step * 0.4 + (rand() - 0.5) * 0.3)
     }
+    leaf(ex, ey, angle, 7, 1)
     if (depth > 0) for (const turn of [-0.5, 0.45]) branch(ex, ey, angle + turn + (rand() - 0.5) * 0.3, length * 0.62, depth - 1)
   }
-  branch(64, 126, -Math.PI / 2 + (rand() - 0.5) * 0.3, 50, 3)
+  branch(64, 126, -Math.PI / 2 + (rand() - 0.5) * 0.3, 48, 3)
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
   return texture

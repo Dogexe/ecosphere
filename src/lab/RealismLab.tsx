@@ -486,7 +486,7 @@ function Garden() {
   const plants: { kind: PlantKind; x: number; z: number }[] = [
     { kind: 'tree', x: -1.4, z: -1.0 }, { kind: 'fern', x: 1.2, z: -1.1 }, { kind: 'clover', x: -0.1, z: -1.3 },
     { kind: 'bloom', x: -1.5, z: 0.6 }, { kind: 'bloom', x: -1.0, z: 1.1 }, { kind: 'grass', x: 0.9, z: 0.3 }, { kind: 'grass', x: 1.3, z: 0.7 },
-    { kind: 'reed', x: 1.7, z: -0.1 }, { kind: 'lily', x: 0.5, z: 1.4 }, { kind: 'clover', x: -0.6, z: 0.2 },
+    { kind: 'reed', x: 1.7, z: -0.1 }, { kind: 'moss', x: -0.3, z: -0.4 }, { kind: 'moss', x: 0.4, z: -0.2 }, { kind: 'lily', x: 0.5, z: 1.4 }, { kind: 'clover', x: -0.6, z: 0.2 },
   ]
   const leaves = useMemo(() => ({ id: 1, x: -0.2, z: 1.3, organic: 12 } as unknown as SoilPatch), [])
   return <Canvas shadows dpr={[1, 2]} camera={{ position: [Math.sin(azimuth) * Math.cos(elevation) * distance, Math.sin(elevation) * distance, Math.cos(azimuth) * Math.cos(elevation) * distance], fov: 34 }} frameloop={still ? 'demand' : 'always'}>
