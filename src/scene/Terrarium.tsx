@@ -1,6 +1,7 @@
 import { fogLevel } from '../sim/seal'
 import { fallenLeaf, Mushroom } from './paperNature'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { drawnLook, useFallenLeaves } from './DrawnPlant'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
@@ -118,11 +119,25 @@ function GrassField() {
   )
 }
 
+/** Drawn oak leaves on the soil (paper look): 8-14 mm, like small leaf litter in a jar. */
+function DrawnLitter({ patch, count, size }: { patch: SoilPatch; count: number; size: number }) {
+  const leaves = useFallenLeaves()
+  return <group position={[patch.x, 0.042, patch.z]}>
+    {Array.from({ length: count * 2 }, (_, index) => {
+      const angle = index * 2.4 + patch.id, reach = (0.12 + index * 0.05) * size
+      const x = Math.sin(angle) * reach, z = Math.cos(angle) * reach
+      const leaf = leaves[(index + patch.id) % leaves.length]
+      return <mesh key={index} geometry={leaf.geometry} material={leaf.material} position={[x, groundShape.offset(patch.x + x, patch.z + z) + index * 0.003, z]} rotation={[((index * 7) % 5 - 2) * 0.05, angle * 1.7, ((index * 3) % 5 - 2) * 0.04]} scale={0.45 + (index * 13 % 5) * 0.06} receiveShadow raycast={() => undefined} />
+    })}
+  </group>
+}
+
 function LitterPatch({ patch }: { patch: SoilPatch }) {
   const size = Math.min(1.45, 0.35 + Math.sqrt(patch.organic) / 5)
   const count = patch.organic > 0.04 ? Math.min(6, Math.ceil(patch.organic / 3)) : 0
   if (paperLook) {
     // Fallen leaflets of the jar's own plants, 6-10 mm long (Oxalis leaflets are 4-13 mm, VicFlora).
+    if (drawnLook) return <Suspense fallback={null}><DrawnLitter patch={patch} count={count} size={size} /></Suspense>
     const leaf = fallenLeaf()
     return <group position={[patch.x, 0.042, patch.z]}>
       {Array.from({ length: count * 2 }, (_, index) => {

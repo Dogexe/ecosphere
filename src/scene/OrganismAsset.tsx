@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
@@ -10,6 +10,7 @@ import type { ModelShape, OrganismFile } from './organismModel'
 import { plantDimensions, plantModelScale } from './scale'
 import type { PlantKind } from '../sim/ecosystem'
 import { hasScanPlant, ScanPlant } from './ScanPlant'
+import { DrawnPlant, drawnLook, hasDrawnPlant } from './DrawnPlant'
 import { FloatingRosette, HairgrassTuft } from './paperNature'
 import { paperLook } from './PaperCritter'
 
@@ -71,6 +72,7 @@ export function OrganismAsset({ file, shape, fallback, moving, feeding = false, 
 }
 
 export function PlantAsset({ kind, health, flowering, fallback, seed = 0 }: { kind: PlantKind; health: number; flowering: boolean; fallback: ReactNode; seed?: number }) {
+  if (paperLook && drawnLook && hasDrawnPlant(kind)) return <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} /></Suspense>
   if (paperLook && hasScanPlant(kind)) return <ScanPlant kind={kind} seed={seed} health={health} fallback={fallback} />
   if (paperLook && kind === 'lily') return <FloatingRosette health={health} seed={seed} />
   if (paperLook && kind === 'reed') return <HairgrassTuft health={health} seed={seed} height={plantDimensions.reed.height} spread={plantDimensions.reed.spread} />

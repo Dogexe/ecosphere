@@ -1,3 +1,6 @@
+import { DrawnPlant, useFallenLeaves } from '../scene/DrawnPlant'
+import { Watercolor } from '../scene/watercolor'
+import type { PlantKind, SoilPatch } from '../sim/ecosystem'
 import { Suspense, useMemo, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -471,7 +474,53 @@ function Ring() {
   </Canvas>
 }
 
+/**
+ * ?plants=1: the drawn plants (DrawnPlant) on a soil card under the game's
+ * cartoon look, with a woodlouse for scale. &cam=azimuth,elevation.
+ */
+function Garden() {
+  const cam = (query.get('cam') ?? '20,28').split(',').map(Number)
+  const [azimuth, elevation] = [MathUtils.degToRad(cam[0]), MathUtils.degToRad(cam[1])]
+  const distance = 4.2
+  const heading = useRef(0.4), moving = useRef(false)
+  const plants: { kind: PlantKind; x: number; z: number }[] = [
+    { kind: 'grass', x: -0.9, z: -0.3 }, { kind: 'grass', x: -0.6, z: 0.4 }, { kind: 'grass', x: -1.2, z: 0.3 },
+    { kind: 'moss', x: 0.6, z: -0.5 }, { kind: 'moss', x: 1.1, z: 0.2 }, { kind: 'moss', x: 0.3, z: 0.5 },
+  ]
+  const leaves = useMemo(() => ({ id: 1, x: 0, z: 1.1, organic: 12 } as unknown as SoilPatch), [])
+  return <Canvas shadows dpr={[1, 2]} camera={{ position: [Math.sin(azimuth) * Math.cos(elevation) * distance, Math.sin(elevation) * distance, Math.cos(azimuth) * Math.cos(elevation) * distance], fov: 34 }} frameloop={still ? 'demand' : 'always'}>
+    <color attach="background" args={['#23272f']} />
+    <Watercolor />
+    <ambientLight intensity={0.35} />
+    <hemisphereLight args={['#f4ead8', '#3a2a1c', 0.5]} />
+    <directionalLight position={[2.5, 4, 1.5]} intensity={3} color="#fff0d8" castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-3} shadow-camera-right={3} shadow-camera-top={3} shadow-camera-bottom={-3} />
+    <pointLight position={[-3, 1.5, -2]} intensity={6} color="#ffb46b" />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[2.4, 64]} /><meshStandardMaterial color="#5a3d2a" roughness={1} userData={{ realistic: true }} /></mesh>
+    <Suspense fallback={null}>
+      {plants.map((plant, index) => <group key={index} position={[plant.x, 0, plant.z]}><DrawnPlant kind={plant.kind} health={1} seed={index * 3 + 1} /></group>)}
+      <group position={[0, -0.042, 0]}><DrawnLitterPreview patch={leaves} /></group>
+      <group position={[0.1, 0, 0.1]} rotation={[0, heading.current, 0]} scale={paperRealScale('woodlouse')}>
+        <PaperAnimal animal="woodlouse" base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
+      </group>
+    </Suspense>
+    <OrbitControls makeDefault target={[0, 0.2, 0]} />
+  </Canvas>
+}
+
+/** A few drawn oak leaves, as LitterPatch lays them in the game. */
+function DrawnLitterPreview({ patch }: { patch: SoilPatch }) {
+  const leaves = useFallenLeaves()
+  return <group position={[patch.x, 0.042, patch.z]}>
+    {Array.from({ length: 8 }, (_, index) => {
+      const angle = index * 2.4, reach = 0.12 + index * 0.06
+      const leaf = leaves[index % leaves.length]
+      return <mesh key={index} geometry={leaf.geometry} material={leaf.material} position={[Math.sin(angle) * reach, index * 0.003, Math.cos(angle) * reach]} rotation={[0, angle * 1.7, 0]} scale={0.45 + (index * 13 % 5) * 0.06} receiveShadow />
+    })}
+  </group>
+}
+
 function Lab() {
+  if (query.get('plants')) return <Garden />
   if (query.get('animal') === 'ring') return <Ring />
   if (query.get('animal') === 'all') return <Lineup />
   const heading = useRef(Math.PI / 2 + 0.25)
