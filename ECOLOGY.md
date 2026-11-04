@@ -159,3 +159,9 @@ Benchmarks for a closed terrarium (sources in the project doc "ECOSPHERE เท�
 - **Heat, fog, rot.** Light warms a sealed jar by 10 °C × light × sun height. Fog is the vapour condensing this hour. Soil above 85% water adds up to 0.03/h loss to land plants, only while sealed. Airing replaces the air with room air and releases half the vapour.
 
 Not modelled: CO2 toxicity, pathogens as species, crowding disease, glass cleaning, separate night/day jar temperature lag.
+
+# Time away — 2026-11-04
+
+The jar keeps living while the game is closed or the tab is hidden (`src/sim/away.ts`, owner-approved "real-time growth while away"). One model hour passes for every whole real hour away, so a day away is one model day. The unchanged fixed-step solver (`simulateStep`) runs every hour; no rate is scaled, skipped or averaged, so time away is exactly what 1× play would produce over the same hours (tested hour for hour and slice for slice). Minutes short of an hour are carried in the autosave's existing `savedAt` (no save-format change). One absence is lived through for at most 60 days, which is also the Observatory's 60-day history window.
+
+Consequences follow from existing rates, not new ones: an open jar keeps losing water to the room and, unwatered, its soil dries within about two to three weeks (garden/meadow starters lose their plants by day 30), while a sealed jar recycles its water and keeps going. This matches the ordinary keeper's distinction between open terrariums, which need regular watering, and closed ones, which can go months without (David Latimer's bottle garden, planted in 1960, was last watered and sealed in 1972 and kept growing for decades; reported by the BBC and Daily Mail in 2013). No new physiology was added.

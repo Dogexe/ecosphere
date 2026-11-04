@@ -46,3 +46,11 @@ Recovery note: a documentation write failed due Windows default encoding and tru
 
 > Older entries are archived verbatim in `docs/archive/PROGRESS-history-to-2026-10-29.md`. Read them only when a task needs that history.
 
+
+## Time away — 2026-11-04
+
+`src/sim/away.ts` + `src/AwayPanel.tsx`: on load (from the autosave's `savedAt`) and when a hidden tab returns, the jar lives one model hour per real hour away (max 60 days), in 96-hour slices behind a "catching up" veil, then shows a "While you were away" notebook page (duration, plants/animals/soil water before → after, new growth, births, losses, hunts, ants, drying warning, sealed-goal/collapse). Observatory history includes the away hours. Hours already run while a tab was hidden are not lived twice. No save-format change: spare minutes are carried by writing `savedAt` earlier. Tests: tests/away.test.mjs (7).
+
+## Field notebook — 2026-11-04
+
+`src/sim/notebook.ts` + `src/FieldNotebook.tsx`: a Notebook button (header, shows pages found) opens Pages (Who lives here 15, Things I saw them do 17, The jar itself 6) and a Journal (first finds, hunts, births, deaths, ant milestones, new jar/away summaries, player's own notes). A new find shows a toast and a dot on the button, which opens straight to that page. Sizes and names follow the paper-look species in scale.ts/ScanPlant/paperNature. Stored at `ecosphere.notebook`; damaged parts are dropped, not the whole book. `liveAway` takes an optional read-only observer. Tests: tests/notebook.test.mjs (9). Screens: /mnt/project-files/notebook/.

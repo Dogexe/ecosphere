@@ -27,6 +27,12 @@ import type { HabitatStart } from './sim/habitats'
 import { createStressWorld } from './dev/stressWorld'
 import { paperLook } from './scene/PaperCritter'
 import { autosaveInterval, browserStore, readAutosave, writeAutosave } from './sim/autosave'
+import { awayDuration, awayHours, awayLines, awaySliceHours, liveAway, startReport } from './sim/away'
+import type { AwayReport } from './sim/away'
+import { AwayPanel } from './AwayPanel'
+import { FieldNotebook } from './FieldNotebook'
+import { observe, pageById, progress, readNotebook, writeEntry, writeNotebook } from './sim/notebook'
+import type { Notebook } from './sim/notebook'
 import { applySoilInput, beetleIsHunting, dominantLimit, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
 
@@ -142,8 +148,26 @@ export function App() {
   const [focusChamber, setFocusChamber] = useState<number | null>(null)
   const [showAntFood, setShowAntFood] = useState(false)
   const [selectedRemains, setSelectedRemains] = useState<{ id: number; sourceId: number; form: string } | null>(null)
-  const [notice, setNotice] = useState(resumed ? 'Welcome back. Your world is where you left it, paused. Press 1× to continue.' : '')
+  const [notice, setNotice] = useState(resumed && !stress && awayHours(resumed.savedAt, Date.now()).hours === 0 ? 'Welcome back. Your world is where you left it, paused. Press 1× to continue.' : '')
+  // Time away: the jar lives one model hour per real hour the game was closed or hidden.
+  const [catchingUp, setCatchingUp] = useState<{ total: number; done: number } | null>(null)
+  const [awayReport, setAwayReport] = useState<AwayReport | null>(null)
+  const awayCarry = useRef(0)
+  const pendingAway = useRef(stress || !resumed ? null : awayHours(resumed.savedAt, Date.now()))
   const scene = useRef<HTMLElement>(null)
+  // The field notebook belongs to the player and outlives any one jar.
+  const [notebook, setNotebook] = useState<Notebook>(() => stress ? readNotebook(null) : readNotebook(browserStore()))
+  const notebookRef = useRef(notebook)
+  notebookRef.current = notebook
+  const [notebookOpen, setNotebookOpen] = useState(false)
+  const [notebookFocus, setNotebookFocus] = useState<string | null>(null)
+  const [freshPage, setFreshPage] = useState<string | null>(null)
+  function note(next: Notebook) {
+    if (next === notebookRef.current) return
+    notebookRef.current = next
+    setNotebook(next)
+    if (!stress) writeNotebook(browserStore(), next)
+  }
 
   useEffect(() => {
     if ((focusPlant !== null || followCreature !== null || followAnt !== null || focusBrood || focusChamber !== null || selectedRemains !== null) && window.matchMedia('(max-width: 760px)').matches) {
@@ -194,7 +218,7 @@ export function App() {
   const lastAutosave = useRef(resumed ? Date.now() : 0)
   useEffect(() => {
     if (stress) return
-    const save = () => { lastAutosave.current = Date.now(); writeAutosave(browserStore(), latest.current.world, latest.current.history) }
+    const save = () => { lastAutosave.current = Date.now(); writeAutosave(browserStore(), latest.current.world, latest.current.history, Date.now() - awayCarry.current) }
     const wait = autosaveInterval - (Date.now() - lastAutosave.current)
     if (wait <= 0) { save(); return }
     const timer = window.setTimeout(save, wait)
@@ -202,12 +226,60 @@ export function App() {
   }, [session.world, history, stress])
   useEffect(() => {
     if (stress) return
-    const flush = () => { lastAutosave.current = Date.now(); writeAutosave(browserStore(), latest.current.world, latest.current.history) }
-    const hidden = () => { if (document.visibilityState === 'hidden') flush() }
+    const flush = () => { lastAutosave.current = Date.now(); writeAutosave(browserStore(), latest.current.world, latest.current.history, Date.now() - awayCarry.current) }
+    // A hidden tab counts as time away too. Hours the page already ran while hidden are not lived twice.
+    let hiddenAt = 0
+    let tickAtHide = 0
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') { flush(); hiddenAt = Date.now() - awayCarry.current; tickAtHide = latest.current.world.tick; return }
+      if (!hiddenAt) return
+      const away = awayHours(hiddenAt, Date.now())
+      hiddenAt = 0
+      const extra = away.hours - (latest.current.world.tick - tickAtHide)
+      awayCarry.current = away.carryMs
+      if (extra > 0) beginAway(extra, away.capped)
+    }
     window.addEventListener('pagehide', flush)
-    document.addEventListener('visibilitychange', hidden)
-    return () => { window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', hidden) }
+    document.addEventListener('visibilitychange', visibility)
+    return () => { window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', visibility) }
   }, [stress])
+
+  // The jar lives through the time away in slices, so the page stays responsive.
+  const awayRun = useRef<{ report: AwayReport; left: number; world: World; history: ObservationSample[]; notebook: Notebook } | null>(null)
+  function beginAway(hours: number, capped: boolean) {
+    if (awayRun.current || hours <= 0) return
+    awayRun.current = { report: startReport(latest.current.world, capped), left: hours, world: latest.current.world, history: latest.current.history, notebook: notebookRef.current }
+    setSpeed(0)
+    setCatchingUp({ total: hours, done: 0 })
+  }
+  useEffect(() => {
+    const away = pendingAway.current
+    pendingAway.current = null
+    if (!away) return
+    awayCarry.current = away.carryMs
+    if (away.hours > 0) beginAway(away.hours, away.capped)
+  }, [])
+  useEffect(() => {
+    if (!catchingUp) return
+    const timer = window.setTimeout(() => {
+      const run = awayRun.current
+      if (!run) return
+      const slice = Math.min(awaySliceHours, run.left)
+      const lived = liveAway(run.world, run.history, slice, run.report, (livedWorld, livedEvents) => { run.notebook = observe(run.notebook, livedWorld, livedEvents, Date.now(), true).notebook })
+      run.world = lived.world; run.history = lived.history; run.left -= slice
+      if (run.left > 0) { setCatchingUp({ total: catchingUp.total, done: catchingUp.total - run.left }); return }
+      awayRun.current = null
+      note(writeEntry(run.notebook, lived.world, 'away', `Away for ${awayDuration(run.report.hours)}. ${awayLines(run.report).join(' ')}`))
+      // The away notes already tell how a sealed experiment ended; don't stack the seal report on top.
+      lastSealResult.current = lived.world.sealed ? sealOutcome(lived.world, () => null)?.status ?? null : null
+      setSession({ world: lived.world, events: [] })
+      setHistory(lived.history)
+      setCatchingUp(null)
+      setNotice('')
+      setAwayReport({ ...run.report })
+    }, 16)
+    return () => window.clearTimeout(timer)
+  }, [catchingUp])
 
   // Pause and show the report once when a sealed jar reaches its goal or collapses.
   const sealResult = session.world.sealed ? sealOutcome(session.world, () => null)?.status ?? null : null
@@ -260,6 +332,14 @@ export function App() {
     else if (mating) setNotice('Two woodlice paired. The female is carrying a funded brood.')
     else if (died) setNotice(died.reason === 'decline' ? 'A plant died; its remains slowly return to the soil.' : died.reason === 'age' ? `A ${died.kind} reached the end of its life; its remains begin to decay.` : died.reason === 'desiccation' ? 'A woodlouse dried out. Its remains can decompose when moisture returns.' : `A ${died.kind} ran out of energy; its remains begin to decay.`)
   }, [events])
+
+  // The notebook reads every step the player sees; it never changes the world.
+  useEffect(() => {
+    if (awayRun.current) return
+    const result = observe(notebookRef.current, session.world, session.events, Date.now())
+    note(result.notebook)
+    if (result.found.length) { setFreshPage(result.found[result.found.length - 1]); setNotice(`New notebook page: ${pageById.get(result.found[result.found.length - 1])!.title}`) }
+  }, [session])
 
   function act(action: Intervention, message: string) {
     setWorld((current) => selectedSoil !== null && (action.type === 'water' || action.type === 'compost') ? interveneAt(current, action.type, selectedSoil) : intervene(current, action))
@@ -359,6 +439,7 @@ export function App() {
     setNurseryOpen(false)
     setTool(null)
     setExperimentsOpen(false)
+    note(writeEntry(notebookRef.current, snapshot, 'jar', 'Opened a saved jar.'))
     setNotice('Your experiment is restored.')
   }
 
@@ -387,6 +468,7 @@ export function App() {
     setNurseryOpen(false)
     setTool(null)
     setWorldStartOpen(false)
+    note(writeEntry(notebookRef.current, { tick: 0 }, 'jar', prepared ? 'Started a jar I built myself.' : `Started a new jar: ${habitatStarts.find((habitat) => habitat.id === start)!.name}.`))
     setNotice(`${habitatStarts.find((habitat) => habitat.id === start)!.name} begins. Press 1× when you are ready.`)
   }
 
@@ -438,6 +520,7 @@ export function App() {
         <div className="header-note"><span className="live-dot" /> A LIVING LITTLE WORLD</div>
         <div className="header-actions">
           <button className={`text-button ${sealed ? 'seal-badge' : ''}`} onClick={() => { setSpeed(0); setSealOpen(true) }} type="button">{sealStatus ? `Sealed · ${Math.min(sealStatus.day, sealStatus.goalDays)}/${sealStatus.goalDays}d` : 'Seal'}</button>
+          <button className={`text-button notebook-button ${freshPage ? 'has-fresh' : ''}`} onClick={() => { setNotebookFocus(freshPage); setFreshPage(null); setNotebookOpen(true) }} type="button">Notebook <span className="notebook-count">{progress(notebook).found}/{progress(notebook).total}</span></button>
           <button className="text-button" onClick={() => { setSpeed(0); setObservatoryOpen(true) }} type="button">Observatory</button>
           <button className="text-button" onClick={() => { setSpeed(0); setExperimentsOpen(true) }} type="button">Experiments</button>
           <button className="text-button" onClick={() => { setSpeed(0); setWorldStartOpen(true) }} type="button">New world <span aria-hidden="true">↗</span></button>
@@ -609,7 +692,10 @@ export function App() {
         </div>
       </section>
       {notice && <div className="notice" role="status">{notice}</div>}
+      {catchingUp && <div className="away-catchup" role="status" aria-live="polite"><div><span className="eyebrow">WELCOME BACK</span><strong>The jar is catching up on the time you were away…</strong><div className="seal-progress"><i className="running" style={{ width: `${Math.round(catchingUp.done / catchingUp.total * 100)}%` }} /></div></div></div>}
+      <AwayPanel report={awayReport} onClose={() => setAwayReport(null)} onWatch={() => { setAwayReport(null); setSpeed(1) }} onObserve={() => { setAwayReport(null); setObservatoryOpen(true) }} />
       <SealPanel open={sealOpen} world={world} onClose={() => setSealOpen(false)} onSeal={(goalDays) => { setWorld((current) => sealWorld(current, goalDays)); setSealOpen(false); setNurseryOpen(false); setTool(null); setNotice(`Sealed for ${goalDays} days. Press 1× or 3× to let time run.`) }} onUnseal={() => { setWorld((current) => unsealWorld(current)); setSealOpen(false); setNotice('The seal is open. You can tend the world again.') }} onAir={() => { setWorld((current) => airJar(current)); setNotice('You lifted the lid for a moment. Fresh room air is inside; the seal is back on.') }} onObserve={() => { setSealOpen(false); setObservatoryOpen(true) }} />
+      <FieldNotebook open={notebookOpen} notebook={notebook} focusPage={notebookFocus} onClose={() => { setNotebookOpen(false); setNotebookFocus(null) }} onWrite={(text) => note(writeEntry(notebookRef.current, world, 'note', text))} />
       <Observatory open={observatoryOpen} history={history} onClose={() => setObservatoryOpen(false)} />
       <ExperimentBook open={experimentsOpen} world={world} onClose={() => setExperimentsOpen(false)} onLoad={restore} />
       <WorldStart open={worldStartOpen} onClose={() => setWorldStartOpen(false)} onBegin={(start, seed) => begin(start, seed)} onBuild={paperLook ? () => { setWorldStartOpen(false); setSpeed(0); setBuilding(true) } : undefined} onKeep={() => { setWorldStartOpen(false); setExperimentsOpen(true) }} />
