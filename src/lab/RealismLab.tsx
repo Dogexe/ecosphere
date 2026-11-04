@@ -6,7 +6,7 @@ import type { DepthOfFieldEffect } from 'postprocessing'
 import { Environment, MeshTransmissionMaterial, OrbitControls, useGLTF, useTexture } from '@react-three/drei'
 import { BufferAttribute, CanvasTexture, Mesh, RepeatWrapping, Texture, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh, MathUtils, MeshStandardMaterial, Object3D, PlaneGeometry, Matrix3, SRGBColorSpace, Vector2, Vector3 } from 'three'
 import { PaperAnimal } from '../scene/PaperCritter'
-import { animalDimensions, millimetresPerUnit, realAdultLengthMm } from '../scene/scale'
+import { animalDimensions, groundShape, millimetresPerUnit, realAdultLengthMm } from '../scene/scale'
 import type { CreatureKind } from '../sim/ecosystem'
 import { Fern, MossSprigs, paintify, ScannedProp } from '../scene/semiReal'
 import { charcoalTexture, gravelTexture, makeNoise, mossTexture, soilSideTexture, soilTexture, stoneTexture, woodTexture } from './proceduralTextures'
@@ -392,6 +392,7 @@ function MagnifierRig({ subject }: { subject: Vector3 }) {
  * &pose=walk|eat|poop|sleep|court previews each behaviour animation.
  */
 const pose = query.get('pose')
+const bumps = query.get('bumps') === '1'
 function Lineup() {
   const heading = useRef(Math.PI / 2)
   const moving = useRef(pose === 'walk')
@@ -405,11 +406,22 @@ function Lineup() {
     return { animal, x, y: kind === 'flea' ? 0.06 : 0 }
   })
   const middle = cursor / 2
+  // &bumps=1: rolling ground, to check that bodies bend (or tilt) to lie on it.
+  const bump = (x: number) => bumps ? 0.035 * Math.sin(x * 9) + 0.02 * Math.sin(x * 23 + 1) : 0
+  if (bumps) groundShape.offset = (x) => bump(x)
+  const bumpGround = useMemo(() => {
+    const geometry = new PlaneGeometry(cursor + 1, 1.5, 400, 1)
+    geometry.rotateX(-Math.PI / 2)
+    const position = geometry.attributes.position
+    for (let index = 0; index < position.count; index += 1) position.setY(index, bump(position.getX(index) + middle) - 0.002)
+    geometry.computeVertexNormals()
+    return geometry
+  }, [cursor, middle])
   return <Canvas dpr={[1, 2]} camera={{ position: [middle, cursor * 0.18, cursor * 1.4], fov: 30 }} frameloop={still ? 'demand' : 'always'}>
     <color attach="background" args={['#efe6d2']} />
     <ambientLight intensity={1.6} />
     <directionalLight position={[2, 4, 5]} intensity={1.4} />
-    <mesh position={[middle, -0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[cursor + 1, 1.5]} /><meshStandardMaterial color="#e4d6b8" /></mesh>
+    <mesh position={[middle, 0, 0]} geometry={bumpGround}><meshStandardMaterial color="#e4d6b8" /></mesh>
     {Array.from({ length: Math.ceil(cursor / unit) + 1 }, (_, mm) => (
       <mesh key={mm} position={[mm * unit, -0.03 - (mm % 10 === 0 ? 0.06 : mm % 5 === 0 ? 0.035 : 0.0175), 0.3]}>
         <boxGeometry args={[0.008, mm % 10 === 0 ? 0.12 : mm % 5 === 0 ? 0.07 : 0.035, 0.001]} /><meshBasicMaterial color="#5b4a3a" />
@@ -417,8 +429,8 @@ function Lineup() {
     ))}
     <mesh position={[cursor / 2, -0.03, 0.3]}><boxGeometry args={[cursor + 0.008, 0.008, 0.001]} /><meshBasicMaterial color="#5b4a3a" /></mesh>
     <Suspense fallback={null}>
-      {spots.map(({ animal, x, y }) => <group key={animal} position={[x, y, 0]} rotation={[0, heading.current, 0]} scale={paperRealScale(animal)}>
-        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={pose === 'eat' || pose === 'poop'} resting={pose === 'sleep'} pooping={pose === 'poop'} courting={pose === 'court'} />
+      {spots.map(({ animal, x, y }) => <group key={animal} position={[x, y + (paperKinds[animal] === 'flea' ? 0 : bump(x)), 0]} rotation={[0, heading.current, 0]} scale={paperRealScale(animal)}>
+        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={pose === 'eat' || pose === 'poop'} resting={pose === 'sleep'} pooping={pose === 'poop'} courting={pose === 'court'} bend={paperKinds[animal] === 'beetle' ? 'tilt' : paperKinds[animal] === 'flea' ? 'none' : 'flex'} />
       </group>)}
     </Suspense>
     <OrbitControls makeDefault target={[middle, 0.15, 0]} />
