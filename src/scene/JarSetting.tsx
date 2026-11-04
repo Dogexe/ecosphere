@@ -112,7 +112,7 @@ function Glass({ bottom = gravelBottom }: { bottom?: number }) {
 }
 
 function Sill({ bottom = gravelBottom }: { bottom?: number }) {
-  const oak = useScan('oak_veneer_01', sillRepeat)
+  const oak = useScan('oak_veneer_01', sillRepeat, true)
   return <mesh position={[0, bottom - 0.55, 1.5]} raycast={noRaycast} receiveShadow>
     <boxGeometry args={[30, 1, 14]} />
     <meshStandardMaterial {...oak} />

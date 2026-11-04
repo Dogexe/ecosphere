@@ -4,15 +4,12 @@ import { Mesh, MeshStandardMaterial, Sphere } from 'three'
 import type { Material, Object3D } from 'three'
 
 /*
- * Watercolour paper look (owner's direction 2026-11-04, after Drawquarium):
- * the jar stays a 3D scene, but everything except soil, stone and water is
- * shaded like a watercolour on rough paper. Done in each material's own
- * shader (no extra full-screen pass), so it costs almost nothing:
- *
- * - light is softened into a few washes instead of smooth shading;
- * - shadows go a little cool and violet, as paint does;
- * - pigment pools darker toward silhouette edges;
- * - paper grain, fixed to the screen, shows through every wash.
+ * Cartoon-against-real look (owner's direction 2026-11-04, after Drawquarium):
+ * the jar stays a 3D scene under dramatic light; plants, leaves, mushrooms
+ * and animals are drawn as flat, bright cartoon colour with two soft tones
+ * and an ink edge, while soil, stone and water stay physically lit. Done in
+ * each material's own shader (no extra full-screen pass), so it costs
+ * almost nothing.
  *
  * Materials marked `userData.realistic` (soil, stones, pebbles, water) keep
  * their physical shading. Small stylised things stop casting sun shadows,
@@ -23,31 +20,28 @@ export const markRealistic = <T extends Material>(material: T) => { material.use
 
 const chunk = /* glsl */ `
   {
-    vec3 paint = gl_FragColor.rgb;
-    float light = dot(paint, vec3(0.299, 0.587, 0.114));
-    // Washes: pull the light toward three soft bands.
-    float band = floor(light * 3.0 + 0.5) / 3.0;
-    float washed = mix(light, band, 0.7);
-    paint *= washed / max(light, 0.001);
-    // Cool, slightly violet shadows; warm lights.
-    paint = mix(paint * vec3(0.86, 0.88, 1.04), paint * vec3(1.03, 1.0, 0.95), smoothstep(0.15, 0.75, light));
-    // Pigment pools at the edges of each shape.
+    // Cartoon against the real scene (Drawquarium): the drawn things are
+    // close to self-lit flat colour with two soft tones, so they pop out of
+    // the deep shadows the real soil, stone and water fall into.
+    vec3 albedo = diffuseColor.rgb;
+    float base = max(dot(albedo, vec3(0.299, 0.587, 0.114)), 0.02);
+    float lit = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114)) / base;
+    float tone = mix(0.68, 1.04, smoothstep(0.32, 0.5, lit));
+    vec3 paint = albedo * tone;
+    // A little of the light's colour, so sunset still reads.
+    vec3 hue = gl_FragColor.rgb / max(max(gl_FragColor.r, max(gl_FragColor.g, gl_FragColor.b)), 0.001);
+    paint *= mix(vec3(1.0), hue, 0.2);
+    // Brighter, more saturated colour.
+    float grey = dot(paint, vec3(0.333));
+    paint = mix(vec3(grey), paint, 1.25) * 1.06;
+    // Ink line where the surface turns away from the eye.
     vec3 viewDir = normalize(vViewPosition);
     float rim = 1.0 - abs(dot(normalize(normal), viewDir));
-    paint *= 1.0 - 0.42 * pow(rim, 2.0);
-    // A soft pencil line where the surface turns away.
-    paint *= 1.0 - 0.35 * smoothstep(0.82, 0.97, rim);
-    // Paper grain: two scales of screen-space noise.
-    vec2 cell = gl_FragCoord.xy;
-    float fine = fract(sin(dot(floor(cell * 0.7), vec2(12.9898, 78.233))) * 43758.5453);
-    vec2 coarse = floor(cell / 7.0);
-    float blot = fract(sin(dot(coarse, vec2(39.3468, 11.1351))) * 24634.6345);
-    paint *= 0.93 + 0.07 * fine + 0.09 * blot;
-    // A touch less saturated, like pigment on paper.
-    float grey = dot(paint, vec3(0.333));
-    paint = mix(vec3(grey), paint, 0.85);
-    // Paper shows through thin washes.
-    gl_FragColor.rgb = mix(paint, vec3(0.98, 0.95, 0.89), 0.14);
+    paint *= 1.0 - 0.55 * smoothstep(0.78, 0.95, rim);
+    // Faint paper grain.
+    float fine = fract(sin(dot(floor(gl_FragCoord.xy * 0.7), vec2(12.9898, 78.233))) * 43758.5453);
+    paint *= 0.97 + 0.05 * fine;
+    gl_FragColor.rgb = paint;
   }
 `
 
@@ -64,7 +58,7 @@ function paint(material: MeshStandardMaterial) {
     // (Not on tiled surfaces such as the wooden sill, where it smears into streaks.)
     const tiled = !!material.map && (material.map.repeat.x > 1.01 || material.map.repeat.y > 1.01)
     shader.fragmentShader = shader.fragmentShader
-      .replace('vec4 sampledDiffuseColor = texture2D( map, vMapUv );', tiled ? 'vec4 sampledDiffuseColor = texture2D( map, vMapUv );' : 'vec4 sampledDiffuseColor = texture2D( map, vMapUv, 2.0 );')
+      .replace('vec4 sampledDiffuseColor = texture2D( map, vMapUv );', tiled ? 'vec4 sampledDiffuseColor = texture2D( map, vMapUv );' : 'vec4 sampledDiffuseColor = texture2D( map, vMapUv, 4.0 );')
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n${chunk}`)
   }
   const key = material.customProgramCacheKey?.bind(material)

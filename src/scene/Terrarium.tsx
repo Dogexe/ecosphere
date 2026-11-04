@@ -857,7 +857,8 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
     >
       <DebugHandle />
       {paperLook && watercolorLook && <Watercolor />}
-      {!underground && <Daylight world={world} />}
+      {!underground && <Daylight world={world} dramatic={paperLook && watercolorLook} />}
+      {paperLook && watercolorLook && !underground && !underwater && <color attach="background" args={['#23272f']} />}
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
