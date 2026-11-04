@@ -430,7 +430,7 @@ function Lineup() {
     <mesh position={[cursor / 2, -0.03, 0.3]}><boxGeometry args={[cursor + 0.008, 0.008, 0.001]} /><meshBasicMaterial color="#5b4a3a" /></mesh>
     <Suspense fallback={null}>
       {spots.map(({ animal, x, y }) => <group key={animal} position={[x, y + (paperKinds[animal] === 'flea' ? 0 : bump(x)), 0]} rotation={[0, heading.current, 0]} scale={paperRealScale(animal)}>
-        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={pose === 'eat' || pose === 'poop'} resting={pose === 'sleep'} pooping={pose === 'poop'} courting={pose === 'court'} bend={paperKinds[animal] === 'beetle' ? 'tilt' : paperKinds[animal] === 'flea' ? 'none' : 'flex'} />
+        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={pose === 'eat' || pose === 'poop'} resting={pose === 'sleep'} pooping={pose === 'poop'} courting={pose === 'court'} bend={paperKinds[animal] === 'flea' ? 'none' : 'ground'} />
       </group>)}
     </Suspense>
     <OrbitControls makeDefault target={[middle, 0.15, 0]} />

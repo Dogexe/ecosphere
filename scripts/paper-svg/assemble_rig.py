@@ -48,8 +48,10 @@ def main(config_path, out_path, images=None):
         far = ' filter="url(#far)"' if part.get('far') else ''
         return f'<g {attrs}><use href="#{part["shape"]}-shape" transform="{placed(part)}"{far}/></g>\n'
 
+    j = config.get('joints')
+    joints = (f' data-joints="{" ".join(str(x) for x in j["at"])}" data-joint-limit="{j["limit"]}"' if j else '')
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 {width} {height}" '
-           f'data-length="{config["length"]}" data-ground="{config["ground"]}">\n'
+           f'data-length="{config["length"]}" data-ground="{config["ground"]}"{joints}>\n'
            f'<!-- {config["name"]}: auto-traced from GPT-painted parts; rig data in attributes. -->\n<defs>'
            + ''.join(f'<g id="{key}-shape">{markup}</g>' for key, (markup, _) in shapes.items())
            + '<filter id="far"><feColorMatrix type="matrix" values="0.72 0 0 0 0  0 0.72 0 0 0  0 0 0.72 0 0  0 0 0 1 0"/></filter>'

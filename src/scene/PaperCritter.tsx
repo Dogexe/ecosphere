@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CanvasTexture, Color, DoubleSide, Group, MathUtils, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three'
-import { crawlLift, legSwing, oarStroke, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
+import { bodyPath, crawlLift, legSwing, oarStroke, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
 import type { PaperMotion, PaperRig } from './paperRig'
 import { animalScaleMode, groundShape } from './scale'
 
@@ -201,7 +201,7 @@ const crawlSegments = 32
  * the sheet cancels it to face the camera.
  * `base` is the local height of the feet, matching the 3D model it replaces.
  */
-export function PaperAnimal({ animal, base, heading, moving, speed, health, juvenile, feeding, resting = false, pooping = false, courting = false, bend = 'flex' }: {
+export function PaperAnimal({ animal, base, heading, moving, speed, health, juvenile, feeding, resting = false, pooping = false, courting = false, bend = 'ground' }: {
   animal: string; base: number; heading?: RefObject<number>; moving: RefObject<boolean>; speed: number; health: number; juvenile: boolean; feeding: boolean
   /** Scheduled rest from the simulation (climate.ts scheduledRest): still, antennae down, slow breaths, a paper "z". */
   resting?: boolean
@@ -210,11 +210,10 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
   /** Woodlouse courtship from the simulation: antennae drum and the body sways toward the partner. */
   courting?: boolean
   /**
-   * How the cut-out meets uneven ground: 'flex' bends the body along the
-   * ground under it, segment by segment (woodlouse, springtail, caterpillar),
-   * 'tilt' pitches a stiff body to the slope (beetle), 'none' for swimmers.
+   * 'ground' lays the body on uneven ground, bending only at the rig's real
+   * joints and only as far as each joint turns; 'none' for swimmers.
    */
-  bend?: 'flex' | 'tilt' | 'none'
+  bend?: 'ground' | 'none'
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   useEffect(() => {
@@ -253,7 +252,7 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
       const centreY = (pivot[1] - (drawn.top + drawn.height / 2 + offset[1])) * scale
       // Later layers sit a hair in front so paper layers never z-fight.
       const depth = index * 0.0015 - (part.motion === 'leg' && part.side === 'far' ? 0.004 : 0)
-      const bends = part.motion === 'crawl' || (part.motion === 'body' && bend === 'flex')
+      const bends = part.motion === 'crawl' || (part.motion === 'body' && bend === 'ground')
       const geometry = bends ? new PlaneGeometry(1, 1, crawlSegments, 1) : plane
       return { piece: { motion: part.motion, side: part.side, order } as Piece, x, y, depth, centreX, centreY, width: drawn.width * scale, height: drawn.height * scale, material: materials.get(key)!, geometry }
     })
@@ -267,7 +266,8 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     const [tail] = toLocal(rig, [rig.length.from, rig.ground], base)
     const [head] = toLocal(rig, [rig.length.to, rig.ground], base)
     const top = Math.max(base, ...pieces.filter(({ piece }) => piece.motion === 'body' || piece.motion === 'crawl').map(({ y, centreY, height }) => y + centreY + height / 2))
-    return { tail, head, top, length: rig.length.units }
+    const joints = rig.joints.at.map((at) => toLocal(rig, [at, rig.ground], base)[0])
+    return { tail, head, top, length: rig.length.units, joints, limit: rig.joints.limit }
   }, [loaded, pieces, base])
   useFrame(({ camera }, delta) => {
     if (!sheet.current || !flip.current) return
@@ -293,16 +293,13 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     flip.current.rotation.y = (1 - Math.abs(flip.current.scale.x)) * 0.6 * facing.current
     const stroke = rowing ? oarStroke(time, walking) : 0
     const ground = bend === 'none' || !marks ? null : groundProfile(sheet.current, flip.current.scale.x, marks.tail, marks.head, profile.current, factor)
-    if (bend === 'tilt' && ground) {
-      flip.current.rotation.z = Math.atan2(ground(marks!.head) - ground(marks!.tail), marks!.head - marks!.tail) * Math.sign(flip.current.scale.x || 1)
-      flip.current.position.y = ground((marks!.head + marks!.tail) / 2)
-    }
-    const flex = bend === 'flex' ? ground : null
+    // Rigid plates between real joints, each joint turning only so far: legs and feelers ride along.
+    const flex = ground && marks ? bodyPath(ground, marks.tail, marks.head, marks.joints, marks.limit) : null
     pieces.forEach(({ piece, x, y, centreX, width, height, geometry }, index) => {
       const pivot = pivots.current[index]
       if (!pivot) return
       if (geometry !== plane && piece.motion === 'body') {
-        // A plated body follows the ground along its length, joint by joint.
+        // The body lies along the jointed path: straight plates, bends only at joints.
         const position = geometry.attributes.position
         for (let vertex = 0; vertex < position.count; vertex += 1) {
           const u = vertex % (crawlSegments + 1) / crawlSegments
@@ -344,7 +341,7 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
       pellet.current.visible = shown
       if (shown) {
         const fall = Math.min(1, phase / 0.35)
-        pellet.current.position.set(marks.tail + size, MathUtils.lerp(base + (marks.top - base) * 0.35, base + size * 0.3, fall * fall) + (ground ? ground(marks.tail + size) : 0), 0.006)
+        pellet.current.position.set(marks.tail + size, MathUtils.lerp(base + (marks.top - base) * 0.35 + (flex ? flex(marks.tail) : 0), base + size * 0.3 + (ground ? ground(marks.tail + size) : 0), fall * fall), 0.006)
         pellet.current.scale.setScalar(size * (phase > 2.4 ? (3 - phase) / 0.6 : 1))
       }
     }

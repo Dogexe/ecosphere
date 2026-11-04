@@ -34,6 +34,12 @@ export type PaperRig = {
   /** Canvas y of the feet (the ground line). */
   ground: number
   parts: PaperPart[]
+  /**
+   * Where the body can bend (canvas x of each real joint between rigid
+   * plates) and how far each joint turns, in degrees. No joints = one stiff
+   * body that can only tilt.
+   */
+  joints: { at: number[]; limit: number }
 }
 
 const motions: PaperMotion[] = ['body', 'leg', 'antenna', 'tail', 'crawl', 'oar', 'static']
@@ -73,7 +79,11 @@ export function parseRig(value: unknown): PaperRig {
       repeat,
     }
   })
-  return { canvas: [width, height], length: { from: length.from, to: length.to, units: length.units }, ground: source.ground, parts }
+  const joints = source.joints as { at?: unknown; limit?: unknown } | undefined
+  const from = length.from as number, to = length.to as number
+  const at = Array.isArray(joints?.at) ? joints.at.filter((x): x is number => typeof x === 'number' && x > from && x < to).sort((a, b) => a - b) : []
+  const limit = typeof joints?.limit === 'number' && joints.limit >= 0 && joints.limit <= 45 ? joints.limit : 0
+  return { canvas: [width, height], length: { from: length.from, to: length.to, units: length.units }, ground: source.ground, parts, joints: { at, limit } }
 }
 
 export const unitsPerPixel = (rig: PaperRig) => rig.length.units / (rig.length.to - rig.length.from)
@@ -117,6 +127,7 @@ export function rigFromSvg(meta: SvgMeta): PaperRig {
     canvas: [width, height],
     length: { from, to, units },
     ground: Number(meta.attrs['data-ground']),
+    joints: { at: numbers(meta.attrs['data-joints']), limit: Number(meta.attrs['data-joint-limit'] ?? 0) },
     parts: meta.parts.map(({ id, attrs }) => {
       const pivot = numbers(attrs['data-pivot'])
       return {
@@ -141,4 +152,33 @@ export function crawlLift(u: number, time: number, walking: boolean) {
 export function oarStroke(time: number, walking: boolean) {
   const phase = (time * (walking ? 2.6 : 1.3)) % 1
   return phase < 0.28 ? phase / 0.28 : 1 - (phase - 0.28) / 0.72
+}
+
+/**
+ * The line a body lies along on uneven ground: rigid between its joints,
+ * each joint turning at most `limit` degrees from its neighbour, the middle
+ * plate following the local slope (at most 35 degrees). `ground(x)` is the
+ * ground height relative to under the middle; all in the animal's local
+ * units, x from tail (negative) to head. Returns height at x.
+ */
+export function bodyPath(ground: (x: number) => number, tail: number, head: number, joints: number[], limit: number) {
+  const bounds = [tail, ...joints.filter((x) => x > tail && x < head), head]
+  const turn = limit * Math.PI / 180
+  const angles = bounds.slice(1).map((end, index) => Math.atan2(ground(end) - ground(bounds[index]), end - bounds[index]))
+  let middle = bounds.findIndex((x, index) => index > 0 && x >= 0) - 1
+  if (middle < 0) middle = angles.length - 1
+  angles[middle] = Math.max(-0.61, Math.min(0.61, angles[middle]))
+  for (let index = middle + 1; index < angles.length; index += 1) angles[index] = Math.max(angles[index - 1] - turn, Math.min(angles[index - 1] + turn, angles[index]))
+  for (let index = middle - 1; index >= 0; index -= 1) angles[index] = Math.max(angles[index + 1] - turn, Math.min(angles[index + 1] + turn, angles[index]))
+  // Heights at each joint, anchored so the middle plate passes over the ground at x = 0.
+  const heights = new Array<number>(bounds.length)
+  const anchor = Math.max(bounds[middle], Math.min(bounds[middle + 1], 0))
+  heights[middle] = ground(anchor) - (anchor - bounds[middle]) * Math.tan(angles[middle])
+  for (let index = middle; index < angles.length; index += 1) heights[index + 1] = heights[index] + (bounds[index + 1] - bounds[index]) * Math.tan(angles[index])
+  for (let index = middle - 1; index >= 0; index -= 1) heights[index] = heights[index + 1] - (bounds[index + 1] - bounds[index]) * Math.tan(angles[index])
+  return (x: number) => {
+    if (x <= bounds[0]) return heights[0] + (x - bounds[0]) * Math.tan(angles[0])
+    for (let index = 0; index < angles.length; index += 1) if (x <= bounds[index + 1]) return heights[index] + (x - bounds[index]) * Math.tan(angles[index])
+    return heights[angles.length] + (x - bounds[angles.length]) * Math.tan(angles[angles.length - 1])
+  }
 }

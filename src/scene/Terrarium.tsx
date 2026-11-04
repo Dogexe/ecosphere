@@ -616,7 +616,7 @@ function Beetle({ creature, world, events, selected, onSelect, speed }: Creature
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      {paperLook ? <PaperAnimal animal="tiger-beetle" base={-0.145} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={!!meal} resting={scheduledRest(world, creature)} bend="tilt" /> : <OrganismAsset file="tiger-beetle" shape={{ length: 0.75, base: -0.145 }} moving={motion} feeding={!!meal} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={<>
+      {paperLook ? <PaperAnimal animal="tiger-beetle" base={-0.145} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={!!meal} resting={scheduledRest(world, creature)} /> : <OrganismAsset file="tiger-beetle" shape={{ length: 0.75, base: -0.145 }} moving={motion} feeding={!!meal} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={<>
       {[-1, 1].map((side, sideIndex) => <group key={side}>
         {[0, 1, 2].map((index) => <group key={index} ref={(leg) => { legs.current[sideIndex * 3 + index] = leg }} position={[side * 0.14, -0.035, index * 0.17 - 0.2]}>
           <mesh position={[side * 0.075, -0.015, 0]} rotation={[0, 0, side * 1.2]}><cylinderGeometry args={[0.018, 0.02, 0.19, 5]} /><meshStandardMaterial color="#9b876d" roughness={0.95} /></mesh>

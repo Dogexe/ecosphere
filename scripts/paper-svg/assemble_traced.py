@@ -74,7 +74,9 @@ def main(config_path, out_path):
     far_dx, far_lift = config['leg'].get('far_offset', [18, -14])
     bx, by = body_box[0] * scale, body_box[1] * scale
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 {width} {height}" '
-           f'data-length="{config["length"]}" data-ground="{config["ground"]}">\n'
+           f'data-length="{config["length"]}" data-ground="{config["ground"]}"'
+           + (f' data-joints="{" ".join(str(x) for x in config["joints"]["at"])}" data-joint-limit="{config["joints"]["limit"]}"' if 'joints' in config else '')
+           + '>\n'
            f'<!-- {config["name"]}: auto-traced from GPT-painted parts; rig data in attributes. -->\n'
            '<defs>'
            f'<g id="leg-shape">{leg}</g><g id="antenna-shape">{antenna}</g>'
