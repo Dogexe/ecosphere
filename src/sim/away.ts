@@ -77,14 +77,16 @@ function producersAlive(world: World) {
  * Lives through up to `hours` model hours with the unchanged solver, adding
  * one Observatory reading per hour as if the player had watched. Returns the
  * world, its history and the running report; call again for the next slice.
+ * `observe` sees every lived hour (the field notebook reads it; it cannot change the world).
  */
-export function liveAway(world: World, history: readonly ObservationSample[], hours: number, report: AwayReport) {
+export function liveAway(world: World, history: readonly ObservationSample[], hours: number, report: AwayReport, observe?: (world: World, events: readonly SimulationEvent[]) => void) {
   let current = world
   let samples: ObservationSample[] = [...history]
   for (let hour = 0; hour < hours; hour += 1) {
     samples = recordSample(samples, current)
     const step = simulateStep(current)
     tallyEvents(report, step.events)
+    observe?.(step.world, step.events)
     current = step.world
     if (report.seal && current.sealed && report.seal.collapsedDay === null && !report.seal.reachedGoal) {
       const sealedHours = current.tick - current.sealed.since
