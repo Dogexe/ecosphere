@@ -7,7 +7,7 @@ import { pondCenter } from '../sim/pond'
 import { nearestSoil } from '../sim/ecosystem'
 import type { SoilPatch } from '../sim/ecosystem'
 import { environmentScale, groundShape } from './scale'
-import { cellX, heightAt, inside, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
+import { cellX, inside, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
 import type { Decor, SavedSubstrate } from '../sim/substrate'
 import { isPresetJar } from '../sim/substrate'
 import { maskShape } from '../sim/pondShape'
@@ -15,7 +15,7 @@ import type { PondShape } from '../sim/pondShape'
 import type { Pond } from '../sim/pond'
 import { ShapedPond } from './PondWater'
 import { GlassDroplets } from './GlassDroplets'
-import { LayeredGround } from './LayeredGround'
+import { LayeredGround, smoothGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
 import { Fern, MossSprigs, MossyStone, paintify, polyHaven, ScannedProp } from './semiReal'
@@ -193,7 +193,9 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
   const soilScale = usePoolScale(soil)
   // Pond water is drawn by the pond itself; the rest of the standing water dries with the soil.
   const poolScale = useMemo(() => water && hasPond ? (x: number, z: number) => water.signedDistance(x, z) < 0.1 ? 0 : soilScale(x, z) : soilScale, [water, hasPond, soilScale])
-  const ground = useMemo(() => (x: number, z: number) => (shape ? shape(x, z, heightAt(state, x, z)) : heightAt(state, x, z)) + floor, [shape, state, floor])
+  // The same smoothed soil LayeredGround draws, so plants and animals sit on it.
+  const soilHeight = useMemo(() => smoothGround(state), [state])
+  const ground = useMemo(() => (x: number, z: number) => (shape ? shape(x, z, soilHeight(x, z)) : soilHeight(x, z)) + floor, [shape, soilHeight, floor])
   // Plants and animals stand on this ground instead of the flat default.
   useLayoutEffect(() => { groundShape.offset = (x, z) => ground(x, z) - top; groundShape.poured = !!water; return () => { groundShape.offset = () => 0; groundShape.poured = false } }, [ground, water])
   const keepOut = useMemo(() => water && hasPond ? (x: number, z: number) => water.signedDistance(x, z) < 0.12 : undefined, [water, hasPond])

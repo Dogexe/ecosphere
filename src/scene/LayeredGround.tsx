@@ -34,11 +34,62 @@ export type GroundShape = {
   poolScale?: (x: number, z: number) => number
 }
 
+/*
+ * The sim works on a 40×40 grid of cells (about 3.6 mm each), which drawn as
+ * is shows terraced steps and saw-tooth shorelines. The drawing smooths it
+ * like settled soil: the cell tops are softened with two small blur passes,
+ * then sampled with a smooth (Catmull-Rom) curve onto a mesh three times
+ * finer. Plants, animals and the pond stand on the same smoothed ground
+ * (see `smoothGround`), so nothing floats or sinks. Visual only: the sim
+ * keeps its own heights.
+ */
+const S = 3
+const M = (N - 1) * S + 1
+const cellSize = (2 * R) / (N - 1)
+const clampCell = (value: number) => Math.min(N - 1, Math.max(0, value))
+
+/** Softened cell tops. Cells outside the jar copy the rim band, so the edge is not pulled down. */
+export function smoothTops(state: Substrate) {
+  let field = new Float32Array(N * N), next = new Float32Array(N * N)
+  for (let j = 0; j < N; j += 1) for (let i = 0; i < N; i += 1) field[j * N + i] = topAt(state, sampleCell(cellX(i), cellX(j)))
+  for (let pass = 0; pass < 2; pass += 1) {
+    for (let axis = 0; axis < 2; axis += 1) {
+      for (let j = 0; j < N; j += 1) for (let i = 0; i < N; i += 1) {
+        const at = (d: number) => axis === 0 ? field[j * N + clampCell(i + d)] : field[clampCell(j + d) * N + i]
+        next[j * N + i] = (at(-1) + 2 * at(0) + at(1)) / 4
+      }
+      ;[field, next] = [next, field]
+    }
+  }
+  return field
+}
+
+const catmull = (p0: number, p1: number, p2: number, p3: number, t: number) => 0.5 * (2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (3 * p1 - p0 - 3 * p2 + p3) * t * t * t)
+/** Smooth height of the softened field at a point. */
+export function sampleField(field: Float32Array, x: number, z: number) {
+  const fx = Math.min(N - 1.0001, Math.max(0, (x + R) / cellSize)), fz = Math.min(N - 1.0001, Math.max(0, (z + R) / cellSize))
+  const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j
+  const row = (b: number) => { const o = clampCell(b) * N; return catmull(field[o + clampCell(i - 1)], field[o + i], field[o + clampCell(i + 1)], field[o + clampCell(i + 2)], u) }
+  return catmull(row(j - 1), row(j), row(j + 1), row(j + 2), v)
+}
+
+/** Ground height function on the smoothed soil, matching what LayeredGround draws (before any `shape`). */
+export const smoothGround = (state: Substrate) => { const field = smoothTops(state); return (x: number, z: number) => sampleField(field, x, z) }
+
+/** Plain bilinear blend of a per-cell value, for colours and puddle depth. */
+function bilinear(values: Float32Array, stride: number, offset: number, x: number, z: number) {
+  const fx = Math.min(N - 1.0001, Math.max(0, (x + R) / cellSize)), fz = Math.min(N - 1.0001, Math.max(0, (z + R) / cellSize))
+  const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j
+  const at = (a: number, b: number) => values[(b * N + a) * stride + offset]
+  return (at(i, j) * (1 - u) + at(i + 1, j) * u) * (1 - v) + (at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u) * v
+}
+const smoothstep = (edge0: number, edge1: number, value: number) => { const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0))); return t * t * (3 - 2 * t) }
+
 export function useLayeredGeometry() {
   return useMemo(() => {
-    const surface = new PlaneGeometry(2 * R, 2 * R, N - 1, N - 1).rotateX(-Math.PI / 2)
-    surface.setAttribute('color', new BufferAttribute(new Float32Array(N * N * 3), 3))
-    surface.setAttribute('pebble', new BufferAttribute(new Float32Array(N * N), 1))
+    const surface = new PlaneGeometry(2 * R, 2 * R, M - 1, M - 1).rotateX(-Math.PI / 2)
+    surface.setAttribute('color', new BufferAttribute(new Float32Array(M * M * 3), 3))
+    surface.setAttribute('pebble', new BufferAttribute(new Float32Array(M * M), 1))
     // UVs in world units so the grain keeps its size: about 4 tiles across the jar.
     const uv = surface.getAttribute('uv') as BufferAttribute, position = surface.getAttribute('position') as BufferAttribute
     for (let v = 0; v < uv.count; v += 1) uv.setXY(v, position.getX(v) / 1.9, position.getZ(v) / 1.9)
@@ -48,9 +99,9 @@ export function useLayeredGeometry() {
     walls.setAttribute('color', new BufferAttribute(new Float32Array(ring * bands * 6 * 3), 3).setUsage(DynamicDrawUsage))
     walls.setAttribute('uv', new BufferAttribute(new Float32Array(ring * bands * 6 * 2), 2).setUsage(DynamicDrawUsage))
     walls.setAttribute('pebble', new BufferAttribute(new Float32Array(ring * bands * 6), 1).setUsage(DynamicDrawUsage))
-    const puddles = new PlaneGeometry(2 * R, 2 * R, N - 1, N - 1).rotateX(-Math.PI / 2)
-    puddles.setAttribute('color', new BufferAttribute(new Float32Array(N * N * 4), 4))
-    return { surface, walls, puddles, ring }
+    const puddles = new PlaneGeometry(2 * R, 2 * R, M - 1, M - 1).rotateX(-Math.PI / 2)
+    puddles.setAttribute('color', new BufferAttribute(new Float32Array(M * M * 4), 4))
+    return { surface, walls, puddles, ring, cells: new Float32Array(N * N * 5) }
   }, [])
 }
 
@@ -58,31 +109,38 @@ const tint = new Color(), other = new Color()
 /** Puddle water over soil: clear but tea-coloured from the humus it sits on. */
 const waterTint = new Color('#5e6650')
 
-/** Rewrites both geometries from the substrate. Cheap enough to run every frame (40×40 cells). */
+/** Rewrites both geometries from the substrate. Cheap enough to run every frame while pouring. */
 export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, state: Substrate, { shape, poolScale }: GroundShape = {}) {
   const position = geometry.surface.getAttribute('position') as BufferAttribute
   const water = geometry.puddles.getAttribute('position') as BufferAttribute
   const waterColours = geometry.puddles.getAttribute('color') as BufferAttribute
   const colours = geometry.surface.getAttribute('color') as BufferAttribute
   const pebbles = geometry.surface.getAttribute('pebble') as BufferAttribute
+  const field = smoothTops(state)
+  // Per-cell colour (rgb), pebble and standing water, blended between cells on the finer mesh.
+  const cells = geometry.cells
   for (let j = 0; j < N; j += 1) for (let i = 0; i < N; i += 1) {
-    const x = cellX(i), z = cellX(j), r = Math.hypot(x, z), limit = R - 0.02
-    const k = sampleCell(x, z), v = j * N + i
-    const px = r > limit ? x * limit / r : x, pz = r > limit ? z * limit / r : z
-    const height = topAt(state, k)
-    const ground = shape ? shape(px, pz, height) : height + 0.001
-    position.setXYZ(v, px, ground, pz)
-    // Standing water: a sheet just above the ground where there is any, tucked under it where there is none,
-    // so the shoreline falls where the two cross. None where the game has dug the pond.
-    const depth = (shape && Math.abs(ground - height) > 0.05) ? 0 : state.pool[k] * (poolScale ? poolScale(px, pz) : 1)
-    if (depth > 0.004) { water.setXYZ(v, px, ground + depth + 0.003, pz); waterColours.setXYZW(v, waterTint.r, waterTint.g, waterTint.b, Math.min(0.68, 0.25 + depth * 2)) }
-    else { water.setXYZ(v, px, ground - 0.02, pz); waterColours.setXYZW(v, waterTint.r, waterTint.g, waterTint.b, 0) }
+    const k = sampleCell(cellX(i), cellX(j)), o = (j * N + i) * 5
     const layer = topLayer(state, k)
     if (!layer) tint.set('#eef2f0')
     else if (layer === 'soil') tint.copy(layerColours.soil).lerp(layerColours.wetSoil, wetness(state, k))
     else tint.copy(layerColours[layer])
-    colours.setXYZ(v, tint.r, tint.g, tint.b)
-    pebbles.setX(v, layer === 'gravel' ? 1 : 0)
+    cells[o] = tint.r; cells[o + 1] = tint.g; cells[o + 2] = tint.b; cells[o + 3] = layer === 'gravel' ? 1 : 0; cells[o + 4] = state.pool[k]
+  }
+  const step = (2 * R) / (M - 1), limit = R - 0.02
+  for (let j = 0; j < M; j += 1) for (let i = 0; i < M; i += 1) {
+    const x = -R + i * step, z = -R + j * step, r = Math.hypot(x, z), v = j * M + i
+    const px = r > limit ? x * limit / r : x, pz = r > limit ? z * limit / r : z
+    const height = sampleField(field, px, pz)
+    const ground = shape ? shape(px, pz, height) : height + 0.001
+    position.setXYZ(v, px, ground, pz)
+    // Standing water: a sheet just above the ground where there is any, tucked under it where there is none,
+    // so the shoreline falls where the two cross. None where the game has dug the pond.
+    const depth = (shape && Math.abs(ground - height) > 0.05) ? 0 : bilinear(cells, 5, 4, px, pz) * (poolScale ? poolScale(px, pz) : 1)
+    if (depth > 0.004) { water.setXYZ(v, px, ground + depth + 0.003, pz); waterColours.setXYZW(v, waterTint.r, waterTint.g, waterTint.b, Math.min(0.68, 0.25 + depth * 2) * smoothstep(0.004, 0.03, depth)) }
+    else { water.setXYZ(v, px, ground - 0.02, pz); waterColours.setXYZW(v, waterTint.r, waterTint.g, waterTint.b, 0) }
+    colours.setXYZ(v, bilinear(cells, 5, 0, px, pz), bilinear(cells, 5, 1, px, pz), bilinear(cells, 5, 2, px, pz))
+    pebbles.setX(v, bilinear(cells, 5, 3, px, pz))
   }
   position.needsUpdate = true; colours.needsUpdate = true; pebbles.needsUpdate = true; water.needsUpdate = true; waterColours.needsUpdate = true
   geometry.puddles.computeVertexNormals()
@@ -98,8 +156,11 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
   const topColour = (k: number, into: Color) => { const layer = topLayer(state, k); return !layer ? into.set('#eef2f0') : layer === 'soil' ? into.copy(layerColours.soil).lerp(layerColours.wetSoil, wetness(state, k)) : into.copy(layerColours[layer]) }
   const capA = new Color(), capB = new Color()
   const edge = (angle: number) => {
-    const k = sampleCell(Math.cos(angle) * R, Math.sin(angle) * R)
-    return { x: Math.cos(angle) * (R + 0.02), z: Math.sin(angle) * (R + 0.02), ix: Math.cos(angle) * RIM, iz: Math.sin(angle) * RIM, k, g: state.gravel[k], c: state.charcoal[k], s: state.soil[k], wet: wetness(state, k) }
+    const cos = Math.cos(angle), sin = Math.sin(angle)
+    const k = sampleCell(cos * R, sin * R)
+    // The strata follow the smoothed top at the glass, each layer keeping its share of the column.
+    const top = sampleField(field, cos * limit, sin * limit), column = topAt(state, k), share = column > 1e-6 ? top / column : 1
+    return { x: cos * (R + 0.02), z: sin * (R + 0.02), ix: cos * RIM, iz: sin * RIM, k, g: state.gravel[k] * share, c: state.charcoal[k] * share, s: state.soil[k] * share, inner: sampleField(field, cos * RIM, sin * RIM) - 0.002, wet: wetness(state, k) }
   }
   for (let step = 0; step < geometry.ring; step += 1) {
     const a = edge(step / geometry.ring * Math.PI * 2), b = edge((step + 1) / geometry.ring * Math.PI * 2)
@@ -116,11 +177,11 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
     band(a.g, a.g + a.c, b.g, b.g + b.c, layerColours.charcoal, layerColours.charcoal)
     const sa = tint.copy(layerColours.soil).lerp(layerColours.wetSoil, a.wet).clone(), sb = new Color().copy(layerColours.soil).lerp(layerColours.wetSoil, b.wet)
     band(a.g + a.c, a.g + a.c + a.s, b.g + b.c, b.g + b.c + b.s, sa, sb)
-    // A flat lip from the rim band of cells out to the glass: the grid's square edge never leaves a gap to see through.
+    // A lip from just under the surface out to the glass: the grid's square edge never leaves a gap to see through.
     const ta = a.g + a.c + a.s, tb = b.g + b.c + b.s
     topColour(a.k, capA); topColour(b.k, capB); pebble = topLayer(state, a.k) === 'gravel' ? 1 : 0
-    put(a.ix, ta, a.iz, capA, 0, true); put(b.x, tb, b.z, capB, 0, true); put(b.ix, tb, b.iz, capB, 0, true)
-    put(a.ix, ta, a.iz, capA, 0, true); put(a.x, ta, a.z, capA, 0, true); put(b.x, tb, b.z, capB, 0, true)
+    put(a.ix, a.inner, a.iz, capA, 0, true); put(b.x, tb, b.z, capB, 0, true); put(b.ix, b.inner, b.iz, capB, 0, true)
+    put(a.ix, a.inner, a.iz, capA, 0, true); put(a.x, ta, a.z, capA, 0, true); put(b.x, tb, b.z, capB, 0, true)
   }
   wall.needsUpdate = true; wallColours.needsUpdate = true; wallUv.needsUpdate = true; wallPebbles.needsUpdate = true
   geometry.walls.computeVertexNormals()

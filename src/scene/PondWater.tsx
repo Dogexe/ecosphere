@@ -226,44 +226,63 @@ export function PondWater({ pond, underwater, swimmers, onPondClick }: { pond: P
  */
 export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPondClick }: { ground: (x: number, z: number) => number; cells: Uint8Array; level: number; floor: number; pond: Pond; underwater: boolean; onPondClick: (x: number, z: number) => void }) {
   const look = waterLook(pond)
+  // The sim's pond mask is on its coarse cell grid; the sheet is three times finer so the shore,
+  // where the flat water meets the smoothed ground, reads as a soft curve instead of steps.
   const N = Math.round(Math.sqrt(cells.length)), R = 3.77, cell = 2 * R / (N - 1)
+  const M = (N - 1) * 3 + 1, step = 2 * R / (M - 1)
   const parts = useMemo(() => {
-    const geometry = new PlaneGeometry(2 * R, 2 * R, N - 1, N - 1).rotateX(-Math.PI / 2)
-    geometry.setAttribute('color', new BufferAttribute(new Float32Array(N * N * 4), 4))
+    const geometry = new PlaneGeometry(2 * R, 2 * R, M - 1, M - 1).rotateX(-Math.PI / 2)
+    geometry.setAttribute('color', new BufferAttribute(new Float32Array(M * M * 4), 4))
     const position = geometry.getAttribute('position'), uv = geometry.getAttribute('uv')
     for (let v = 0; v < position.count; v += 1) uv.setXY(v, position.getX(v) / 3, position.getZ(v) / 3)
     const ripples = rippleNormals()
     ripples.repeat.set(1, 1)
-    return { geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, normalMap: ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }), { userData: { realistic: true } }) }
-  }, [N])
+    return { geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.04, normalMap: ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }), { userData: { realistic: true } }) }
+  }, [M])
+  // Bed height under every vertex, and whether it lies within two cells of pond water (the sheet may reach it).
+  const bedding = useMemo(() => {
+    const beds = new Float32Array(M * M), near = new Uint8Array(M * M)
+    for (let j = 0; j < M; j += 1) for (let i = 0; i < M; i += 1) {
+      const x = -R + i * step, z = -R + j * step, v = j * M + i
+      beds[v] = ground(x, z) - floor
+      const ci = Math.round((x + R) / cell), cj = Math.round((z + R) / cell)
+      for (let dj = -2; dj <= 2 && !near[v]; dj += 1) for (let di = -2; di <= 2; di += 1) { const a = ci + di, b = cj + dj; if (a >= 0 && b >= 0 && a < N && b < N && cells[b * N + a]) { near[v] = 1; break } }
+    }
+    return { beds, near }
+  }, [ground, floor, cells, M, N, cell, step])
   // Deepest water in the hollow sets how far the level can fall.
   const deepest = useMemo(() => { let most = 0; for (let k = 0; k < cells.length; k += 1) if (cells[k]) most = Math.max(most, level - (ground(-R + (k % N) * cell, -R + Math.floor(k / N) * cell) - floor)); return most }, [cells, level, ground, floor, N, cell])
   const memory = useRef({ surface: level, clock: 0 })
   const target = level - Math.max(0, (60 - pond.water) / 60) * deepest * 0.8
+  const colour = useMemo(() => new Color(), [])
   const write = (surface: number) => {
     const position = parts.geometry.getAttribute('position') as BufferAttribute, colours = parts.geometry.getAttribute('color') as BufferAttribute
     const deep = new Color(look.tint).multiplyScalar(0.55)
-    for (let j = 0; j < N; j += 1) for (let i = 0; i < N; i += 1) {
-      const v = j * N + i, x = -R + i * cell, z = -R + j * cell
-      // A vertex belongs to the pond if it or a neighbour is pond water, so the sheet reaches the shore.
-      let near = false
-      for (let dj = -1; dj <= 1 && !near; dj += 1) for (let di = -1; di <= 1; di += 1) { const a = i + di, b = j + dj; if (a >= 0 && b >= 0 && a < N && b < N && cells[b * N + a]) { near = true; break } }
-      const bed = ground(x, z) - floor
-      const depth = surface - bed
-      if (near && depth > 0) {
+    const { beds, near } = bedding
+    for (let j = 0; j < M; j += 1) for (let i = 0; i < M; i += 1) {
+      const v = j * M + i, x = -R + i * step, z = -R + j * step
+      const depth = surface - beds[v]
+      // Near the pond the sheet stays flat at the level even a little under the bank, so the shore is
+      // exactly where level and ground cross. The edge fades in over the first few millimetres.
+      if (near[v] && depth > -0.35) {
         position.setXYZ(v, x, floor + surface, z)
-        const shade = Math.min(1, depth / 1.2)
-        const colour = new Color(look.tint).lerp(deep, shade)
-        colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.1 + shade * 0.45 + look.cloud * 0.6))
+        const shade = Math.min(1, Math.max(0, depth) / 1.2)
+        colour.copy(look.tint).lerp(deep, shade)
+        const shore = smooth(0, 0.14, depth)
+        colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.1 + shade * 0.45 + look.cloud * 0.6) * shore)
       } else {
-        position.setXYZ(v, x, floor + bed - 0.03, z)
+        position.setXYZ(v, x, floor + beds[v] - 0.03, z)
         colours.setXYZW(v, look.tint.r, look.tint.g, look.tint.b, 0)
       }
     }
     position.needsUpdate = true; colours.needsUpdate = true
     parts.geometry.computeVertexNormals(); parts.geometry.computeBoundingSphere()
+    // Still water is level right to the shore: no tilted normals where the sheet tucks under the bank.
+    const normals = parts.geometry.getAttribute('normal') as BufferAttribute
+    for (let v = 0; v < M * M; v += 1) if (bedding.near[v] && surface - bedding.beds[v] > -0.35) normals.setXYZ(v, 0, 1, 0)
+    normals.needsUpdate = true
   }
-  useMemo(() => write(memory.current.surface), [parts, look.tint.getHex(), look.cloud, ground, cells]) // eslint-disable-line react-hooks/exhaustive-deps
+  useMemo(() => write(memory.current.surface), [parts, bedding, look.tint.getHex(), look.cloud]) // eslint-disable-line react-hooks/exhaustive-deps
   parts.material.side = underwater ? DoubleSide : FrontSide
   useFrame((_, delta) => {
     const m = memory.current
