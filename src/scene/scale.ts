@@ -110,6 +110,14 @@ export const millimetresPerUnit = 19
 export const realAdultLengthMm: Record<CreatureKind, number> = {
   woodlouse: 12, springtail: 2.5, grazer: 25, beetle: 14, flea: 2, fish: 0.43 * 19,
 }
+/**
+ * Real hatchling length / adult length where it differs a lot from the
+ * Scale Bible's 55%: a cabbage white caterpillar's first instar ends at
+ * about 3.2 mm and its fifth averages 30 mm, over about 15 days (UF/IFAS
+ * EDIS IN283, https://ask.ifas.ufl.edu/publication/IN283). It hatches at
+ * about 2 mm here and grows to the 25 mm adult length above.
+ */
+export const realNewbornRatio: Partial<Record<CreatureKind, number>> = { grazer: 2 / 25 }
 /** Set once by the paper look; the classic low-poly look keeps the Scale Bible envelopes. */
 export const animalScaleMode = { real: false }
 
@@ -117,8 +125,12 @@ export function animalModelScale(creature: Creature) {
   const kind = creature.kind ?? 'grazer'
   const size = animalDimensions[kind]
   const length = animalScaleMode.real ? realAdultLengthMm[kind] / millimetresPerUnit : size.length
+  const grown = Math.min(1, (creature.age ?? maturity[kind]) / maturity[kind])
+  const hatchling = animalScaleMode.real ? realNewbornRatio[kind] : undefined
   const growth = kind === 'woodlouse' ? Math.cbrt(woodlouseLife(creature).mass / 0.22)
-    : size.newbornRatio + (1 - size.newbornRatio) * Math.min(1, (creature.age ?? maturity[kind]) / maturity[kind])
+    // Larvae gain mass about exponentially, so body length does too: 2 mm to 25 mm.
+    : hatchling ? hatchling * (1 / hatchling) ** grown
+    : size.newbornRatio + (1 - size.newbornRatio) * grown
   return length / size.sourceLength * growth * stableVariation(creature.id)
 }
 

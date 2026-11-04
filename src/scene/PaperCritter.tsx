@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { CanvasTexture, Color, DoubleSide, Group, MathUtils, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three'
+import { CanvasTexture, Color, DoubleSide, Group, MathUtils, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three'
 import { crawlLift, legSwing, oarStroke, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
 import type { PaperMotion, PaperRig } from './paperRig'
 import { animalScaleMode } from './scale'
@@ -124,6 +124,34 @@ const cameraRight = new Vector3()
 const forward = new Vector3()
 const shade = { far: '#8a8a80', near: '#ffffff' }
 
+/** A woodlouse/caterpillar frass pellet: a tiny dark oval of paper. */
+const frass = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 32; canvas.height = 32
+  const context = canvas.getContext('2d')!
+  context.fillStyle = '#4a3a2c'
+  context.beginPath(); context.ellipse(16, 18, 13, 9, 0, 0, Math.PI * 2); context.fill()
+  context.fillStyle = '#6b5644'
+  context.beginPath(); context.ellipse(12, 14, 5, 3, -0.3, 0, Math.PI * 2); context.fill()
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return new MeshStandardMaterial({ map: texture, alphaTest: 0.5, side: DoubleSide, roughness: 1 })
+})()
+
+/** The sleep "z": a hand-lettered paper sticker that floats up and fades. */
+const zMaterial = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 64; canvas.height = 64
+  const context = canvas.getContext('2d')!
+  context.font = 'bold 52px Georgia, serif'
+  context.textAlign = 'center'; context.textBaseline = 'middle'
+  context.lineWidth = 10; context.strokeStyle = '#fbf6ea'; context.strokeText('z', 32, 30)
+  context.fillStyle = '#5b4a3a'; context.fillText('z', 32, 30)
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return new MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.02, depthWrite: false, side: DoubleSide })
+})()
+
 function paperMaterial(texture: CanvasTexture, tint: string) {
   // A little self-light keeps printed colours readable in shade, like card under a lamp.
   return new MeshStandardMaterial({ map: texture, color: new Color(tint), emissiveMap: texture, emissive: new Color(tint), emissiveIntensity: 0.12, alphaTest: 0.5, side: DoubleSide, roughness: 0.95, metalness: 0 })
@@ -140,8 +168,14 @@ const crawlSegments = 32
  * the sheet cancels it to face the camera.
  * `base` is the local height of the feet, matching the 3D model it replaces.
  */
-export function PaperAnimal({ animal, base, heading, moving, speed, health, juvenile, feeding }: {
+export function PaperAnimal({ animal, base, heading, moving, speed, health, juvenile, feeding, resting = false, pooping = false, courting = false }: {
   animal: string; base: number; heading?: RefObject<number>; moving: RefObject<boolean>; speed: number; health: number; juvenile: boolean; feeding: boolean
+  /** Scheduled rest from the simulation (climate.ts scheduledRest): still, antennae down, slow breaths, a paper "z". */
+  resting?: boolean
+  /** Waste is actually returned to the soil now (digesting gut, or a bite's waste share): drops a frass pellet now and then. */
+  pooping?: boolean
+  /** Woodlouse courtship from the simulation: antennae drum and the body sways toward the partner. */
+  courting?: boolean
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   useEffect(() => {
@@ -153,6 +187,10 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
   const flip = useRef<Group>(null)
   const pivots = useRef<(Group | null)[]>([])
   const clock = useRef(0)
+  /** Behaviour clock: real time while the world runs, so eating and sleeping keep their own pace. */
+  const life = useRef(0)
+  const pellet = useRef<Mesh>(null)
+  const snooze = useRef<Mesh>(null)
   const facing = useRef(1)
   const tint = useMemo(() => {
     const colour = new Color('#ffffff').lerp(new Color('#c9c6b2'), 1 - health)
@@ -181,11 +219,24 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
   }, [loaded, base, tint])
 
   const rowing = pieces.some(({ piece }) => piece.motion === 'oar')
+  // Where the tail and head sit, and how tall the body is, for the pellet and the sleep "z".
+  const marks = useMemo(() => {
+    if (!loaded) return null
+    const { rig } = loaded
+    const [tail] = toLocal(rig, [rig.length.from, rig.ground], base)
+    const [head] = toLocal(rig, [rig.length.to, rig.ground], base)
+    const top = Math.max(base, ...pieces.filter(({ piece }) => piece.motion === 'body' || piece.motion === 'crawl').map(({ y, centreY, height }) => y + centreY + height / 2))
+    return { tail, head, top, length: rig.length.units }
+  }, [loaded, pieces, base])
   useFrame(({ camera }, delta) => {
     if (!sheet.current || !flip.current) return
-    const walking = !!moving.current
+    const walking = !!moving.current && !resting
     clock.current += Math.min(delta, 0.05) * (walking ? Math.max(speed, 1) : 0.25)
-    const time = clock.current
+    if (speed > 0) life.current += Math.min(delta, 0.05)
+    const time = clock.current, now = life.current
+    // Eating: the head dips in quick nibbles. Asleep: everything slows and settles.
+    const nibble = feeding && !resting ? Math.abs(Math.sin(now * 9)) : 0
+    const breath = resting ? Math.sin(now * 1.1) * 0.025 : Math.sin(now * 2.2) * 0.012
     // Face the camera around the vertical axis; the parent still turns with the animal, so undo that.
     const parent = sheet.current.parent!
     const yaw = heading?.current ?? parent.rotation.y
@@ -207,20 +258,48 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
         const position = geometry.attributes.position
         for (let vertex = 0; vertex < position.count; vertex += 1) {
           const u = vertex % (crawlSegments + 1) / crawlSegments
-          position.setY(vertex, (vertex <= crawlSegments ? 0.5 : -0.5) + crawlLift(u, time, walking))
+          // The segments bunch up where the hump passes and stretch behind it, and the head nibbles when eating.
+          const bunch = walking ? Math.sin(u * Math.PI * 2.2 - time * 5 - Math.PI / 2) * 0.01 : 0
+          const dip = u > 0.86 ? (u - 0.86) / 0.14 * nibble * 0.07 : 0
+          position.setXY(vertex, u - 0.5 + bunch, (vertex <= crawlSegments ? 0.5 : -0.5) + crawlLift(u, time, walking) - dip)
         }
         position.needsUpdate = true
+        pivot.scale.y = 1 + breath
         return
       }
       if (piece.motion === 'oar') { pivot.rotation.z = 0.3 - stroke * 0.75; return }
       if (piece.motion === 'leg') pivot.rotation.z = legSwing(time, piece.order, piece.side, walking)
-      else if (piece.motion === 'antenna') pivot.rotation.z = Math.sin(time * 3.1 + piece.order) * 0.12 + Math.sin(time * 7.7) * 0.05 + (feeding ? Math.sin(time * 15) * 0.1 - 0.15 : 0)
+      else if (piece.motion === 'antenna') pivot.rotation.z = resting ? -0.35 + Math.sin(now * 1.1 + piece.order) * 0.03
+        : courting ? Math.sin(now * 24 + piece.order * 2) * 0.18
+        : Math.sin(time * 3.1 + piece.order) * 0.12 + Math.sin(time * 7.7) * 0.05 + (feeding ? Math.sin(now * 15) * 0.1 - 0.15 : 0)
       else if (piece.motion === 'tail') pivot.rotation.z = Math.sin(time * 2.4) * 0.08
       else if (piece.motion === 'body') {
-        pivot.scale.y = 1 + Math.sin(time * 2.2) * 0.012
-        pivot.position.y = y + (rowing ? stroke * 0.012 : walking ? Math.abs(Math.sin(time * 19)) * 0.006 : 0)
+        pivot.scale.y = 1 + breath
+        pivot.rotation.z = -nibble * 0.035
+        pivot.position.x = courting ? Math.sin(now * 3) * 0.008 : MathUtils.lerp(pivot.position.x, 0, factor)
+        pivot.position.y = y + (rowing ? stroke * 0.012 : walking ? Math.abs(Math.sin(time * 19)) * 0.006 : resting ? -0.004 : 0)
       }
     })
+    if (marks && pellet.current) {
+      // One frass pellet every few seconds: it drops from the tail end, rests, then shrinks away.
+      const phase = now % 4.5, size = marks.length * 0.045
+      const shown = pooping && phase < 3
+      pellet.current.visible = shown
+      if (shown) {
+        const fall = Math.min(1, phase / 0.35)
+        pellet.current.position.set(marks.tail + size, MathUtils.lerp(base + (marks.top - base) * 0.35, base + size * 0.3, fall * fall), 0.006)
+        pellet.current.scale.setScalar(size * (phase > 2.4 ? (3 - phase) / 0.6 : 1))
+      }
+    }
+    if (marks && snooze.current) {
+      snooze.current.visible = resting
+      if (resting) {
+        const rise = (now * 0.35) % 1
+        snooze.current.position.set(marks.head - marks.length * 0.1 + rise * marks.length * 0.08, marks.top + marks.length * (0.08 + rise * 0.14), 0.01)
+        snooze.current.scale.setScalar(marks.length * (0.12 + rise * 0.08))
+        ;(snooze.current.material as MeshBasicMaterial).opacity = Math.sin(rise * Math.PI)
+      }
+    }
   })
 
   if (!loaded) return null
@@ -232,6 +311,8 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
             <mesh geometry={geometry} material={material} position={[centreX, centreY, 0]} scale={[width, height, 1]} castShadow />
           </group>
         ))}
+        <mesh ref={pellet} geometry={plane} material={frass} visible={false} />
+        <mesh ref={snooze} geometry={plane} material={zMaterial} visible={false} />
       </group>
     </group>
   )

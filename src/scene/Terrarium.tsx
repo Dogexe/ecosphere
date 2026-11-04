@@ -28,6 +28,7 @@ import type { SavedSubstrate } from '../sim/substrate'
 import { defaultPond, isAquatic } from '../sim/pond'
 import type { Pond } from '../sim/pond'
 import { plantFlowering, plantStage, woodlouseLife } from '../sim/life'
+import { scheduledRest } from '../sim/climate'
 import { animalGroundY, animalModelScale, animalWaterY, environmentScale, groundShape, plantGroundY, plantGrowthScale, plantModelScale, plantSeedDimensions, springtailTrackingRate } from './scale'
 import { plantCameraFocus } from './plantCamera'
 
@@ -377,7 +378,7 @@ function Springtail({ creature, world, events, selected, onSelect, speed }: Crea
   })
   return <group ref={group} position={start.current} rotation={rotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
     <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} markerRadius={0.018} />
-    {paperLook ? <PaperAnimal animal="springtail" base={-0.07} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={feeding} /> : <OrganismAsset file="springtail" shape={{ length: 0.39, base: -0.07 }} moving={motion} feeding={feeding} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={null} unavailable={(retry) => modelUnavailable('Springtail', retry)} />}
+    {paperLook ? <PaperAnimal animal="springtail" base={-0.07} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={scheduledRest(world, creature)} pooping={feeding} /> : <OrganismAsset file="springtail" shape={{ length: 0.39, base: -0.07 }} moving={motion} feeding={feeding} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={null} unavailable={(retry) => modelUnavailable('Springtail', retry)} />}
   </group>
 }
 const grazerBody = new SphereGeometry(1, 10, 7)
@@ -447,7 +448,7 @@ function Grazer({ creature, world, events, selected, onSelect, speed }: Creature
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      {paperLook ? <PaperAnimal animal="caterpillar" base={-0.145} moving={motion} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} /> : <OrganismAsset file="leaf-grazer" shape={{ length: 0.87, base: -0.145 }} moving={motion} feeding={feeding} speed={speed} health={strength} fallback={<>
+      {paperLook ? <PaperAnimal animal="caterpillar" base={-0.145} moving={motion} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={scheduledRest(world, creature)} pooping={feeding} /> : <OrganismAsset file="leaf-grazer" shape={{ length: 0.87, base: -0.145 }} moving={motion} feeding={feeding} speed={speed} health={strength} fallback={<>
       <instancedMesh ref={body} args={[undefined, undefined, 6]} castShadow><primitive object={grazerBody} attach="geometry" /><meshStandardMaterial color="#ffffff" roughness={0.93} flatShading /></instancedMesh>
       <instancedMesh ref={legs} args={[undefined, undefined, 16]} castShadow><primitive object={grazerLeg} attach="geometry" /><meshStandardMaterial color="#9f8063" roughness={1} flatShading /></instancedMesh>
       <mesh position={[0, 0.015, 0.31]} scale={[0.145, 0.135, 0.13]} castShadow>
@@ -537,7 +538,7 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={startScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      {paperLook ? <PaperAnimal animal="woodlouse" base={-0.09} heading={yaw} moving={isMoving} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} /> : <OrganismAsset file="woodlouse" shape={{ length: 0.64, base: -0.09 }} moving={isMoving} feeding={feeding} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} fallback={<group>
+      {paperLook ? <PaperAnimal animal="woodlouse" base={-0.09} heading={yaw} moving={isMoving} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={life.activity === 'resting'} pooping={life.gut > 0.01} courting={life.activity === 'courting'} /> : <OrganismAsset file="woodlouse" shape={{ length: 0.64, base: -0.09 }} moving={isMoving} feeding={feeding} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} fallback={<group>
       <instancedMesh ref={legs} args={[undefined, undefined, 28]}><primitive object={woodlouseLeg} attach="geometry" /><meshStandardMaterial color="#7c8071" roughness={1} /></instancedMesh>
       {Array.from({ length: 7 }, (_, index) => (
         <mesh key={index} position={[0, 0.035, index * 0.066 - 0.2]} scale={[0.16 + Math.sin(index / 6 * Math.PI) * 0.045, 0.09, 0.063]} castShadow>
@@ -559,7 +560,7 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
   )
 }
 
-function Beetle({ creature, events, selected, onSelect, speed }: CreatureProps) {
+function Beetle({ creature, world, events, selected, onSelect, speed }: CreatureProps) {
   const animationClock = useAnimalClock(speed)
   const group = useRef<Group>(null)
   const size = animalModelScale(creature)
@@ -592,7 +593,7 @@ function Beetle({ creature, events, selected, onSelect, speed }: CreatureProps) 
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      {paperLook ? <PaperAnimal animal="tiger-beetle" base={-0.145} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={!!meal} /> : <OrganismAsset file="tiger-beetle" shape={{ length: 0.75, base: -0.145 }} moving={motion} feeding={!!meal} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={<>
+      {paperLook ? <PaperAnimal animal="tiger-beetle" base={-0.145} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={!!meal} resting={scheduledRest(world, creature)} /> : <OrganismAsset file="tiger-beetle" shape={{ length: 0.75, base: -0.145 }} moving={motion} feeding={!!meal} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={<>
       {[-1, 1].map((side, sideIndex) => <group key={side}>
         {[0, 1, 2].map((index) => <group key={index} ref={(leg) => { legs.current[sideIndex * 3 + index] = leg }} position={[side * 0.14, -0.035, index * 0.17 - 0.2]}>
           <mesh position={[side * 0.075, -0.015, 0]} rotation={[0, 0, side * 1.2]}><cylinderGeometry args={[0.018, 0.02, 0.19, 5]} /><meshStandardMaterial color="#9b876d" roughness={0.95} /></mesh>

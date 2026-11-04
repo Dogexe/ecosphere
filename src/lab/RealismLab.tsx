@@ -389,10 +389,12 @@ function MagnifierRig({ subject }: { subject: Vector3 }) {
 /**
  * ?animal=all: every paper animal side by side at real adult size on a plain
  * card with a millimetre ruler (one world unit = 19 mm), for checking scale.
+ * &pose=walk|eat|poop|sleep|court previews each behaviour animation.
  */
+const pose = query.get('pose')
 function Lineup() {
   const heading = useRef(Math.PI / 2)
-  const moving = useRef(false)
+  const moving = useRef(pose === 'walk')
   const unit = 1 / millimetresPerUnit
   let cursor = 0
   const spots = lineup.map((animal) => {
@@ -416,7 +418,7 @@ function Lineup() {
     <mesh position={[cursor / 2, -0.03, 0.3]}><boxGeometry args={[cursor + 0.008, 0.008, 0.001]} /><meshBasicMaterial color="#5b4a3a" /></mesh>
     <Suspense fallback={null}>
       {spots.map(({ animal, x, y }) => <group key={animal} position={[x, y, 0]} rotation={[0, heading.current, 0]} scale={paperRealScale(animal)}>
-        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
+        <PaperAnimal animal={animal} base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={pose === 'eat' || pose === 'poop'} resting={pose === 'sleep'} pooping={pose === 'poop'} courting={pose === 'court'} />
       </group>)}
     </Suspense>
     <OrbitControls makeDefault target={[middle, 0.15, 0]} />
