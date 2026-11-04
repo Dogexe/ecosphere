@@ -706,3 +706,13 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .builder-turn { position: absolute; right: 16px; bottom: 16px; display: flex; gap: 8px; }
 .builder-turn button { width: 48px; height: 48px; border: 1px solid var(--rule); border-radius: 50%; background: var(--paper); color: var(--ink); font-size: 22px; line-height: 1; box-shadow: 0 6px 16px rgba(75, 58, 42, .16); cursor: pointer; }
 @media (max-width: 560px) { .builder-turn { top: 16px; bottom: auto; right: 12px; } }
+
+/* Time away: catch-up veil and the "while you were away" notebook page. */
+.away-dialog { width: min(560px, calc(100% - 32px)); }
+.away-notes { margin: 0 0 6px; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.away-notes li { margin-bottom: 4px; }
+.away-catchup { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: rgba(37, 72, 56, .32); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.away-catchup > div { width: min(420px, 100%); padding: 20px 22px 8px; border-radius: 18px; background: #f1f5e9; color: #34543d; box-shadow: 0 20px 60px #1d392d40; }
+.away-catchup strong { display: block; margin: 8px 0 12px; font-size: 16px; line-height: 1.35; }
+.cozy .away-catchup { background: rgba(80, 58, 32, .3); }
+.cozy .away-catchup > div { border: 1px solid #eadcc2; border-radius: 14px; background: var(--grain), var(--paper); color: var(--ink); font-family: var(--serif); }
