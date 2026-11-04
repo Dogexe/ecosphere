@@ -1,51 +1,73 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
-import { BufferAttribute, Color, DoubleSide, LatheGeometry, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector2 } from 'three'
-import type { Texture } from 'three'
+import { BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Matrix4, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
+import type { Material, Texture } from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { PlantKind } from '../sim/ecosystem'
 import { plantDimensions } from './scale'
 
 /*
- * Drawn plants (owner, 2026-11-04): Drawquarium's hand-drawn plants, built
- * the EthrA way so they hold up while the camera orbits. No plant is a
- * single card turned to the camera; each GPT painting becomes paper pieces
- * placed in 3D by the plant's real shape:
+ * Drawn plants (owner, 2026-11-04). The look follows Drawquarium: hand-drawn
+ * plants against real soil and water. The build follows EthrA: painted art on
+ * simple 3D, so plants hold up as the camera orbits. No plant is one card
+ * turned to the camera. Each GPT painting is a paper piece, placed the way the
+ * real plant holds it:
  *
- * - grass: crossed cards, three copies of the tuft painting a third of a
- *   turn apart, as tufts of thin blades look the same from every side.
- * - moss: the painted cushion wrapped on a dome (its outline revolved), so
- *   it has volume from above.
- * - fallen leaves (litter): flat pieces lying on the soil, gently cupped.
+ * - Leaves on 3D stems.
+ *   - clover (Oxalis): leaves held flat on curved stalks.
+ *   - violet: heart leaves tilted out, flowers nodding on arched stems.
+ *   - Calathea: leaves on their own petioles, tilted out.
+ *   - fern: fronds arching out from the crown.
+ * - Crossed cards: grass and reed tufts, whose thin blades look alike from every side.
+ * - Flat on water or soil: lily pads, fallen oak leaves.
+ * - Mushrooms: a side painting on crossed cards, with the cap painting laid
+ *   over it as seen from above.
  *
- * Art: owner's picks from paper-gen/plants/ on design-candidates (grass 1,
- * moss 3, fallen-leaf 2), cut out by scripts/paper-plants/.
- * Cards sway a little at the top; health fades them toward a dry tone.
+ * Moss stays the sprig carpet (owner, 2026-11-04).
+ *
+ * Art: the owner's picks (paper-gen/plants/) painted again as separate parts
+ * (paper-gen/plant-parts/ on design-candidates), then cut out by
+ * scripts/paper-plants/. Every piece of one plant that shares a painting is
+ * merged into one mesh, so a plant costs only a few draws. Tips sway a
+ * little, and health fades the plant toward a dry tone.
  */
 
 const folder = `${import.meta.env.BASE_URL}assets/paper/plants/`
 /** `?drawn=0` keeps the earlier plants, for comparing. */
 export const drawnLook = (() => { try { return new URLSearchParams(window.location.search).get('drawn') !== '0' } catch { return true } })()
-export const drawnKinds: PlantKind[] = ['grass', 'moss']
+export const drawnKinds: PlantKind[] = ['grass', 'clover', 'bloom', 'tree', 'fern', 'lily', 'reed']
 export const hasDrawnPlant = (kind: PlantKind) => drawnKinds.includes(kind)
+
+const files: Partial<Record<PlantKind, string[]>> = {
+  clover: ['leaf-1', 'leaf-2', 'leaf-3', 'flower'],
+  bloom: ['leaf-1', 'leaf-2', 'leaf-3', 'flower-1', 'flower-2', 'flower-side'],
+  tree: ['leaf-1', 'leaf-2', 'leaf-3', 'leaf-4', 'base'],
+  fern: ['frond-1', 'frond-2', 'frond-3'],
+  grass: ['tuft-1', 'tuft-2'],
+  reed: ['tuft-1', 'tuft-2', 'stalk-1', 'stalk-2', 'stalk-3'],
+  lily: ['pad-1', 'pad-2', 'pad-3', 'flower-top', 'flower-side'],
+}
+const url = (kind: string, name: string) => `${folder}${kind}/${name}.webp`
 
 const sway = { value: 0 }
 const dry = new Color('#b39a6c')
-
-function prepare(texture: Texture) {
-  texture.colorSpace = SRGBColorSpace
-  texture.anisotropy = 4
-  return texture
-}
+const stemGreen = new Color('#7f9a52')
+const materials = new Map<string, Material>()
+const healthStep = (health: number) => Math.round(Math.max(0, Math.min(1, health)) * 4) / 4
 
 /**
- * A paper material: the painting's own alpha cuts it out, both faces lit as
- * the front (a card has no dark back), and `bend` sways the top of the card.
+ * A paper material: the painting's own alpha cuts it out, and both faces are
+ * lit as the front, since a paper piece has no dark back. With `bend`, the
+ * top of the piece sways a little.
  */
-function paperMaterial(map: Texture, health: number, bend: boolean) {
-  const material = new MeshStandardMaterial({ map, alphaTest: 0.5, side: DoubleSide, roughness: 0.9, metalness: 0 })
-  material.color = new Color('#ffffff').lerp(dry, (1 - Math.max(0, Math.min(1, health))) * 0.7)
-  material.onBeforeCompile = (shader) => {
+function paperMaterial(map: Texture | null, health: number, bend: boolean) {
+  const key = `${map?.uuid ?? 'stem'}|${healthStep(health)}|${bend}`
+  let material = materials.get(key)
+  if (material) return material
+  const standard = new MeshStandardMaterial({ map, alphaTest: map ? 0.5 : 0, side: DoubleSide, roughness: 0.9, metalness: 0, color: map ? '#ffffff' : stemGreen })
+  standard.color.lerp(dry, (1 - healthStep(health)) * 0.7)
+  standard.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;')
     if (!bend) return
     shader.uniforms.swayTime = sway
@@ -56,74 +78,184 @@ function paperMaterial(map: Texture, health: number, bend: boolean) {
         vec4 rootWorld = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
         float phase = rootWorld.x * 1.7 + rootWorld.z * 2.3;
         float lift = uv.y * uv.y;
-        transformed.x += sin(swayTime * 1.1 + phase) * 0.035 * lift;
-        transformed.z += sin(swayTime * 0.8 + phase * 1.3) * 0.025 * lift;`)
+        transformed.x += sin(swayTime * 1.1 + phase) * 0.03 * lift;
+        transformed.z += sin(swayTime * 0.8 + phase * 1.3) * 0.02 * lift;`)
   }
-  material.customProgramCacheKey = () => bend ? 'paper-sway' : 'paper'
-  return material
+  standard.customProgramCacheKey = () => bend ? 'paper-sway' : 'paper'
+  materials.set(key, standard)
+  return standard
 }
 
-/** Card geometry with normals tipped up, so a card is lit like the leaves around it rather than by its facing. */
-function card(width: number, height: number) {
-  const geometry = new PlaneGeometry(width, height).translate(0, height / 2, 0)
-  const normal = geometry.getAttribute('normal') as BufferAttribute
-  for (let v = 0; v < normal.count; v += 1) normal.setXYZ(v, 0, 0.8, 0.6)
+function prepare(texture: Texture) {
+  if (texture.colorSpace !== SRGBColorSpace) { texture.colorSpace = SRGBColorSpace; texture.anisotropy = 4; texture.needsUpdate = true }
+  return texture
+}
+
+type Piece = { geometry: BufferGeometry; texture: Texture | null; bend: boolean }
+const aspect = (texture: Texture) => { const image = texture.image as { width: number; height: number }; return image.width / image.height }
+
+/** Lights a piece mostly from above, like the leaves around it, rather than by which way it faces. */
+function soften(geometry: BufferGeometry, up = 0.6) {
+  geometry.computeVertexNormals()
+  const normal = geometry.getAttribute('normal') as BufferAttribute, n = new Vector3()
+  for (let v = 0; v < normal.count; v += 1) { n.fromBufferAttribute(normal, v).multiplyScalar(1 - up); n.y += up; n.normalize(); normal.setXYZ(v, n.x, n.y, n.z) }
   return geometry
 }
 
-function Tuft({ kind, health, seed }: { kind: PlantKind; health: number; seed: number }) {
-  const texture = prepare(useTexture(`${folder}grass-tuft.png`))
-  const { height } = plantDimensions[kind]
-  const parts = useMemo(() => {
-    const image = texture.image as { width: number; height: number }
-    const geometry = card(height * image.width / image.height, height)
-    return { geometry, material: paperMaterial(texture, health, true) }
-  }, [texture, health, height])
-  return <group rotation={[0, (seed * 2.39) % Math.PI, 0]}>
-    {[0, 1, 2].map((index) => <mesh key={index} geometry={parts.geometry} material={parts.material} rotation={[0, index * Math.PI / 3, 0]} raycast={() => undefined} />)}
-  </group>
+/** An upright card, base at the origin, facing +z, optionally cupped across and curved back along its height. */
+function upright(texture: Texture, height: number, { cup = 0, curl = 0, rows = 4 } = {}) {
+  const width = height * aspect(texture)
+  const geometry = new PlaneGeometry(width, height, 4, rows).translate(0, height / 2, 0)
+  const position = geometry.getAttribute('position')
+  for (let v = 0; v < position.count; v += 1) {
+    const x = position.getX(v) / width, t = position.getY(v) / height
+    position.setZ(v, -cup * x * x * width - curl * t * t * height)
+  }
+  return soften(geometry)
 }
 
-/** The cushion's outline, read from the painting's alpha, as height (0-1) at a distance (0-1) from its middle. */
-function outline(image: CanvasImageSource & { width: number; height: number }) {
-  const canvas = document.createElement('canvas')
-  canvas.width = image.width; canvas.height = image.height
-  const context = canvas.getContext('2d', { willReadFrequently: true })!
-  context.drawImage(image, 0, 0)
-  const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height)
-  const top = (x: number) => { for (let y = 0; y < height; y += 1) if (data[(y * width + Math.round(x)) * 4 + 3] > 128) return 1 - y / height; return 0 }
-  return (r: number) => (top((0.5 - r * 0.5) * (width - 1)) + top((0.5 + r * 0.5) * (width - 1))) / 2
+/** A card lying flat, centred on the origin, its painting's top pointing along -z. */
+function flat(texture: Texture, width: number, cup = 0) {
+  const depth = width / aspect(texture)
+  const geometry = new PlaneGeometry(width, depth, 4, 4).rotateX(-Math.PI / 2)
+  const position = geometry.getAttribute('position')
+  for (let v = 0; v < position.count; v += 1) { const x = position.getX(v) / width, z = position.getZ(v) / depth; position.setY(v, cup * (x * x + z * z) * width) }
+  return soften(geometry, 0.3)
 }
 
-function Cushion({ kind, health, seed }: { kind: PlantKind; health: number; seed: number }) {
-  const texture = prepare(useTexture(`${folder}moss-cushion.png`))
+/** A frond laid along an arc: it leaves the crown steeply and bends out until its tip droops. */
+function frond(texture: Texture, length: number, rise: number, droop: number) {
+  const width = length * aspect(texture), rows = 12
+  const geometry = new PlaneGeometry(width, length, 2, rows).translate(0, length / 2, 0)
+  const position = geometry.getAttribute('position')
+  const centre: { r: number; y: number }[] = [{ r: 0, y: 0 }]
+  for (let row = 1; row <= rows; row += 1) {
+    const angle = rise + (droop - rise) * (row - 0.5) / rows, step = length / rows, last = centre[row - 1]
+    centre.push({ r: last.r + Math.cos(angle) * step, y: last.y + Math.sin(angle) * step })
+  }
+  for (let v = 0; v < position.count; v += 1) {
+    const at = Math.round(position.getY(v) / length * rows), point = centre[Math.max(0, Math.min(rows, at))]
+    position.setXYZ(v, position.getX(v), point.y, point.r)
+  }
+  return soften(geometry, 0.5)
+}
+
+const stemCache = new Map<string, BufferGeometry>()
+/** A thin 3D stem through the given points. */
+function stem(points: Vector3[], radius: number) {
+  const key = `${points.map((point) => point.toArray().map((value) => value.toFixed(3)).join(',')).join(';')}|${radius}`
+  let geometry = stemCache.get(key)
+  if (!geometry) { geometry = new TubeGeometry(new CatmullRomCurve3(points), 8, radius, 5, false); stemCache.set(key, geometry) }
+  return geometry.clone()
+}
+
+const place = (geometry: BufferGeometry, { x = 0, y = 0, z = 0, yaw = 0, tilt = 0, roll = 0, scale = 1 }) =>
+  geometry.applyMatrix4(new Matrix4().makeTranslation(x, y, z).multiply(new Matrix4().makeRotationY(yaw)).multiply(new Matrix4().makeRotationX(tilt)).multiply(new Matrix4().makeRotationZ(roll)).multiply(new Matrix4().makeScale(scale, scale, scale)))
+
+/** A small seeded random stream, so one plant always grows the same shape. */
+function random(seed: number) {
+  let state = (Math.abs(Math.floor(seed)) * 9301 + 49297) % 233280 || 1
+  return () => { state = (state * 9301 + 49297) % 233280; return state / 233280 }
+}
+const golden = 2.39996
+
+function build(kind: PlantKind, textures: Record<string, Texture>, seed: number, flowering: boolean): Piece[] {
   const { spread, height } = plantDimensions[kind]
-  const parts = useMemo(() => {
-    const profile = outline(texture.image as HTMLImageElement)
-    const points: Vector2[] = []
-    const steps = 16
-    for (let index = 0; index <= steps; index += 1) {
-      const r = 1 - index / steps
-      points.push(new Vector2(r * spread / 2, Math.max(0.002, profile(Math.min(0.98, r)) * height * (r > 0.97 ? 0 : 1))))
+  const rand = random(seed + 1)
+  const pieces: Piece[] = []
+  const add = (geometry: BufferGeometry, texture: Texture | null, bend = false) => pieces.push({ geometry, texture, bend })
+  const turn = rand() * Math.PI * 2
+
+  if (kind === 'grass' || kind === 'reed') {
+    // Three crossed copies of the tuft; reeds add a few single stalks around it.
+    const tuft = textures[rand() < 0.5 ? 'tuft-1' : 'tuft-2']
+    for (let index = 0; index < 3; index += 1) add(place(upright(tuft, height, { cup: 0.15 }), { yaw: turn + index * Math.PI / 3 }), tuft, true)
+    if (kind === 'reed') for (let index = 0; index < 3; index += 1) {
+      const texture = textures[`stalk-${index + 1}`], angle = turn + index * golden, reach = spread * 0.3
+      for (const cross of [0, Math.PI / 2]) add(place(upright(texture, height * (1 + rand() * 0.15)), { x: Math.cos(angle) * reach, z: Math.sin(angle) * reach, yaw: angle + cross }), texture, true)
     }
-    const geometry = new LatheGeometry(points, 24)
-    geometry.computeVertexNormals()
-    // The flanks take the painting projected from the side, so the dome matches it in profile. The top,
-    // where a side projection would smear, reads the middle of the cushion as if seen from above.
-    const position = geometry.getAttribute('position'), uv = geometry.getAttribute('uv'), normal = geometry.getAttribute('normal')
-    for (let v = 0; v < position.count; v += 1) {
-      const x = position.getX(v), y = position.getY(v), z = position.getZ(v)
-      const side = 0.04 + Math.min(1, y / Math.max(0.001, height)) * 0.9
-      const above = 0.2 + (z / spread + 0.5) * 0.6
-      const t = Math.min(1, Math.max(0, (Math.abs(normal.getY(v)) - 0.45) / 0.4))
-      const blend = t * t * (3 - 2 * t)
-      uv.setXY(v, 0.5 + x / spread * (0.94 + (0.4 - 0.94) * blend), side + (above - side) * blend)
+  }
+
+  if (kind === 'clover') {
+    // Oxalis: trifoliate leaves held flat on 1-7 cm stalks, leaflets 4-13 mm (VicFlora).
+    const count = 7
+    for (let index = 0; index < count; index += 1) {
+      const angle = turn + index * golden, reach = spread * (0.12 + rand() * 0.26), top = height * (0.45 + rand() * 0.45)
+      const tip = new Vector3(Math.cos(angle) * reach, top, Math.sin(angle) * reach)
+      add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.25, top * 0.55, tip.z * 0.25), tip], 0.012), null)
+      const leaf = textures[`leaf-${1 + index % 3}`]
+      add(place(flat(leaf, spread * (0.26 + rand() * 0.08), 0.12), { x: tip.x, y: tip.y, z: tip.z, yaw: -angle + Math.PI / 2 + rand() - 0.5, tilt: (rand() - 0.5) * 0.4, roll: 0.25 }), leaf)
     }
-    const material = paperMaterial(texture, health, false)
-    material.alphaTest = 0
-    return { geometry, material }
-  }, [texture, health, spread, height])
-  return <mesh geometry={parts.geometry} material={parts.material} rotation={[0, seed * 1.3, 0]} castShadow receiveShadow raycast={() => undefined} />
+    if (flowering) for (let index = 0; index < 2; index += 1) {
+      const angle = turn + 1 + index * 2.8, reach = spread * 0.15, top = height * 0.98
+      const tip = new Vector3(Math.cos(angle) * reach, top, Math.sin(angle) * reach)
+      add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.4, top * 0.6, tip.z * 0.4), tip], 0.009), null)
+      add(place(flat(textures.flower, spread * 0.14), { x: tip.x, y: tip.y + 0.01, z: tip.z, yaw: angle, tilt: 0.3 }), textures.flower)
+    }
+  }
+
+  if (kind === 'bloom') {
+    // Violet: heart leaves tilted out from the crown, flowers nodding on arched stems.
+    for (let index = 0; index < 5; index += 1) {
+      const angle = turn + index * golden, leaf = textures[`leaf-${1 + index % 3}`]
+      add(place(upright(leaf, height * (0.5 + rand() * 0.15), { cup: 0.2, curl: 0.1 }), { yaw: Math.PI / 2 - angle, tilt: 0.55 + rand() * 0.35 }), leaf)
+    }
+    if (flowering) for (let index = 0; index < 2; index += 1) {
+      const angle = turn + 0.8 + index * 3.1, reach = spread * 0.22, top = height * (0.85 + index * 0.12)
+      const tip = new Vector3(Math.cos(angle) * reach, top, Math.sin(angle) * reach)
+      add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.2, top * 0.8, tip.z * 0.2), new Vector3(tip.x * 0.7, top * 1.02, tip.z * 0.7), tip], 0.01), null)
+      const face = textures[`flower-${index + 1}`], size = height * 0.3
+      // The flower faces out and a little down; a side painting crosses it so it keeps its shape edge-on.
+      add(place(upright(face, size), { x: tip.x, y: tip.y - size * 0.5, z: tip.z, yaw: Math.PI / 2 - angle, tilt: 0.25 }), face)
+      add(place(upright(textures['flower-side'], size), { x: tip.x, y: tip.y - size * 0.5, z: tip.z, yaw: -angle }), textures['flower-side'])
+    }
+  }
+
+  if (kind === 'tree') {
+    // Calathea: each leaf on its own petiole from the base, leaning out, the youngest most upright.
+    for (let index = 0; index < 6; index += 1) {
+      const angle = turn + index * golden, leaf = textures[`leaf-${1 + index % 4}`]
+      add(place(upright(leaf, height * (0.62 + rand() * 0.34), { cup: 0.25, curl: 0.06 }), { yaw: Math.PI / 2 - angle, tilt: 0.12 + index / 6 * 0.45 }), leaf, true)
+    }
+    const base = textures.base
+    for (const cross of [0, Math.PI / 2]) add(place(upright(base, height * 0.12), { yaw: turn + cross }), base)
+  }
+
+  if (kind === 'fern') {
+    // Fronds unroll from the crown and arch out, the older ones lower.
+    for (let index = 0; index < 7; index += 1) {
+      const angle = turn + index * golden, texture = textures[`frond-${1 + index % 3}`]
+      const length = spread * (0.42 + rand() * 0.16)
+      add(place(frond(texture, length, 1.25 - index * 0.06, -0.2 - rand() * 0.3), { yaw: Math.PI / 2 - angle }), texture, true)
+    }
+  }
+
+  if (kind === 'lily') {
+    // Pads float flat; a flower when the plant is flowering.
+    for (let index = 0; index < 3; index += 1) {
+      const angle = turn + index * golden, reach = index === 0 ? 0 : spread * 0.28, pad = textures[`pad-${index + 1}`]
+      add(place(flat(pad, spread * (0.55 - index * 0.1)), { x: Math.cos(angle) * reach, y: 0.004 + index * 0.002, z: Math.sin(angle) * reach, yaw: rand() * Math.PI * 2 }), pad)
+    }
+    if (flowering) {
+      const size = spread * 0.3
+      add(place(flat(textures['flower-top'], size), { y: size * 0.35, yaw: turn }), textures['flower-top'])
+      for (const cross of [0, Math.PI / 2]) add(place(upright(textures['flower-side'], size * 0.5), { yaw: turn + cross }), textures['flower-side'])
+    }
+  }
+  return pieces
+}
+
+/** Merges the pieces that share a painting, so the plant draws in a few calls. */
+function merge(pieces: Piece[], health: number) {
+  const groups = new Map<string, { texture: Texture | null; bend: boolean; geometries: BufferGeometry[] }>()
+  for (const piece of pieces) {
+    const key = `${piece.texture?.uuid ?? 'stem'}|${piece.bend}`
+    const group = groups.get(key) ?? { texture: piece.texture, bend: piece.bend, geometries: [] }
+    // Stems carry no uv-based sway; drop attributes the cards do not share before merging.
+    group.geometries.push(piece.geometry.index ? piece.geometry.toNonIndexed() : piece.geometry)
+    groups.set(key, group)
+  }
+  return [...groups.values()].map((group) => ({ geometry: mergeGeometries(group.geometries)!, material: paperMaterial(group.texture, health, group.bend) }))
 }
 
 /** Keeps the shared sway clock running. */
@@ -132,28 +264,45 @@ function Clock() {
   return null
 }
 
-export function DrawnPlant({ kind, health, seed }: { kind: PlantKind; health: number; seed: number }) {
+export function DrawnPlant({ kind, health, seed, flowering = false }: { kind: PlantKind; health: number; seed: number; flowering?: boolean }) {
+  const names = files[kind] ?? []
+  const loaded = useTexture(names.map((name) => url(kind, name))) as Texture[]
+  const meshes = useMemo(() => {
+    const textures = Object.fromEntries(names.map((name, index) => [name, prepare(loaded[index])]))
+    return merge(build(kind, textures, seed, flowering), health)
+  }, [kind, loaded, seed, flowering, healthStep(health)]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
   return <>
     <Clock />
-    {kind === 'moss' ? <Cushion kind={kind} health={health} seed={seed} /> : <Tuft kind={kind} health={health} seed={seed} />}
+    {meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} raycast={() => undefined} />)}
   </>
 }
 
-const leafFiles = [1, 2, 3].map((index) => `${folder}oak-leaf-${index}.png`)
+const leafFiles = [1, 2, 3, 4, 5].map((index) => url('fallen-leaf', `oak-${index}`))
 /** Fallen oak leaves for litter: flat paper pieces, a little cupped, lying on the soil. */
 export function useFallenLeaves() {
   const textures = useTexture(leafFiles) as Texture[]
   return useMemo(() => textures.map((texture) => {
     prepare(texture)
-    const image = texture.image as { width: number; height: number }
-    const geometry = new PlaneGeometry(1, image.height / image.width, 6, 4).rotateX(-Math.PI / 2)
-    const position = geometry.getAttribute('position')
-    // Cupped across and curled at the tips, like a dry leaf.
-    for (let v = 0; v < position.count; v += 1) { const x = position.getX(v), z = position.getZ(v); position.setY(v, z * z * 0.35 + x * x * 0.1) }
-    geometry.computeVertexNormals()
-    const material = paperMaterial(texture, 1, false)
-    // Dry leaves sit in the soil's shade: a little duller than the living plants.
-    material.color.set('#d2c2ae')
-    return { geometry, material }
+    const geometry = flat(texture, 1, 0.12)
+    // Dry leaves sit in the soil's shade: drawn a step duller than the living plants.
+    return { geometry, material: paperMaterial(texture, 0.75, false) }
   }), [textures])
+}
+
+const mushroomFiles = ['side-1', 'side-2', 'side-3', 'cap-1', 'cap-2'].map((name) => url('mushroom', name))
+/** A drawn mushroom: the side painting on two crossed cards, the cap painting laid in it as seen from above. */
+export function DrawnMushroom({ height, lean = 0, variant = 0 }: { height: number; lean?: number; variant?: number }) {
+  const textures = useTexture(mushroomFiles) as Texture[]
+  const meshes = useMemo(() => {
+    textures.forEach(prepare)
+    const side = textures[variant % 3], cap = textures[3 + variant % 2]
+    const width = height * aspect(side)
+    const pieces: Piece[] = [0, Math.PI / 2].map((cross) => ({ geometry: place(upright(side, height), { yaw: cross }), texture: side, bend: false }))
+    pieces.push({ geometry: place(flat(cap, width * 0.84, 0.08), { y: height * 0.8 }), texture: cap, bend: false })
+    return merge(pieces, 1)
+  }, [textures, height, variant])
+  return <group rotation={[lean * 0.6, variant * 1.7, lean]}>
+    {meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} raycast={() => undefined} />)}
+  </group>
 }

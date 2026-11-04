@@ -1,6 +1,6 @@
 import { fogLevel } from '../sim/seal'
 import { fallenLeaf, Mushroom } from './paperNature'
-import { drawnLook, useFallenLeaves } from './DrawnPlant'
+import { DrawnMushroom, drawnLook, useFallenLeaves } from './DrawnPlant'
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
@@ -237,7 +237,9 @@ function FungalPatch({ patch }: { patch: SoilPatch }) {
       const x = Math.cos(angle) * radius, z = Math.sin(angle) * radius
       const grown = Math.min(1, 0.55 + patch.fungi * 0.08)
       return <group key={index} position={[x, groundShape.offset(patch.x + x, patch.z + z), z]}>
-        <Mushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} cap={(0.2 + (index * 23 % 4) * 0.05) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} />
+        {drawnLook
+          ? <Suspense fallback={null}><DrawnMushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} /></Suspense>
+          : <Mushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} cap={(0.2 + (index * 23 % 4) * 0.05) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} />}
       </group>
     })}
   </group>

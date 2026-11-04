@@ -1,4 +1,4 @@
-import { DrawnPlant, useFallenLeaves } from '../scene/DrawnPlant'
+import { DrawnMushroom, DrawnPlant, useFallenLeaves } from '../scene/DrawnPlant'
 import { Watercolor } from '../scene/watercolor'
 import type { PlantKind, SoilPatch } from '../sim/ecosystem'
 import { Suspense, useMemo, useRef } from 'react'
@@ -481,13 +481,14 @@ function Ring() {
 function Garden() {
   const cam = (query.get('cam') ?? '20,28').split(',').map(Number)
   const [azimuth, elevation] = [MathUtils.degToRad(cam[0]), MathUtils.degToRad(cam[1])]
-  const distance = 4.2
+  const distance = Number(query.get('dist') ?? 7.5)
   const heading = useRef(0.4), moving = useRef(false)
   const plants: { kind: PlantKind; x: number; z: number }[] = [
-    { kind: 'grass', x: -0.9, z: -0.3 }, { kind: 'grass', x: -0.6, z: 0.4 }, { kind: 'grass', x: -1.2, z: 0.3 },
-    { kind: 'moss', x: 0.6, z: -0.5 }, { kind: 'moss', x: 1.1, z: 0.2 }, { kind: 'moss', x: 0.3, z: 0.5 },
+    { kind: 'tree', x: -1.4, z: -1.0 }, { kind: 'fern', x: 1.2, z: -1.1 }, { kind: 'clover', x: -0.1, z: -1.3 },
+    { kind: 'bloom', x: -1.5, z: 0.6 }, { kind: 'bloom', x: -1.0, z: 1.1 }, { kind: 'grass', x: 0.9, z: 0.3 }, { kind: 'grass', x: 1.3, z: 0.7 },
+    { kind: 'reed', x: 1.7, z: -0.1 }, { kind: 'lily', x: 0.5, z: 1.4 }, { kind: 'clover', x: -0.6, z: 0.2 },
   ]
-  const leaves = useMemo(() => ({ id: 1, x: 0, z: 1.1, organic: 12 } as unknown as SoilPatch), [])
+  const leaves = useMemo(() => ({ id: 1, x: -0.2, z: 1.3, organic: 12 } as unknown as SoilPatch), [])
   return <Canvas shadows dpr={[1, 2]} camera={{ position: [Math.sin(azimuth) * Math.cos(elevation) * distance, Math.sin(elevation) * distance, Math.cos(azimuth) * Math.cos(elevation) * distance], fov: 34 }} frameloop={still ? 'demand' : 'always'}>
     <color attach="background" args={['#23272f']} />
     <Watercolor />
@@ -497,8 +498,9 @@ function Garden() {
     <pointLight position={[-3, 1.5, -2]} intensity={6} color="#ffb46b" />
     <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[2.4, 64]} /><meshStandardMaterial color="#5a3d2a" roughness={1} userData={{ realistic: true }} /></mesh>
     <Suspense fallback={null}>
-      {plants.map((plant, index) => <group key={index} position={[plant.x, 0, plant.z]}><DrawnPlant kind={plant.kind} health={1} seed={index * 3 + 1} /></group>)}
+      {plants.map((plant, index) => <group key={index} position={[plant.x, 0, plant.z]}><DrawnPlant kind={plant.kind} health={1} seed={index * 3 + 1} flowering /></group>)}
       <group position={[0, -0.042, 0]}><DrawnLitterPreview patch={leaves} /></group>
+      {[0, 1, 2, 3].map((index) => <group key={index} position={[0.4 + index * 0.17, 0, 0.55 + (index % 2) * 0.12]}><DrawnMushroom height={0.55 + index * 0.1} lean={(index - 1.5) * 0.08} variant={index} /></group>)}
       <group position={[0.1, 0, 0.1]} rotation={[0, heading.current, 0]} scale={paperRealScale('woodlouse')}>
         <PaperAnimal animal="woodlouse" base={0} heading={heading} moving={moving} speed={1} health={1} juvenile={false} feeding={false} />
       </group>

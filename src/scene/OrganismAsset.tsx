@@ -72,7 +72,7 @@ export function OrganismAsset({ file, shape, fallback, moving, feeding = false, 
 }
 
 export function PlantAsset({ kind, health, flowering, fallback, seed = 0 }: { kind: PlantKind; health: number; flowering: boolean; fallback: ReactNode; seed?: number }) {
-  if (paperLook && drawnLook && hasDrawnPlant(kind)) return <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} /></Suspense>
+  if (paperLook && drawnLook && hasDrawnPlant(kind)) return <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} flowering={flowering} /></Suspense>
   if (paperLook && hasScanPlant(kind)) return <ScanPlant kind={kind} seed={seed} health={health} fallback={fallback} />
   if (paperLook && kind === 'lily') return <FloatingRosette health={health} seed={seed} />
   if (paperLook && kind === 'reed') return <HairgrassTuft health={health} seed={seed} height={plantDimensions.reed.height} spread={plantDimensions.reed.spread} />
