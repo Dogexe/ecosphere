@@ -137,7 +137,7 @@ const shade = { far: '#8a8a80', near: '#ffffff' }
  * camera looks down so it never goes edge-on. `turn: false` is the old full
  * billboard (lab ?style=old, for comparison).
  */
-export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55, solid: new Set<string>() }
+export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55, solid: new Set<string>(['woodlouse']) }
 
 /**
  * "Paper 3D" (paperStyle.solid): the painted body is wrapped onto a rounded
@@ -147,7 +147,9 @@ export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55, solid: new Set
  * long).
  */
 try {
-  for (const name of (new URLSearchParams(window.location.search).get('solid') ?? '').split(',')) if (name) paperStyle.solid.add(name)
+  // ?solid=a,b picks which animals are paper 3D (?solid=none: all cards).
+  const solidParam = new URLSearchParams(window.location.search).get('solid')
+  if (solidParam !== null) { paperStyle.solid.clear(); for (const name of solidParam.split(',')) if (name && name !== 'none') paperStyle.solid.add(name) }
 } catch { /* no window in tests */ }
 const solidHalfWidth: Record<string, number> = { woodlouse: 0.25, 'tiger-beetle': 0.17, caterpillar: 0.07, springtail: 0.1 }
 
