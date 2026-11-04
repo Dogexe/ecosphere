@@ -1,4 +1,14 @@
-# Soft Organic Low-poly
+# Art direction
+
+## Paper look (current, owner decision 2026-11-03; `?look=paper`)
+
+- **Creatures:** 2D paper-sticker cut-out sprites, side view facing right, rigged in code.
+- **Environment and plants:** realistic 3D from photo scans (Poly Haven CC0, HDRI, photo textures), in a glass jar on a windowsill with a tilt-shift diorama feel. Plants use scans scaled to real sizes (`src/scene/ScanPlant.tsx`, `src/scene/scale.ts`); cite a real-world size for each.
+- **UI:** cozy notebook game HUD, not a web page.
+
+The section below is the earlier classic look, kept for the non-paper view.
+
+## Classic look: Soft Organic Low-poly
 
 One miniature world, with distinct organisms in the same visual language. Player feedback rejected the blocky imported flower cups and original cone grass; do not reintroduce them merely to use external assets.
 

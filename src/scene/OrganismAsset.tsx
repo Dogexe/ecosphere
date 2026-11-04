@@ -9,6 +9,8 @@ import { instantiateOrganism } from './organismModel'
 import type { ModelShape, OrganismFile } from './organismModel'
 import { plantDimensions, plantModelScale } from './scale'
 import type { PlantKind } from '../sim/ecosystem'
+import { hasScanPlant, ScanPlant } from './ScanPlant'
+import { paperLook } from './PaperCritter'
 
 const models = new Map<OrganismFile, Promise<GLTF | null>>()
 export const modelUnavailable = (name: string, retry: () => void) => <Html center><button className="asset-retry" type="button" onClick={(event) => { event.stopPropagation(); retry() }}>{name} model unavailable · Retry</button></Html>
@@ -67,7 +69,8 @@ export function OrganismAsset({ file, shape, fallback, moving, feeding = false, 
   return instance ? <primitive object={instance.root} dispose={null} /> : <>{failed && unavailable ? unavailable(() => window.dispatchEvent(new CustomEvent('ecosphere:model-retry', { detail: file }))) : fallback}</>
 }
 
-export function PlantAsset({ kind, health, flowering, fallback }: { kind: PlantKind; health: number; flowering: boolean; fallback: ReactNode }) {
+export function PlantAsset({ kind, health, flowering, fallback, seed = 0 }: { kind: PlantKind; health: number; flowering: boolean; fallback: ReactNode; seed?: number }) {
+  if (paperLook && hasScanPlant(kind)) return <ScanPlant kind={kind} seed={seed} health={health} fallback={fallback} />
   if (kind !== 'clover' && kind !== 'grass' && kind !== 'bloom' && kind !== 'tree' && kind !== 'lily' && kind !== 'reed') return <>{fallback}</>
   const { spread, height } = plantDimensions[kind]
   // Match the existing floating-pad anchor without changing the fallback/root.

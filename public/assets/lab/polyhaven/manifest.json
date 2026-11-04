@@ -2,7 +2,7 @@
   "source": "https://polyhaven.com",
   "api": "https://api.polyhaven.com",
   "fetched": "2026-11-03",
-  "total_bytes": 23029619,
+  "total_bytes": 29142771,
   "assets": [
     {
       "id": "rock_moss_set_01",
@@ -163,6 +163,71 @@
       ],
       "source": "https://polyhaven.com/a/dry_quiver_leaf",
       "resolution": "1k"
+    },
+    {
+      "id": "calathea_orbifolia_01",
+      "type": "model",
+      "name": "Calathea Orbifolia 01",
+      "purpose": "young Calathea for the tree kind",
+      "license": "CC0",
+      "authors": [
+        "Rob Tuytel",
+        "Rico Cilliers"
+      ],
+      "source": "https://polyhaven.com/a/calathea_orbifolia_01",
+      "resolution": "1k",
+      "files": [
+        "calathea_orbifolia_01_1k.gltf",
+        "calathea_orbifolia_01.bin",
+        "textures/calathea_orbifolia_01_arm_1k.jpg",
+        "textures/calathea_orbifolia_01_diff_1k.png",
+        "textures/calathea_orbifolia_01_nor_gl_1k.jpg"
+      ],
+      "bytes": 2573695,
+      "note": "diffuse JPG merged with the 1k alpha map into an RGBA PNG for the leaf cutout"
+    },
+    {
+      "id": "shrub_sorrel_01",
+      "type": "model",
+      "name": "Shrub Sorrel 01",
+      "purpose": "Oxalis for the clover kind",
+      "license": "CC0",
+      "authors": [
+        "Rico Cilliers"
+      ],
+      "source": "https://polyhaven.com/a/shrub_sorrel_01",
+      "resolution": "1k",
+      "files": [
+        "shrub_sorrel_01_1k.gltf",
+        "shrub_sorrel_01.bin",
+        "textures/shrub_sorrel_01_arm_1k.jpg",
+        "textures/shrub_sorrel_01_diff_1k.png",
+        "textures/shrub_sorrel_01_nor_gl_1k.jpg"
+      ],
+      "bytes": 1814601,
+      "note": "diffuse JPG merged with the 1k alpha map into an RGBA PNG for the leaf cutout"
+    },
+    {
+      "id": "fern_02",
+      "type": "model",
+      "name": "Fern 02",
+      "purpose": "small fern clumps for the fern kind",
+      "license": "CC0",
+      "authors": [
+        "Rob Tuytel",
+        "Rico Cilliers"
+      ],
+      "source": "https://polyhaven.com/a/fern_02",
+      "resolution": "1k",
+      "files": [
+        "fern_02_1k.gltf",
+        "fern_02.bin",
+        "textures/fern_02_arm_1k.jpg",
+        "textures/fern_02_nor_gl_1k.jpg",
+        "textures/fern_02_diff_1k.png"
+      ],
+      "bytes": 1724856,
+      "note": "diffuse JPG merged with the 1k alpha map into an RGBA PNG for the leaf cutout"
     }
   ]
 }
