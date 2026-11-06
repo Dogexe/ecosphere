@@ -27,7 +27,7 @@ const depth = (layer) => layerDepths(state)[layer]
 // of gravel, 4 mm of charcoal and 36 mm of soil; thinned again the same day to
 // about 14 mm gravel and 22 mm soil (Codex review round 1: the brown wall was
 // the biggest gap), the pond hollow dug down to the charcoal.
-pour('gravel', 0.6, 3, spiral, () => depth('gravel') >= 0.6)
+pour('gravel', 0.48, 3, spiral, () => depth('gravel') >= 0.48)
 pour('charcoal', 0.12, 1, spiral, () => depth('charcoal') >= 0.12)
 // Concept image 12 (owner's pick, 2026-11-06; thread "Match jar visuals to image 12", 2026-11-07):
 // the substrate is only about a third of the jar's height. A low planted bank (about 33 mm
@@ -48,7 +48,7 @@ for (let k = 0; k < N * N; k += 1) {
   if (!inside[k]) continue
   const x = cellX(k % N), z = cellX(Math.floor(k / N))
   const base = state.gravel[k] + state.charcoal[k]
-  const land = 2.15 + 0.85 * smoothstep(1.6, -3.2, z) + 0.25 * smoothstep(-1, 2.5, x) * smoothstep(1.5, -2, z) + wobble(x, z)
+  const land = 1.55 + 0.7 * smoothstep(1.6, -3.2, z) + 0.1 * smoothstep(-1, 2.5, x) * smoothstep(1.5, -2, z) - 0.35 * smoothstep(0.5, 3, z) * smoothstep(-0.5, 1.5, x) + wobble(x, z)
   const t = smoothstep(0.62, 1.08, hollow(x, z))
   const bed = base - (t < 0.15 ? state.charcoal[k] : 0)
   if (t < 0.15) state.charcoal[k] = 0
@@ -64,7 +64,7 @@ for (let k = 0; k < N * N; k += 1) {
   if (h < 0.95) { state.soil[k] *= Math.max(0, (h - 0.7) / 0.25) ** 2; if (h < 0.85) state.charcoal[k] = 0 }
 }
 // A gentle watering: enough to settle and firm the top, not to leave puddles.
-for (let n = 0; n < 700; n += 1) { const [x, z] = spiral[n % spiral.length]; deposit(state, 'water', x, z, 2); settle(state, 4) }
+for (let n = 0; n < 380; n += 1) { const [x, z] = spiral[n % spiral.length]; deposit(state, 'water', x, z, 2); settle(state, 4) }
 for (let pass = 0; pass < 1500; pass += 1) settle(state, 4)
 // Fill the hollow: water poured at its middle runs out to the shore by itself.
 // It only stays once the soil under it and the gravel below are full, as in a
@@ -73,13 +73,13 @@ const shape = () => maskShape(saveSubstrate(state))
 let held = 0
 for (let round = 0; round < 3000; round += 1) {
   // Pour fast until water starts to stand, then slowly so the pond stops near its size.
-  const batch = held < 0.3 ? 40 : 6
+  const batch = held < 0.3 ? 12 : 4
   for (let n = 0; n < batch; n += 1) { deposit(state, 'water', pondCenter.x + Math.sin(n) * 0.3, pondCenter.z + Math.cos(n * 1.7) * 0.3, 2); settle(state, 2) }
   for (let pass = 0; pass < 150; pass += 1) settle(state, 2)
   const volume = shape().volume ?? 0
   held = volume
   if (round % 50 === 0) console.log('round', round, 'pond volume', volume.toFixed(2), 'table', state.table.toFixed(2))
-  if (volume > +(process.env.POND_VOLUME ?? 11)) break
+  if (volume > +(process.env.POND_VOLUME ?? 8.5)) break
 }
 // Against the front glass the pond bed is cleared to the gravel (soil slumped there while it was
 // watered), so the water is seen standing on stones; the water keeps its level.

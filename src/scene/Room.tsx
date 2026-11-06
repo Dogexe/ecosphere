@@ -55,19 +55,34 @@ function paint(width: number, height: number, draw: (context: CanvasRenderingCon
 
 function useViews() {
   return useMemo(() => ({
-    // A soft garden outside: sky, sunlit haze and blurred green.
+    // A soft rainy garden outside, as in concept image 12 (2026-11-07): overcast bright sky, deep
+    // blurred greenery filling most of the pane, and rain beading and running on the window glass.
     day: paint(512, 400, (context) => {
       const sky = context.createLinearGradient(0, 0, 0, 400)
-      sky.addColorStop(0, '#cfe2f2'); sky.addColorStop(0.5, '#f3f0dd'); sky.addColorStop(0.72, '#bcd09a'); sky.addColorStop(1, '#7f9e62')
+      sky.addColorStop(0, '#dfe6dc'); sky.addColorStop(0.35, '#c9d6bd'); sky.addColorStop(0.7, '#88a467'); sky.addColorStop(1, '#4f6b3c')
       context.fillStyle = sky; context.fillRect(0, 0, 512, 400)
-      const sun = context.createRadialGradient(180, 110, 0, 180, 110, 260)
-      sun.addColorStop(0, 'rgba(255,250,228,1)'); sun.addColorStop(1, 'rgba(255,240,200,0)')
+      const sun = context.createRadialGradient(170, 90, 0, 170, 90, 240)
+      sun.addColorStop(0, 'rgba(255,248,226,0.9)'); sun.addColorStop(1, 'rgba(255,240,200,0)')
       context.fillStyle = sun; context.fillRect(0, 0, 512, 400)
-      context.filter = 'blur(16px)'
-      for (let index = 0; index < 14; index += 1) {
-        context.fillStyle = index % 2 ? '#9fbf84' : '#b3cc95'
-        context.beginPath(); context.ellipse(index * 40 + 10, 260 + (index % 3) * 16, 52, 44, 0, 0, Math.PI * 2); context.fill()
+      context.filter = 'blur(18px)'
+      let seed = 7
+      const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+      for (let index = 0; index < 40; index += 1) {
+        const y = 90 + rand() * 300
+        context.fillStyle = ['#7f9d5e', '#93b06c', '#5f7f45', '#a7bf80', '#4c6a37'][index % 5]
+        context.globalAlpha = 0.55 + rand() * 0.35
+        context.beginPath(); context.ellipse(rand() * 512, y, 30 + rand() * 50, 26 + rand() * 40, 0, 0, Math.PI * 2); context.fill()
       }
+      context.globalAlpha = 1
+      context.filter = 'none'
+      // Rain on the pane: beads with a bright lower edge, and a few running trails.
+      for (let index = 0; index < 260; index += 1) {
+        const x = rand() * 512, y = rand() * 400, r = 0.8 + rand() * rand() * 3.2
+        context.fillStyle = 'rgba(40,52,40,0.28)'; context.beginPath(); context.arc(x, y, r, 0, Math.PI * 2); context.fill()
+        context.fillStyle = 'rgba(255,255,245,0.55)'; context.beginPath(); context.arc(x, y + r * 0.35, r * 0.55, 0, Math.PI * 2); context.fill()
+      }
+      context.strokeStyle = 'rgba(235,242,232,0.35)'; context.lineWidth = 1.4
+      for (let index = 0; index < 14; index += 1) { const x = rand() * 512, y = rand() * 200; context.beginPath(); context.moveTo(x, y); context.bezierCurveTo(x + 3, y + 60, x - 3, y + 120, x + 2, y + 120 + rand() * 120); context.stroke() }
     }),
     // Night sky with a moon and a dark tree line.
     night: paint(512, 400, (context) => {
@@ -91,7 +106,7 @@ export function Room({ world }: { world: World }) {
   const walls = useRef<MeshStandardMaterial[]>([])
   const sky = environmentAt(lightingWorld(world))
   const solar = sky.cycling ? sky.solar : 1
-  const wallDay = useMemo(() => new Color('#b3a58c'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
+  const wallDay = useMemo(() => new Color('#8a7c66'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
   const background = useMemo(() => new Color(), [])
   const fog = useMemo(() => new Fog('#2a2c35', 18, 48), [])
   const daylight = useRef(solar)
@@ -110,7 +125,8 @@ export function Room({ world }: { world: World }) {
   })
 
   const wall = (index: number) => (material: MeshStandardMaterial | null) => { if (material) { markRealistic(material); walls.current[index] = material } }
-  const frame = '#ece6da'
+  // A dark stained frame recedes behind the jar instead of drawing bright bars across it.
+  const frame = '#4a3a2e'
   return <group>
     {/* The back wall with the window, and a plain left wall. */}
     {backWall.map((piece, index) => <mesh key={index} position={[piece.x, piece.y, backZ]} receiveShadow><planeGeometry args={[piece.width, piece.height]} /><meshStandardMaterial ref={wall(index)} roughness={0.95} /></mesh>)}

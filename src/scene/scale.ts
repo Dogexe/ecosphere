@@ -24,11 +24,11 @@ export const plantDimensions: Record<PlantKind, { spread: number; height: number
   // Oxalis, 2026-11-03: about 3 cm across and 3 cm high, so its leaflets fall in the real 4-13 mm (VicFlora).
   clover: { spread: 1.6, height: 1.5, sourceSpread: 1.0199, sourceHeight: 0.4306 },
   grass: { spread: 0.4, height: 0.48, sourceSpread: 0.2911, sourceHeight: 0.355 },
-  fern: { spread: 2.4, height: 1.6, sourceSpread: 1.5927, sourceHeight: 0.9044 },
+  fern: { spread: 2.3, height: 1.4, sourceSpread: 1.5927, sourceHeight: 0.9044 },
   bloom: { spread: 0.95, height: 1.25, sourceSpread: 0.7935, sourceHeight: 0.8433 },
-  // A young Calathea in the paper look: up to about 7 cm across and 6.5 cm high, as tall as
+  // A young Calathea in the paper look: up to about 6 cm across and 5.5 cm high, as tall as
   // the broadleaf plant in concept image 12 (about two thirds of the way up the taller jar, 2026-11-07).
-  tree: { spread: 3.6, height: 3.4, sourceSpread: 1.6055, sourceHeight: 1.8527 },
+  tree: { spread: 3.2, height: 2.85, sourceSpread: 1.6055, sourceHeight: 1.8527 },
   lily: { spread: 0.68, height: 0.22, sourceSpread: 0.64, sourceHeight: 0.27 },
   reed: { spread: 0.42, height: 1.1, sourceSpread: 0.2911, sourceHeight: 0.355 },
 }

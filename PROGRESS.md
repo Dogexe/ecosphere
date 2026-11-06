@@ -1,5 +1,13 @@
 # ECOSPHERE development progress
 
+## Image 12 rounds 2-3 — 2026-11-07
+
+Toward concept image 12 (owner's main target). The default jar is re-poured as a sculpted low bank (gravel about 9 mm, soil bank 30-45 mm) with the pond dug to the gravel where it meets the front glass, so water, pebble bed, shrimp and snails are seen side-on; the waterline has a broken meniscus glint. The jar is squatter with a thinner screw cap, the front camera frames the whole jar above the dock, gravel through the glass reads as 5-8 mm stones, condensation beads are drawn as small lenses (dark rim, bright lower crescent, glint) concentrated on the upper glass with short wiped trails, the window shows a rainy garden behind a dark frame, the sill is matte dark walnut, and the vignette is lighter. Calathea, fern and violet presentation sizes match image 12 (no solver change).
+
+Codex art-director scores (sealed view vs image 12, `artifacts/image12-review-r2/`, `-r3/`): round 1 about 3.6, round 2 about 3.9, round 3 about 4.1 of 10. Main remaining gaps per Codex: moss as rounded cushions, plant clusters with painted leaves, warmer neutral light, glass thickness at the base.
+
+269 tests, typecheck and build pass. Headless Chrome on the owner's PC (RTX 3060 laptop): about 11.6 ms mean frame at 1920×1080, similar to before.
+
 ## Autosave — 2026-11-03
 
 The game now remembers the world between visits. It autosaves every few seconds while things change and immediately when the tab is hidden or closed, then on the next visit brings back the same world and its Observatory graph, paused, with "Welcome back". A/B experiment slots are separate and untouched. Observatory also graphs Jar oxygen and Jar CO2.

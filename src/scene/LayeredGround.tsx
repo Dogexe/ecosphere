@@ -13,7 +13,7 @@ import { polyHaven, useTextureSet } from './semiReal'
 
 const N = substrateSize
 const R = cellX(N - 1)
-export const layerColours = { gravel: new Color('#d3cbbd'), charcoal: new Color('#33302d'), soil: new Color('#8a6244'), wetSoil: new Color('#4a3121'), water: new Color('#7fb4d8') }
+export const layerColours = { gravel: new Color('#a59e92'), charcoal: new Color('#33302d'), soil: new Color('#8a6244'), wetSoil: new Color('#4a3121'), water: new Color('#7fb4d8') }
 
 /** The ring next to the glass is drawn from one band of cells so the top surface meets the strata on the wall without a gap. */
 const RIM = R - 0.35

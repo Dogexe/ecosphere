@@ -47,8 +47,8 @@ const gravelBottom = charcoalBottom - jarLayers.gravel
  */
 const wall = R + 0.12
 const belly = 0
-const bellyTop = top + 2.6
-const neck = top + 3.7
+const bellyTop = top + 2.0
+const neck = top + 3.1
 const neckRadius = R * 0.93
 const glassTop = neck + 0.35
 /** The glass radius at height y. */
@@ -146,15 +146,15 @@ function Glass({ bottom = gravelBottom, sealed = false }: { bottom?: number; sea
     </mesh>)}
     {sealed && <group position={[0, glassTop + 0.02, 0]}>
       {/* A brushed tin screw cap with a ribbed skirt, like a canning jar. */}
-      <mesh position={[0, 0.2, 0]} castShadow raycast={noRaycast}>
-        <cylinderGeometry args={[lid, lid, 0.42, 96, 1, true]} />
+      <mesh position={[0, 0.12, 0]} castShadow raycast={noRaycast}>
+        <cylinderGeometry args={[lid, lid, 0.24, 96, 1, true]} />
         <meshStandardMaterial color="#b9b6ad" metalness={0.85} roughness={0.38} side={DoubleSide} />
       </mesh>
-      <mesh position={[0, 0.41, 0]} castShadow raycast={noRaycast}>
+      <mesh position={[0, 0.24, 0]} castShadow raycast={noRaycast}>
         <cylinderGeometry args={[lid - 0.06, lid, 0.06, 96]} />
         <meshStandardMaterial color="#c9c6bd" metalness={0.85} roughness={0.32} />
       </mesh>
-      {Array.from({ length: 5 }, (_, n) => <mesh key={n} position={[0, 0.04 + n * 0.08, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
+      {Array.from({ length: 3 }, (_, n) => <mesh key={n} position={[0, 0.05 + n * 0.07, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
         <torusGeometry args={[lid, 0.018, 6, 96]} />
         <meshStandardMaterial color="#a7a49b" metalness={0.85} roughness={0.42} />
       </mesh>)}
@@ -164,9 +164,10 @@ function Glass({ bottom = gravelBottom, sealed = false }: { bottom?: number; sea
 
 function Sill({ bottom = gravelBottom }: { bottom?: number }) {
   const oak = useScan('oak_veneer_01', sillRepeat, true)
-  return <mesh position={[0, bottom - 0.55, 1.5]} raycast={noRaycast} receiveShadow>
+  return <mesh position={[0, bottom - 0.55, 1.5]} raycast={noRaycast}>
     <boxGeometry args={[30, 1, 14]} />
-    <meshStandardMaterial {...oak} />
+    {/* Dark walnut, like the sill in concept image 12. */}
+    <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color="#57412f" envMapIntensity={0.35} />
   </mesh>
 }
 

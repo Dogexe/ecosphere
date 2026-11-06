@@ -28,7 +28,7 @@ export function Polish({ light }: { light: boolean }) {
     <N8AO halfRes quality="performance" aoRadius={0.45} distanceFalloff={0.6} intensity={light ? 2.2 : 2.6} color="#1a120c" />
     <Bloom mipmapBlur intensity={0.22} luminanceThreshold={0.9} luminanceSmoothing={0.15} />
     <>{!light && <TiltShift2 blur={0.12} taper={0.6} start={[0.5, 0.0]} end={[0.5, 1.0]} />}</>
-    <Vignette offset={0.32} darkness={0.55} />
+    <Vignette offset={0.38} darkness={0.3} />
     <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     <BrightnessContrast brightness={-0.02} contrast={0.16} />
   </EffectComposer>

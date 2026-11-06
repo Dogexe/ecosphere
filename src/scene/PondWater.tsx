@@ -245,14 +245,14 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     const order: number[] = []
     for (let n = 0; n < wallSamples; n += 1) { const a = n * 2, b = a + 1, c = a + 2, d = a + 3; order.push(a, c, b, b, c, d) }
     side.setIndex(order)
-    const sideMaterial = Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.08, metalness: 0, side: DoubleSide, depthWrite: false }), { userData: { realistic: true } })
+    const sideMaterial = Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.3, metalness: 0, specularIntensity: 0.2, side: DoubleSide, depthWrite: false }), { userData: { realistic: true } })
     // The waterline against the glass: a thin bright meniscus that tells the eye where the water stops (concept image 12).
     const meniscus = new BufferGeometry()
     meniscus.setAttribute('position', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 3), 3))
     meniscus.setAttribute('color', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 4), 4))
     meniscus.setIndex(order)
     const meniscusMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false })
-    return { side, sideMaterial, meniscus, meniscusMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: 0.3, clearcoat: 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.025, 0.025), depthWrite: false }), { userData: { realistic: true } }) }
+    return { side, sideMaterial, meniscus, meniscusMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: 0.3, clearcoat: 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.008, 0.008), depthWrite: false }), { userData: { realistic: true } }) }
   }, [M])
   // Around the jar wall: the bed height at the glass and whether pond water reaches it there.
   const rim = useMemo(() => {
@@ -317,10 +317,12 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
       sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.85, 0.12 + look.cloud * 0.6) : 0)
       colour.copy(look.tint).lerp(white, 0.15)
       sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.75, 0.025 + look.cloud * 0.6) : 0)
-      meniscusPosition.setXYZ(n * 2, cos * (wallRadius + 0.005), floor + top - 0.035, sin * (wallRadius + 0.005))
+      meniscusPosition.setXYZ(n * 2, cos * (wallRadius + 0.005), floor + top - 0.02, sin * (wallRadius + 0.005))
       meniscusPosition.setXYZ(n * 2 + 1, cos * (wallRadius + 0.005), floor + top + 0.012, sin * (wallRadius + 0.005))
-      meniscusColour.setXYZW(n * 2, 0.86, 0.93, 0.9, water ? 0.12 : 0)
-      meniscusColour.setXYZW(n * 2 + 1, 0.95, 0.98, 0.96, water ? 0.55 : 0)
+      // Broken, not a ruled line: the glint comes and goes along the glass.
+      const glint = water ? 0.12 + 0.3 * Math.max(0, Math.sin(n * 0.37) * Math.sin(n * 0.113 + 1.3)) : 0
+      meniscusColour.setXYZW(n * 2, 0.86, 0.93, 0.9, glint * 0.25)
+      meniscusColour.setXYZW(n * 2 + 1, 0.95, 0.98, 0.96, glint)
     }
     sidePosition.needsUpdate = true; sideColour.needsUpdate = true
     meniscusPosition.needsUpdate = true; meniscusColour.needsUpdate = true
