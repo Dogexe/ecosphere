@@ -163,10 +163,10 @@ function LitterPatch({ patch }: { patch: SoilPatch }) {
   )
 }
 
-function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwater, swimmers, substrate, fog = 0 }: { fog?: number; pond: Pond; swimmers: { id: number; x: number; z: number }[]; substrate?: SavedSubstrate; soil: SoilPatch[]; selectedSoil: number | null; onGroundClick: (x: number, z: number) => void; onPondClick: (x: number, z: number) => void; underwater: boolean }) {
+function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwater, swimmers, substrate, fog = 0, sealed = false }: { fog?: number; sealed?: boolean; pond: Pond; swimmers: { id: number; x: number; z: number }[]; substrate?: SavedSubstrate; soil: SoilPatch[]; selectedSoil: number | null; onGroundClick: (x: number, z: number) => void; onPondClick: (x: number, z: number) => void; underwater: boolean }) {
   return (
     <group onClick={(event) => { if (event.delta > 5 || (event.point.y < 0.025 && !paperLook)) return; event.stopPropagation(); onGroundClick(event.point.x, event.point.z) }}>
-      {paperLook ? <JarSetting substrate={substrate} soil={soil} pond={pond} underwater={underwater} onPondClick={onPondClick} fog={fog} /> : <>
+      {paperLook ? <JarSetting substrate={substrate} soil={soil} pond={pond} underwater={underwater} onPondClick={onPondClick} fog={fog} sealed={sealed} /> : <>
       <mesh position={[0, -0.75, 0]} receiveShadow castShadow>
         <cylinderGeometry args={[3.72, 3.43, 1.05, 48]} />
         <meshStandardMaterial color="#8b715a" roughness={1} flatShading />
@@ -798,7 +798,7 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
     if (layout.current !== layoutKey) {
       const restoring = layout.current === '' && surfacePose.ready && surfacePose.width === size.width && surfacePose.height === size.height
       layout.current = layoutKey
-      const overview = frontView ? Math.min(14, Math.max(8.5, 8 / (size.width / size.height))) : Math.min(21, Math.max(14.5, 13.5 / (size.width / size.height)))
+      const overview = frontView ? Math.min(26, Math.max(19.5, 17 / (size.width / size.height))) : Math.min(21, Math.max(14.5, 13.5 / (size.width / size.height)))
       focus.current.previous = overview
       if (!creature && !plant && !ant && !restoring) { focus.current.distance = overview; focus.current.remaining = 1.4 }
     }
@@ -813,7 +813,7 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
     const tracking = subject && (!remains || autoPlant.current) || creature || trackingPlant || focus.current.remaining > 0
     const dx = tracking ? ((subject?.x ?? creature?.x ?? plantFrame?.x ?? 0) - target.x) * factor : 0
     const dz = tracking ? ((subject?.z ?? creature?.z ?? plantFrame?.z ?? 0) - target.z) * factor : 0
-    const targetY = subject?.y ?? (creature ? isAquatic(creature.kind) ? animalWaterY(creature.kind) : animalGroundY(creature) : plantFrame?.y ?? -0.4)
+    const targetY = subject?.y ?? (creature ? isAquatic(creature.kind) ? animalWaterY(creature.kind) : animalGroundY(creature) : plantFrame?.y ?? (frontView ? -1.5 : -0.4))
     const dy = tracking ? (targetY - target.y) * factor : 0
     target.x += dx; target.y += dy; target.z += dz
     camera.position.x += dx; camera.position.y += dy; camera.position.z += dz
@@ -830,7 +830,7 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
     surfacePose.width = size.width; surfacePose.height = size.height
   }, -0.5)
   const minimum = closePlant && focusedFrame ? focusedFrame.distance / 2 : micro ? 0.06 : subject ? 0.22 : 1.7
-  return <OrbitControls ref={controls} makeDefault enablePan screenSpacePanning minDistance={minimum} maxDistance={focusedFrame?.maxDistance ?? 21} minPolarAngle={frontView ? 0.95 : 0.25} maxPolarAngle={frontView ? 1.5 : 1.42} minAzimuthAngle={frontView ? -frontTurn : -Infinity} maxAzimuthAngle={frontView ? frontTurn : Infinity} target={surfacePose.target} enableDamping dampingFactor={0.08} onStart={() => { if (plant || remains) { autoPlant.current = false; focus.current.remaining = 0 } }} />
+  return <OrbitControls ref={controls} makeDefault enablePan screenSpacePanning minDistance={minimum} maxDistance={focusedFrame?.maxDistance ?? (frontView ? 26 : 21)} minPolarAngle={frontView ? 0.95 : 0.25} maxPolarAngle={frontView ? 1.5 : 1.42} minAzimuthAngle={frontView ? -frontTurn : -Infinity} maxAzimuthAngle={frontView ? frontTurn : Infinity} target={surfacePose.target} enableDamping dampingFactor={0.08} onStart={() => { if (plant || remains) { autoPlant.current = false; focus.current.remaining = 0 } }} />
 }
 
 function RenderProbe({ onSample }: { onSample: (sample: RenderSample) => void }) {
@@ -859,7 +859,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
   const [profile, setProfile] = useState<RenderSample | null>(null)
   const broodCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
   const antCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
-  const surfacePose = useRef<SurfacePose>({ position: frontView ? new Vector3(2.2, 4.8, 12.6) : new Vector3(8.5, 6.55, 10), target: frontView ? new Vector3(-0.6, -0.3, 0.6) : new Vector3(0, -0.4, 0), ready: false, width: 0, height: 0 }).current
+  const surfacePose = useRef<SurfacePose>({ position: frontView ? new Vector3(2.4, 3.9, 16.4) : new Vector3(8.5, 6.55, 10), target: frontView ? new Vector3(0, -1.5, 0) : new Vector3(0, -0.4, 0), ready: false, width: 0, height: 0 }).current
   const viewWorld = underwater ? { ...world, plants: world.plants.filter((plant) => isAquatic(plant.kind)), creatures: world.creatures.filter((creature) => isAquatic(creature.kind)), remains: (world.remains ?? []).filter((remains) => isAquatic(remains.kind)) } : world
   const profiling = new URLSearchParams(window.location.search).get('profile') === '1'
   const followedAnt = world.colony ? [world.colony.queen, ...world.colony.workers].find((ant) => ant?.id === followAnt) ?? undefined : undefined
@@ -879,7 +879,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
     <Canvas
       shadows
       dpr={[1, coarsePointer ? 1.25 : 1.7]}
-      camera={{ position: frontView ? [2.8, 5.2, 12] : [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
+      camera={{ position: frontView ? [2.4, 3.9, 16.4] : [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onPointerMissed={() => { if (!placing) onClearSelection() }}
       style={{ cursor: placing ? 'crosshair' : 'grab' }}
@@ -892,7 +892,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
-      <Terrain fog={fogLevel(world)} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
+      <Terrain fog={fogLevel(world)} sealed={!!world.sealed} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
       {!underwater && (world.soil ?? []).map((patch) => <FungalPatch key={patch.id} patch={patch} />)}
       <RemainsField world={viewWorld} />
       {viewWorld.plants.map((plant) => <PlantModel key={`${worldRevision}:${plant.id}`} plant={plant} fit={habitatFit(world, plant)} tick={world.tick} selected={selectedPlant === plant.id} onSelect={() => placing ? onPlace(plant.x, plant.z) : onSelectPlant(plant.id)} />)}

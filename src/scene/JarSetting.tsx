@@ -1,6 +1,6 @@
 import { Suspense, useLayoutEffect, useMemo } from 'react'
 import { useTexture } from '@react-three/drei'
-import { CylinderGeometry, DoubleSide, RepeatWrapping, SRGBColorSpace, Vector2, Vector3 } from 'three'
+import { AdditiveBlending, Color, CylinderGeometry, DoubleSide, LatheGeometry, ShaderMaterial, MathUtils, RepeatWrapping, SRGBColorSpace, Vector2, Vector3 } from 'three'
 import type { Texture } from 'three'
 import { charcoalTexture, soilSideTexture } from '../lab/proceduralTextures'
 import { pondCenter } from '../sim/pond'
@@ -40,7 +40,43 @@ export const jarLayers = { soil: 2.9, charcoal: 0.25, gravel: 1.6 } // 55 mm, 5 
 const soilBottom = top - jarLayers.soil
 const charcoalBottom = soilBottom - jarLayers.charcoal
 const gravelBottom = charcoalBottom - jarLayers.gravel
-const glassTop = top + 5.2
+/*
+ * The jar's shape follows the owner's target picture (concept round 3, image 12,
+ * picked 2026-11-06): a fat, squat jar with a slight belly, rounded shoulders and
+ * a wide screw-top neck. Below the soil the wall is straight, so the poured
+ * layers still meet the glass; above it the glass swells about 6 mm and then
+ * rounds in to the neck.
+ */
+const wall = R + 0.12
+const belly = 0.32
+const bellyTop = top + 2.6
+const neck = top + 4.0
+const neckRadius = R * 0.86
+const glassTop = neck + 0.35
+/** The glass radius at height y. */
+export function glassRadiusAt(y: number) {
+  if (y <= bellyTop) return wall + belly * MathUtils.smoothstep(y, top + 0.1, bellyTop)
+  if (y >= neck) return neckRadius
+  const t = (y - bellyTop) / (neck - bellyTop)
+  return neckRadius + (wall + belly - neckRadius) * Math.cos(t * Math.PI / 2)
+}
+const glassEdge = new ShaderMaterial({
+  transparent: true, depthWrite: false, side: DoubleSide, blending: AdditiveBlending,
+  uniforms: { tint: { value: new Color('#dfeee8') } },
+  vertexShader: `varying vec3 vNormal; varying vec3 vView;
+    void main() { vec4 world = modelMatrix * vec4(position, 1.0); vNormal = normalize(mat3(modelMatrix) * normal); vView = normalize(cameraPosition - world.xyz); gl_Position = projectionMatrix * viewMatrix * world; }`,
+  fragmentShader: `uniform vec3 tint; varying vec3 vNormal; varying vec3 vView;
+    void main() { float facing = abs(dot(normalize(vNormal), normalize(vView))); float edge = pow(1.0 - facing, 4.0); gl_FragColor = vec4(tint * edge * 0.42, 1.0); }`,
+})
+function jarGeometry(bottom: number) {
+  const points: Vector2[] = []
+  const steps = 48
+  for (let n = 0; n <= steps; n += 1) {
+    const y = bottom + (glassTop - bottom) * n / steps
+    points.push(new Vector2(glassRadiusAt(y), y))
+  }
+  return new LatheGeometry(points, 128)
+}
 const flat = () => top
 const pond = [{ x: pondCenter.x, z: pondCenter.z, radius: pondCenter.radius + 0.15 }]
 const nowhere: { x: number; z: number; radius: number }[] = []
@@ -97,17 +133,40 @@ export function JarSubstrate() {
   </group>
 }
 
-/** Clear glass: a thin physical shell with sharp reflections, so the jar contents stay crisp. */
-function Glass({ bottom = gravelBottom }: { bottom?: number }) {
+/** Clear glass: a thin physical shell with sharp reflections, so the jar contents stay crisp. Sealed jars wear a screw lid. */
+function Glass({ bottom = gravelBottom, sealed = false }: { bottom?: number; sealed?: boolean }) {
+  const geometry = useMemo(() => jarGeometry(bottom - 0.05), [bottom])
+  const lid = neckRadius + 0.16
   return <group>
-    <mesh position={[0, (bottom + glassTop) / 2, 0]} raycast={noRaycast} renderOrder={2}>
-      <cylinderGeometry args={[R + 0.12, R + 0.12, glassTop - bottom + 0.1, 96, 1, true]} />
+    <mesh geometry={geometry} raycast={noRaycast} renderOrder={2}>
       <meshPhysicalMaterial color="#ffffff" transparent opacity={0.08} roughness={0.02} metalness={0} clearcoat={1} clearcoatRoughness={0.02} envMapIntensity={1.4} side={DoubleSide} depthWrite={false} />
     </mesh>
+    {/* Glass is seen by its edges: where you look along the curved wall it turns pale and reflective. */}
+    <mesh geometry={geometry} raycast={noRaycast} renderOrder={3} material={glassEdge} />
+    {/* The rolled rim of the neck, and the screw thread just under it. */}
     <mesh position={[0, glassTop, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
-      <torusGeometry args={[R + 0.1, 0.12, 12, 96]} />
+      <torusGeometry args={[neckRadius, 0.07, 10, 96]} />
       <meshPhysicalMaterial color="#dfe8e4" transparent opacity={0.55} roughness={0.1} clearcoat={1} clearcoatRoughness={0.05} />
     </mesh>
+    {[0.12, 0.24].map((drop) => <mesh key={drop} position={[0, glassTop - drop, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
+      <torusGeometry args={[neckRadius + 0.02, 0.035, 8, 96]} />
+      <meshPhysicalMaterial color="#e6eeea" transparent opacity={0.4} roughness={0.1} clearcoat={1} />
+    </mesh>)}
+    {sealed && <group position={[0, glassTop + 0.02, 0]}>
+      {/* A brushed tin screw cap with a ribbed skirt, like a canning jar. */}
+      <mesh position={[0, 0.2, 0]} castShadow raycast={noRaycast}>
+        <cylinderGeometry args={[lid, lid, 0.42, 96, 1, true]} />
+        <meshStandardMaterial color="#b9b6ad" metalness={0.85} roughness={0.38} side={DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.41, 0]} castShadow raycast={noRaycast}>
+        <cylinderGeometry args={[lid - 0.06, lid, 0.06, 96]} />
+        <meshStandardMaterial color="#c9c6bd" metalness={0.85} roughness={0.32} />
+      </mesh>
+      {Array.from({ length: 5 }, (_, n) => <mesh key={n} position={[0, 0.04 + n * 0.08, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
+        <torusGeometry args={[lid, 0.018, 6, 96]} />
+        <meshStandardMaterial color="#a7a49b" metalness={0.85} roughness={0.42} />
+      </mesh>)}
+    </group>}
   </group>
 }
 
@@ -173,7 +232,7 @@ function usePoolScale(soil: SoilPatch[]) {
   }, [key])
 }
 
-function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog = 0 }: { substrate: SavedSubstrate; soil: SoilPatch[]; dressed: boolean; pond?: Pond; underwater?: boolean; onPondClick?: (x: number, z: number) => void; fog?: number }) {
+function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog = 0, sealed = false }: { substrate: SavedSubstrate; soil: SoilPatch[]; dressed: boolean; pond?: Pond; underwater?: boolean; onPondClick?: (x: number, z: number) => void; fog?: number; sealed?: boolean }) {
   const state = useMemo(() => loadSubstrate(substrate), [substrate])
   // A jar poured since ponds follow the water has its pond where the water stands; older built jars keep the dug round one.
   const water = useMemo(() => substrate.pool ? maskShape(substrate) : null, [substrate])
@@ -206,8 +265,8 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
     <Suspense fallback={null}>{state.decor.map((item, index) => <DecorPiece key={index} item={item} index={index} ground={ground} />)}</Suspense>
     {dressed && <Suspense fallback={null}><Dressing ground={ground} keepOut={keepOut} shore={shore} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
-    <Glass bottom={floor} />
-    {fog > 0.2 && !underwater && <GlassDroplets fog={fog} radius={R} top={glassTop - 0.3} ground={ground} />}
+    <Glass bottom={floor} sealed={sealed} />
+    {fog > 0.2 && !underwater && <GlassDroplets fog={fog} radiusAt={glassRadiusAt} top={neck - 0.3} ground={ground} />}
   </>
 }
 
@@ -227,9 +286,9 @@ function shoreSpots(water: PondShape, ground: Ground) {
  * their layers; every other jar uses the default one, poured the same way
  * (scripts/pour_default_jar.mjs) and dressed with moss, stones and a fern.
  */
-export function JarSetting({ substrate, soil = [], pond, underwater, onPondClick, fog = 0 }: { substrate?: SavedSubstrate; soil?: SoilPatch[]; pond?: Pond; underwater?: boolean; onPondClick?: (x: number, z: number) => void; fog?: number }) {
+export function JarSetting({ substrate, soil = [], pond, underwater, onPondClick, fog = 0, sealed = false }: { substrate?: SavedSubstrate; soil?: SoilPatch[]; pond?: Pond; underwater?: boolean; onPondClick?: (x: number, z: number) => void; fog?: number; sealed?: boolean }) {
   const jar = substrate ?? defaultJar as SavedSubstrate
-  return <BuiltJar substrate={jar} soil={soil} dressed={isPresetJar(jar)} pond={pond} underwater={underwater} onPondClick={onPondClick} fog={fog} />
+  return <BuiltJar substrate={jar} soil={soil} dressed={isPresetJar(jar)} pond={pond} underwater={underwater} onPondClick={onPondClick} fog={fog} sealed={sealed} />
 }
 
 /** The earlier hand-made default jar: flat layered cylinders. Kept for reference. */

@@ -26,13 +26,13 @@ type Bead = { angle: number; y: number; size: number; wait: number; speed: numbe
 /** Random but fixed per slot, so the pattern does not jump between renders. */
 const hash = (n: number) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s) }
 
-export function GlassDroplets({ fog, radius, top, ground }: { fog: number; radius: number; top: number; ground: Ground }) {
+export function GlassDroplets({ fog, radiusAt, top, ground }: { fog: number; radiusAt: (y: number) => number; top: number; ground: Ground }) {
   const beads = useRef<InstancedMesh>(null)
   const trails = useRef<InstancedMesh>(null)
   const dummy = useMemo(() => new Object3D(), [])
   const state = useMemo<Bead[]>(() => Array.from({ length: count }, (_, n) => ({ angle: hash(n) * Math.PI * 2, y: top - hash(n + 50) * 3, size: 0.025 + hash(n + 90) * 0.03, wait: hash(n + 130) * 14, speed: 0, start: 0 })).map((bead) => ({ ...bead, start: bead.y })), [top])
   // Where each bead's path meets the ground, just inside the glass.
-  const floorAt = (angle: number) => ground(Math.cos(angle) * (radius - 0.12), Math.sin(angle) * (radius - 0.12)) + 0.04
+  const floorAt = (angle: number) => { const r = radiusAt(-1) - 0.24; return ground(Math.cos(angle) * r, Math.sin(angle) * r) + 0.04 }
   useFrame((_, delta) => {
     const step = Math.min(delta, 0.1)
     const show = fog > 0.2
@@ -52,7 +52,7 @@ export function GlassDroplets({ fog, radius, top, ground }: { fog: number; radiu
           bead.speed = 0
         }
       }
-      const r = radius + 0.1, x = Math.cos(bead.angle) * r, z = Math.sin(bead.angle) * r
+      const r = radiusAt(bead.y) - 0.02, x = Math.cos(bead.angle) * r, z = Math.sin(bead.angle) * r
       dummy.position.set(x, bead.y, z)
       dummy.rotation.set(0, -bead.angle + Math.PI / 2, 0)
       const s = show ? bead.size : 0

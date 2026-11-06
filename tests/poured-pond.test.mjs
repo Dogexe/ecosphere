@@ -9,10 +9,12 @@ import { adoptPouredJar } from '../src/sim/pouredPond.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
 import { walkOnLand } from '../src/sim/land.ts'
 
-test('the default poured jar holds an uneven pond where the old round one was', () => {
+test('the default poured jar holds an uneven pond that runs from the old round one out to the front glass', () => {
   const shape = maskShape(defaultJar)
   assert.ok(shape.volume > 2.5 && shape.volume < 6, `volume ${shape.volume}`)
-  assert.ok(Math.hypot(shape.center.x - pondCenter.x, shape.center.z - pondCenter.z) < 0.8)
+  // The old pond's middle is still water, and the pond reaches the front glass (+z, radius 3.77) so you can look into it from the side.
+  assert.ok(shape.signedDistance(pondCenter.x, pondCenter.z) < 0)
+  assert.ok(shape.signedDistance(pondCenter.x, 3.3) < 0)
   // Not a circle: the shore's distance from the centre varies by more than a few mm.
   const reach = Array.from({ length: 24 }, (_, n) => { const a = n / 24 * Math.PI * 2; let r = 0; while (shape.signedDistance(shape.center.x + Math.cos(a) * r, shape.center.z + Math.sin(a) * r) < 0 && r < 4) r += 0.02; return r })
   assert.ok(Math.max(...reach) - Math.min(...reach) > 0.3, `shore radii ${Math.min(...reach).toFixed(2)}–${Math.max(...reach).toFixed(2)}`)

@@ -152,7 +152,7 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
   const wallUv = geometry.walls.getAttribute('uv') as BufferAttribute
   const wallPebbles = geometry.walls.getAttribute('pebble') as BufferAttribute
   let n = 0, pebble = 0
-  const put = (x: number, y: number, z: number, colour: Color, u: number, flat = false) => { wall.setXYZ(n, x, y, z); wallColours.setXYZ(n, colour.r, colour.g, colour.b); if (flat) wallUv.setXY(n, x / 1.9, z / 1.9); else wallUv.setXY(n, u * 12, y / 1.9); wallPebbles.setX(n, pebble); n += 1 }
+  const put = (x: number, y: number, z: number, colour: Color, u: number, flat = false) => { wall.setXYZ(n, x, y, z); wallColours.setXYZ(n, colour.r, colour.g, colour.b); if (flat) wallUv.setXY(n, x / 1.9, z / 1.9); else wallUv.setXY(n, u * 26, y / 0.9); wallPebbles.setX(n, pebble); n += 1 }
   const topColour = (k: number, into: Color) => { const layer = topLayer(state, k); return !layer ? into.set('#eef2f0') : layer === 'soil' ? into.copy(layerColours.soil).lerp(layerColours.wetSoil, wetness(state, k)) : into.copy(layerColours[layer]) }
   const capA = new Color(), capB = new Color()
   const edge = (angle: number) => {
@@ -162,8 +162,15 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
     const top = sampleField(field, cos * limit, sin * limit), column = topAt(state, k), share = column > 1e-6 ? top / column : 1
     return { x: cos * (R + 0.02), z: sin * (R + 0.02), ix: cos * RIM, iz: sin * RIM, k, g: state.gravel[k] * share, c: state.charcoal[k] * share, s: state.soil[k] * share, inner: sampleField(field, cos * RIM, sin * RIM) - 0.002, wet: wetness(state, k) }
   }
+  // The layer lines through the glass come from the coarse cell grid and would step like saw teeth;
+  // poured layers settle into soft waves, so smooth each line around the jar (top stays where it is).
+  const ring = Array.from({ length: geometry.ring }, (_, step) => edge(step / geometry.ring * Math.PI * 2))
+  const soften = (values: number[], reach: number) => values.map((_, i) => { let sum = 0; for (let d = -reach; d <= reach; d += 1) sum += values[(i + d + values.length) % values.length]; return sum / (2 * reach + 1) })
+  const reach = Math.max(2, Math.round(geometry.ring / 64))
+  const gravelLine = soften(soften(ring.map((e) => e.g), reach), reach), charcoalLine = soften(soften(ring.map((e) => e.g + e.c), reach), reach)
+  ring.forEach((e, i) => { const top = e.g + e.c + e.s; e.g = Math.min(gravelLine[i], top); e.c = Math.max(0, Math.min(charcoalLine[i], top) - e.g); e.s = Math.max(0, top - e.g - e.c) })
   for (let step = 0; step < geometry.ring; step += 1) {
-    const a = edge(step / geometry.ring * Math.PI * 2), b = edge((step + 1) / geometry.ring * Math.PI * 2)
+    const a = ring[step], b = ring[(step + 1) % geometry.ring]
     const ua = step / geometry.ring, ub = (step + 1) / geometry.ring
     const band = (y0a: number, y1a: number, y0b: number, y1b: number, ca: Color, cb: Color) => {
       put(a.x, y0a, a.z, ca, ua); put(b.x, y0b, b.z, cb, ub); put(b.x, y1b, b.z, cb, ub)
@@ -196,7 +203,7 @@ export function useLayerMaterials() {
   const [scan, pebbleScan] = useTexture([`${polyHaven}forest_ground_04/forest_ground_04_diff_1k.jpg`, `${polyHaven}clean_pebbles/clean_pebbles_diff_1k.jpg`]) as Texture[]
   return useMemo(() => {
     scan.colorSpace = SRGBColorSpace
-    const grain = paintify(scan, 'saturate(0) brightness(1.5) contrast(1.1)', 0)
+    const grain = paintify(scan, 'saturate(0) brightness(1.45) contrast(1.6)', 0)
     grain.wrapS = grain.wrapT = RepeatWrapping
     pebbleScan.colorSpace = SRGBColorSpace
     const pebble = paintify(pebbleScan, 'saturate(0.45) brightness(1.15) contrast(1.15)', 0)

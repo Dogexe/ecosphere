@@ -1,7 +1,7 @@
 import { Suspense, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
-import { AdditiveBlending, BufferAttribute, CanvasTexture, Color, DoubleSide, FrontSide, LatheGeometry, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, PlaneGeometry, RepeatWrapping, SRGBColorSpace, Vector2 } from 'three'
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, FrontSide, LatheGeometry, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, PlaneGeometry, RepeatWrapping, SRGBColorSpace, Vector2 } from 'three'
 import type { Group, Texture } from 'three'
 import type { Pond } from '../sim/pond'
 import { pondCenter } from '../sim/pond'
@@ -32,6 +32,7 @@ const smooth = (edge0: number, edge1: number, value: number) => { const t = Math
 /** Bed height at distance r from the pond centre: flat 2 cm deep middle, sloping up to the bank. */
 export const pondBedAt = (r: number) => bed + deep * smooth(0.5 * R, 1.04 * R, r)
 const noRaycast = () => undefined
+const wallSamples = 192
 /** Where the water meets the bowl at a given level. */
 function shoreRadius(level: number) {
   let low = 0, high = R * 1.04
@@ -237,8 +238,28 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     for (let v = 0; v < position.count; v += 1) uv.setXY(v, position.getX(v) / 3, position.getZ(v) / 3)
     const ripples = rippleNormals()
     ripples.repeat.set(1, 1)
-    return { geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.04, normalMap: ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }), { userData: { realistic: true } }) }
+    // Where the pond runs up against the jar, the water shows through the glass as a wall: a strip around
+    // the jar from the bed up to the surface, drawn only where the pond touches the glass.
+    const side = new BufferGeometry()
+    side.setAttribute('position', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 3), 3))
+    side.setAttribute('color', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 4), 4))
+    const order: number[] = []
+    for (let n = 0; n < wallSamples; n += 1) { const a = n * 2, b = a + 1, c = a + 2, d = a + 3; order.push(a, c, b, b, c, d) }
+    side.setIndex(order)
+    const sideMaterial = Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.08, metalness: 0, side: DoubleSide, depthWrite: false }), { userData: { realistic: true } })
+    return { side, sideMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.04, normalMap: ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }), { userData: { realistic: true } }) }
   }, [M])
+  // Around the jar wall: the bed height at the glass and whether pond water reaches it there.
+  const rim = useMemo(() => {
+    const beds = new Float32Array(wallSamples + 1), wet = new Uint8Array(wallSamples + 1)
+    for (let n = 0; n <= wallSamples; n += 1) {
+      const angle = n / wallSamples * Math.PI * 2, x = Math.cos(angle) * (R - 0.08), z = Math.sin(angle) * (R - 0.08)
+      beds[n] = ground(x, z) - floor
+      const ci = Math.round((x + R) / cell), cj = Math.round((z + R) / cell)
+      for (let dj = -1; dj <= 1 && !wet[n]; dj += 1) for (let di = -1; di <= 1; di += 1) { const a = ci + di, b = cj + dj; if (a >= 0 && b >= 0 && a < N && b < N && cells[b * N + a]) { wet[n] = 1; break } }
+    }
+    return { beds, wet }
+  }, [ground, floor, cells, N, cell])
   // Bed height under every vertex, and whether it lies within two cells of pond water (the sheet may reach it).
   const bedding = useMemo(() => {
     const beds = new Float32Array(M * M), near = new Uint8Array(M * M)
@@ -276,13 +297,29 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
       }
     }
     position.needsUpdate = true; colours.needsUpdate = true
+    // The water wall at the glass: clearer near the surface, darker and greener towards the bed.
+    const sidePosition = parts.side.getAttribute('position') as BufferAttribute, sideColour = parts.side.getAttribute('color') as BufferAttribute
+    const wallRadius = R + 0.04
+    for (let n = 0; n <= wallSamples; n += 1) {
+      const angle = n / wallSamples * Math.PI * 2, cos = Math.cos(angle), sin = Math.sin(angle)
+      const bedY = rim.beds[n], water = rim.wet[n] && surface > bedY + 0.02
+      const top = water ? surface : bedY
+      sidePosition.setXYZ(n * 2, cos * wallRadius, floor + Math.min(bedY, top) - 0.02, sin * wallRadius)
+      sidePosition.setXYZ(n * 2 + 1, cos * wallRadius, floor + top, sin * wallRadius)
+      colour.copy(look.tint).lerp(deep, 0.6)
+      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.85, 0.42 + look.cloud * 0.4) : 0)
+      colour.copy(look.tint)
+      sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.75, 0.16 + look.cloud * 0.5) : 0)
+    }
+    sidePosition.needsUpdate = true; sideColour.needsUpdate = true
+    parts.side.computeVertexNormals(); parts.side.computeBoundingSphere()
     parts.geometry.computeVertexNormals(); parts.geometry.computeBoundingSphere()
     // Still water is level right to the shore: no tilted normals where the sheet tucks under the bank.
     const normals = parts.geometry.getAttribute('normal') as BufferAttribute
     for (let v = 0; v < M * M; v += 1) if (bedding.near[v] && surface - bedding.beds[v] > -0.35) normals.setXYZ(v, 0, 1, 0)
     normals.needsUpdate = true
   }
-  useMemo(() => write(memory.current.surface), [parts, bedding, look.tint.getHex(), look.cloud]) // eslint-disable-line react-hooks/exhaustive-deps
+  useMemo(() => write(memory.current.surface), [parts, bedding, rim, look.tint.getHex(), look.cloud]) // eslint-disable-line react-hooks/exhaustive-deps
   parts.material.side = underwater ? DoubleSide : FrontSide
   useFrame((_, delta) => {
     const m = memory.current
@@ -291,6 +328,9 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     // The level eases to its new height, like water settling after a pour.
     if (Math.abs(target - m.surface) > 0.002) { m.surface += (target - m.surface) * Math.min(1, delta * 1.5); write(m.surface) }
   })
-  return <mesh geometry={parts.geometry} material={parts.material} renderOrder={1} visible={pond.water > 1}
-    onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onPondClick(event.point.x, event.point.z) }} />
+  return <>
+    <mesh geometry={parts.geometry} material={parts.material} renderOrder={1} visible={pond.water > 1}
+      onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onPondClick(event.point.x, event.point.z) }} />
+    <mesh geometry={parts.side} material={parts.sideMaterial} renderOrder={1} visible={pond.water > 1} raycast={noRaycast} />
+  </>
 }

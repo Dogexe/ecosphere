@@ -22,16 +22,18 @@ const pour = (material, target, amount, points, done = () => false) => {
   }
 }
 const depth = (layer) => layerDepths(state)[layer]
-pour('gravel', 1.6, 3, spiral, () => depth('gravel') >= 1.6)
-pour('charcoal', 0.25, 1, spiral, () => depth('charcoal') >= 0.25)
-pour('soil', 2.75, 3, spiral, () => depth('soil') >= 2.75)
+// Shallower than the old 30/5/52 mm so the jar reads fat and squat like the
+// owner's target picture (concept round 3, image 12, 2026-11-06): about 19 mm
+// of gravel, 4 mm of charcoal and 36 mm of soil.
+pour('gravel', 1.0, 3, spiral, () => depth('gravel') >= 1.0)
+pour('charcoal', 0.2, 1, spiral, () => depth('charcoal') >= 0.2)
+pour('soil', 1.9, 3, spiral, () => depth('soil') >= 1.9)
 // Extra soil towards the back, away from the pond, for a slope to plant on.
 const away = (x, z) => Math.hypot(x - pondCenter.x, z - pondCenter.z) > pondCenter.radius + 0.6
 const back = spiral.filter(([x, z]) => z < -0.4 && x > -0.2 && away(x, z))
-pour('soil', 3.0, 3, back, () => depth('soil') >= 3.0)
-// And a little along the front glass, so the pond keeps to its hollow instead of reaching the glass.
-const front = spiral.filter(([x, z]) => z > 1.6 && Math.hypot(x - pondCenter.x, z - pondCenter.z) > pondCenter.radius + 0.35)
-pour('soil', 3.15, 3, front, () => depth('soil') >= 3.15)
+pour('soil', 2.15, 3, back, () => depth('soil') >= 2.15)
+// The pond now runs out to the front glass (the owner wants to watch underwater
+// life from the side), so no soil is banked along the front.
 for (let pass = 0; pass < 200; pass += 1) settle(state, 6)
 // Top up the low spots, as you would by eye before planting, so water only stands where the pond is dug.
 const tops = () => { const t = []; for (let k = 0; k < substrateSize ** 2; k += 1) if (inside[k]) t.push([k, state.gravel[k] + state.charcoal[k] + state.soil[k]]); return t }
@@ -46,17 +48,20 @@ for (let round = 0; round < 3000; round += 1) {
 // spread the scooped soil over the rest. The soil then slumps to its own angle.
 const N = substrateSize
 const reach = (angle) => 1.22 + 0.14 * Math.sin(2 * angle + 1) + 0.08 * Math.sin(3 * angle + 2.2) + 0.05 * Math.sin(5 * angle + 0.4)
+// The hollow is dug from the old pond's middle forward to the front glass (+z faces the camera),
+// so it is measured from that line rather than from one point: the pond meets the glass full depth.
+const glassward = (dx, dz) => { const along = Math.min(Math.max(dz, 0), 3.4); return [dx, dz - along] }
 let scooped = 0
 for (let k = 0; k < N * N; k += 1) {
   if (!inside[k]) continue
-  const dx = cellX(k % N) - pondCenter.x, dz = cellX(Math.floor(k / N)) - pondCenter.z
+  const [dx, dz] = glassward(cellX(k % N) - pondCenter.x, cellX(Math.floor(k / N)) - pondCenter.z)
   const t = 1 - Math.hypot(dx, dz) / reach(Math.atan2(dz, dx))
   if (t <= 0) continue
-  const take = Math.min(state.soil[k] - 0.4, 1.6 * Math.min(1, t * 2.2) ** 1.4)
+  const take = Math.min(state.soil[k] - 0.3, 1.3 * Math.min(1, t * 2.2) ** 1.4)
   state.soil[k] -= take; scooped += take
 }
 // Most of it banks up around the hollow, the way soil piles beside a hole you dig.
-const rim = Array.from({ length: 48 }, (_, n) => { const a = n / 48 * Math.PI * 2, r = reach(a) + 0.45; return [pondCenter.x + Math.cos(a) * r, pondCenter.z + Math.sin(a) * r] }).filter(([x, z]) => Math.hypot(x, z) < 3.4)
+const rim = Array.from({ length: 48 }, (_, n) => { const a = n / 48 * Math.PI * 2, r = reach(a) + 0.45; return [pondCenter.x + Math.cos(a) * r, pondCenter.z + Math.sin(a) * r] }).filter(([x, z]) => Math.hypot(x, z) < 3.4 && z < 2.2)
 for (let n = 0; n < 240; n += 1) { const [x, z] = rim[n % rim.length]; deposit(state, 'soil', x, z, scooped / 240) }
 for (let pass = 0; pass < 300; pass += 1) settle(state, 6)
 // A gentle watering: enough to settle and firm the top, not to leave puddles.
@@ -72,7 +77,7 @@ for (let round = 0; round < 1500; round += 1) {
   for (let pass = 0; pass < 150; pass += 1) settle(state, 2)
   const volume = shape().volume ?? 0
   if (round % 50 === 0) console.log('round', round, 'pond volume', volume.toFixed(2), 'table', state.table.toFixed(2))
-  if (volume > 3.2) break
+  if (volume > 4.4) break
 }
 const pond = shape()
 let farthest = 0
