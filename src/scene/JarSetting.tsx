@@ -67,6 +67,32 @@ const glassEdge = new ShaderMaterial({
   fragmentShader: `uniform vec3 tint; varying vec3 vNormal; varying vec3 vView;
     void main() { float facing = abs(dot(normalize(vNormal), normalize(vView))); float edge = pow(1.0 - facing, 4.0); gl_FragColor = vec4(tint * edge * 0.3, 1.0); }`,
 })
+/*
+ * The humid film on a sealed jar's glass (concept image 12): a faint milky haze that thickens toward
+ * the shoulder, peppered with very fine beads that catch the window light. The larger beads and
+ * trails are GlassDroplets.
+ */
+const condensationFilm = new ShaderMaterial({
+  transparent: true, depthWrite: false, side: DoubleSide,
+  uniforms: { amount: { value: 0 } },
+  vertexShader: `varying vec2 vUv; varying vec3 vNormal; varying vec3 vView;
+    void main() { vUv = uv; vec4 world = modelMatrix * vec4(position, 1.0); vNormal = normalize(mat3(modelMatrix) * normal); vView = normalize(cameraPosition - world.xyz); gl_Position = projectionMatrix * viewMatrix * world; }`,
+  fragmentShader: `uniform float amount; varying vec2 vUv; varying vec3 vNormal; varying vec3 vView;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    void main() {
+      float height = smoothstep(0.3, 0.9, vUv.y);
+      vec2 cell = vUv * vec2(900.0, 260.0);
+      vec2 id = floor(cell), f = fract(cell) - 0.5;
+      float r = 0.18 + 0.22 * hash(id + 3.1);
+      float bead = (1.0 - smoothstep(r - 0.08, r, length(f))) * step(0.45, hash(id));
+      float glint = bead * smoothstep(0.0, 0.25, -f.y);
+      float facing = abs(dot(normalize(vNormal), normalize(vView)));
+      float haze = height * (0.10 + 0.08 * (1.0 - facing));
+      float alpha = amount * (haze + bead * height * 0.22);
+      vec3 colour = mix(vec3(0.86, 0.9, 0.88), vec3(1.0, 0.99, 0.95), glint);
+      gl_FragColor = vec4(colour, alpha);
+    }`,
+})
 function jarGeometry(bottom: number) {
   const points: Vector2[] = []
   const steps = 48
@@ -127,7 +153,7 @@ export function JarSubstrate() {
 }
 
 /** Clear glass: a thin physical shell with sharp reflections, so the jar contents stay crisp. Sealed jars wear a screw lid. */
-function Glass({ bottom = gravelBottom, sealed = false }: { bottom?: number; sealed?: boolean }) {
+function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: number; sealed?: boolean; mist?: number }) {
   const geometry = useMemo(() => jarGeometry(bottom - 0.05), [bottom])
   const lid = neckRadius + 0.16
   return <group>
@@ -136,6 +162,7 @@ function Glass({ bottom = gravelBottom, sealed = false }: { bottom?: number; sea
     </mesh>
     {/* Glass is seen by its edges: where you look along the curved wall it turns pale and reflective. */}
     <mesh geometry={geometry} raycast={noRaycast} renderOrder={3} material={glassEdge} />
+    {mist > 0.2 && <mesh geometry={geometry} raycast={noRaycast} renderOrder={4} material={condensationFilm} onBeforeRender={() => { condensationFilm.uniforms.amount.value = Math.min(1, (mist - 0.2) / 0.5) }} />}
     {/* The rolled rim of the neck, and the screw thread just under it. */}
     <mesh position={[0, glassTop, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
       <torusGeometry args={[neckRadius, 0.07, 10, 96]} />
@@ -271,7 +298,7 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
     {dressed && <Suspense fallback={null}><Dressing ground={ground} keepOut={keepOut} shore={shore} /></Suspense>}
     {dressed && water && hasPond && <Suspense fallback={null}><Pebbles water={water} ground={ground} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
-    <Glass bottom={floor} sealed={sealed} />
+    <Glass bottom={floor} sealed={sealed} mist={underwater ? 0 : mist} />
     {mist > 0.2 && !underwater && <GlassDroplets fog={mist} radiusAt={glassRadiusAt} top={neck - 0.3} ground={ground} />}
   </>
 }
