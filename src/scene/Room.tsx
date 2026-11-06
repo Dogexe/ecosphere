@@ -95,7 +95,7 @@ export function Room({ world }: { world: World }) {
   const shade = useRef<Mesh>(null)
   const sky = environmentAt(lightingWorld(world))
   const solar = sky.cycling ? sky.solar : 1
-  const wallDay = useMemo(() => new Color('#d9ccb4'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
+  const wallDay = useMemo(() => new Color('#b3a58c'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
   const background = useMemo(() => new Color(), [])
   const fog = useMemo(() => new Fog('#2a2c35', 18, 48), [])
   const daylight = useRef(solar)
@@ -125,7 +125,7 @@ export function Room({ world }: { world: World }) {
     <mesh position={[wallX, 8, 10]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[60, 40]} /><meshStandardMaterial ref={wall(4)} roughness={0.95} /></mesh>
     <group position={[windowCentre.x, windowCentre.y, backZ - 0.4]}>
       <mesh><planeGeometry args={[windowCentre.width, windowCentre.height]} /><meshBasicMaterial map={views.night} toneMapped={false} fog={false} /></mesh>
-      <mesh position={[0, 0, 0.01]}><planeGeometry args={[windowCentre.width, windowCentre.height]} /><meshBasicMaterial ref={day} map={views.day} transparent toneMapped={false} fog={false} /></mesh>
+      <mesh position={[0, 0, 0.01]}><planeGeometry args={[windowCentre.width, windowCentre.height]} /><meshBasicMaterial ref={day} map={views.day} color="#9a9a92" transparent toneMapped={false} fog={false} /></mesh>
       {/* Frame and glazing bars. */}
       {[-1, 1].map((side) => <mesh key={`v${side}`} position={[side * windowCentre.width / 2, 0, 0.3]}><boxGeometry args={[0.5, windowCentre.height + 0.5, 0.6]} /><meshStandardMaterial color={frame} roughness={0.6} /></mesh>)}
       {[-1, 1].map((side) => <mesh key={`h${side}`} position={[0, side * windowCentre.height / 2, 0.3]}><boxGeometry args={[windowCentre.width + 0.5, 0.5, 0.6]} /><meshStandardMaterial color={frame} roughness={0.6} /></mesh>)}

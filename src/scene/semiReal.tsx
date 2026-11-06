@@ -170,7 +170,7 @@ function ScanMoss({ x, z, radius, count, ground, flat = false, spots, scale = 1,
       for (let vertex = 0; vertex < local.count; vertex += 1) {
         const rise = Math.min(1, Math.max(0, (local.getY(vertex) - place.y) / tall))
         const shade = light * (0.35 + 0.65 * rise)
-        colours.set([shade * warm, shade, shade * 0.8], vertex * 3)
+        colours.set([shade * warm * 0.78, shade * 0.9, shade * 0.5], vertex * 3)
       }
       shoot.setAttribute('color', new BufferAttribute(colours, 3))
       pieces.push(shoot)

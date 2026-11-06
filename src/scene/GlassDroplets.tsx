@@ -41,10 +41,11 @@ export function GlassDroplets({ fog, radiusAt, top, ground }: { fog: number; rad
     if (!mesh) return
     for (let n = 0; n < mistCount; n += 1) {
       const angle = hash(n + 7000) * Math.PI * 2
-      const low = floorAt(angle) + 0.15, y = low + (top - low) * Math.sqrt(hash(n + 9000))
+      // Mostly on the upper glass, where the cooler air meets it.
+      const ground0 = floorAt(angle), low = ground0 + 0.15 + (top - ground0) * 0.3, y = low + (top - low) * Math.sqrt(hash(n + 9000))
       const r = radiusAt(y) - 0.015
-      // Mostly tiny beads with a few bigger ones, flattened against the glass.
-      const size = 0.012 + hash(n + 11000) ** 3 * 0.06
+      // Three bead sizes, mostly tiny, flattened against the glass.
+      const pick = hash(n + 11000), size = (pick < 0.7 ? 0.014 : pick < 0.92 ? 0.03 : 0.058) * (0.85 + hash(n + 12000) * 0.3)
       dummy.position.set(Math.cos(angle) * r, y, Math.sin(angle) * r)
       dummy.rotation.set(0, -angle + Math.PI / 2, 0)
       dummy.scale.set(size, size * (1 + hash(n + 13000) * 0.3), size * 0.4)
@@ -102,7 +103,7 @@ export function GlassDroplets({ fog, radiusAt, top, ground }: { fog: number; rad
     {/* The streak a sliding bead wipes clear of fog: a faint darker line. */}
     <instancedMesh ref={trails} args={[undefined, undefined, count]} raycast={noRaycast} renderOrder={3} frustumCulled={false}>
       <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial color="#cfdcd8" transparent opacity={0.12} depthWrite={false} />
+      <meshBasicMaterial color="#e6f0ed" transparent opacity={0.22} depthWrite={false} />
     </instancedMesh>
   </group>
 }

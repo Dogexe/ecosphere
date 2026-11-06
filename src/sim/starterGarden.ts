@@ -30,7 +30,7 @@ export function withStarterGarden(world: World): World {
     if (next === planted) continue
     // Already established when the player first looks in, not seedlings.
     const plant = next.plants[next.plants.length - 1]
-    planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * 0.85, age: 90, development: 90 }] }
+    planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * (plant.kind === 'tree' ? 0.55 : 0.85), age: 90, development: 90 }] }
   }
   return planted
 }

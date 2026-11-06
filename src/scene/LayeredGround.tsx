@@ -235,7 +235,13 @@ export function useLayerMaterials() {
             vec3 ratio = clamp(vColor.rgb / soilRef, 0.0, 1.6);
             float warm = (vColor.r - vColor.b) / max(vColor.r, 1e-3);
             float charcoal = (1.0 - vPebble) * (1.0 - smoothstep(0.3, 0.6, warm));
-            vec3 soil = soilScan * mix(vec3(1.0), ratio, 0.75) * 0.95;
+            vec3 soil = soilScan * mix(vec3(1.0), ratio, 0.75) * 0.8;
+            // Pale mineral bits (perlite, pumice) scattered through the potting soil, as in concept image 12.
+            vec2 cell = floor(vMapUv * 90.0);
+            float bit = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+            vec2 inCell = fract(vMapUv * 90.0) - 0.5;
+            float speck = step(0.965, bit) * (1.0 - smoothstep(0.18, 0.32, length(inCell)));
+            soil = mix(soil, vec3(0.78, 0.75, 0.68), speck * 0.85);
             vec3 grit = gritScan * 0.7;
             vec3 gravel = pebbleScan * clamp(vColor.rgb / gravelRef, 0.0, 1.4) * 1.35;
             diffuseColor.rgb *= mix(mix(soil, grit, charcoal), gravel, vPebble);`)

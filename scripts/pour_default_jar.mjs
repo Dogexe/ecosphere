@@ -25,14 +25,15 @@ const depth = (layer) => layerDepths(state)[layer]
 // Shallower than the old 30/5/52 mm so the jar reads fat and squat like the
 // owner's target picture (concept round 3, image 12, 2026-11-06): about 19 mm
 // of gravel, 4 mm of charcoal and 36 mm of soil; thinned again the same day to
-// about 16 mm gravel and 29 mm soil, so less brown wall shows through the glass.
-pour('gravel', 0.85, 3, spiral, () => depth('gravel') >= 0.85)
+// about 14 mm gravel and 22 mm soil (Codex review round 1: the brown wall was
+// the biggest gap), the pond hollow dug down to the charcoal.
+pour('gravel', 0.75, 3, spiral, () => depth('gravel') >= 0.75)
 pour('charcoal', 0.2, 1, spiral, () => depth('charcoal') >= 0.2)
-pour('soil', 1.55, 3, spiral, () => depth('soil') >= 1.55)
+pour('soil', 1.15, 3, spiral, () => depth('soil') >= 1.15)
 // Extra soil towards the back, away from the pond, for a slope to plant on.
 const away = (x, z) => Math.hypot(x - pondCenter.x, z - pondCenter.z) > pondCenter.radius + 0.6
 const back = spiral.filter(([x, z]) => z < -0.4 && x > -0.2 && away(x, z))
-pour('soil', 1.85, 3, back, () => depth('soil') >= 1.85)
+pour('soil', 1.5, 3, back, () => depth('soil') >= 1.5)
 // The pond now runs out to the front glass (the owner wants to watch underwater
 // life from the side), so no soil is banked along the front.
 for (let pass = 0; pass < 200; pass += 1) settle(state, 6)
@@ -58,7 +59,7 @@ for (let k = 0; k < N * N; k += 1) {
   const [dx, dz] = glassward(cellX(k % N) - pondCenter.x, cellX(Math.floor(k / N)) - pondCenter.z)
   const t = 1 - Math.hypot(dx, dz) / reach(Math.atan2(dz, dx))
   if (t <= 0) continue
-  const take = Math.min(state.soil[k] - 0.3, 1.3 * Math.min(1, t * 2.2) ** 1.4)
+  const take = Math.min(state.soil[k] - 0.05, 1.3 * Math.min(1, t * 2.2) ** 1.4)
   state.soil[k] -= take; scooped += take
 }
 // Most of it banks up around the hollow, the way soil piles beside a hole you dig.
@@ -72,11 +73,14 @@ for (let pass = 0; pass < 1500; pass += 1) settle(state, 4)
 // It only stays once the soil under it and the gravel below are full, as in a
 // real jar, so keep pouring and waiting until the pond holds its size.
 const shape = () => maskShape(saveSubstrate(state))
-for (let round = 0; round < 1500; round += 1) {
-  const batch = state.table < 1.5 ? 40 : 12
+let held = 0
+for (let round = 0; round < 3000; round += 1) {
+  // Pour fast until water starts to stand, then slowly so the pond stops near its size.
+  const batch = held < 0.3 ? 40 : 6
   for (let n = 0; n < batch; n += 1) { deposit(state, 'water', pondCenter.x + Math.sin(n) * 0.3, pondCenter.z + Math.cos(n * 1.7) * 0.3, 2); settle(state, 2) }
   for (let pass = 0; pass < 150; pass += 1) settle(state, 2)
   const volume = shape().volume ?? 0
+  held = volume
   if (round % 50 === 0) console.log('round', round, 'pond volume', volume.toFixed(2), 'table', state.table.toFixed(2))
   if (volume > 4.4) break
 }

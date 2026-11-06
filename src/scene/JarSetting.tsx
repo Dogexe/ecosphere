@@ -49,8 +49,8 @@ const gravelBottom = charcoalBottom - jarLayers.gravel
  */
 const wall = R + 0.12
 const belly = 0.22
-const bellyTop = top + 2.0
-const neck = top + 3.2
+const bellyTop = top + 1.6
+const neck = top + 2.7
 const neckRadius = R * 0.93
 const glassTop = neck + 0.35
 /** The glass radius at height y. */
@@ -180,6 +180,18 @@ function Sill({ bottom = gravelBottom }: { bottom?: number }) {
 
 const leaf = 'dry_quiver_leaf/dry_quiver_leaf_1k.gltf'
 
+/**
+ * Distinct moss cushions instead of one scattered carpet (Codex review of the
+ * game against concept image 12, 2026-11-06: 12-18 rounded cushions, heights
+ * varying about 2:1, with dark soil showing between them).
+ */
+const cushions = Array.from({ length: 16 }, (_, n) => {
+  const hash = (k: number) => { const s = Math.sin((n + k) * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s) }
+  const angle = n * 2.39996 + 0.6, reach = 0.9 + Math.sqrt((n + 0.5) / 16) * 2.3
+  const radius = 0.35 + hash(3) * 0.35
+  return { x: Math.cos(angle) * reach, z: Math.sin(angle) * reach, radius, count: Math.round(radius * radius * 520), scale: 0.75 + hash(7) * 0.75 }
+})
+
 /** Moss, stones, a fern and fallen leaves from the approved reference (round 2, image 2), kept clear of the pond. */
 function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?: (x: number, z: number) => boolean; shore?: Vector3[] }) {
   const avoid = keepOut ? nowhere : pond
@@ -188,12 +200,8 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {dry(2.55, -1.35) && <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />}
     {dry(-2.55, -1.9) && <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />}
     {dry(0.6, 3.05) && <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />}
-    <MossSprigs x={1.6} z={-1.9} radius={1.3} count={260} ground={ground} avoid={avoid} keepOut={keepOut} />
-    <MossSprigs x={-2.2} z={-0.7} radius={1.0} count={170} ground={ground} avoid={avoid} keepOut={keepOut} />
-    <MossSprigs x={-0.3} z={2.6} radius={0.9} count={130} ground={ground} avoid={avoid} keepOut={keepOut} />
-    <MossSprigs x={2.6} z={1.7} radius={0.8} count={110} ground={ground} avoid={avoid} keepOut={keepOut} />
-    <MossSprigs x={0} z={0} radius={3.5} count={320} flat scale={0.55} ground={ground} avoid={avoid} keepOut={keepOut} />
-    <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={260} ground={ground} spots={shore ?? bank} scale={1.1} />
+    {cushions.map((cushion, index) => <MossSprigs key={index} x={cushion.x} z={cushion.z} radius={cushion.radius} count={cushion.count} scale={cushion.scale} ground={ground} avoid={avoid} keepOut={keepOut} />)}
+    <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={150} ground={ground} spots={shore ?? bank} scale={0.9} />
     {dry(-2.6, 1.9) && <Fern x={-2.6} z={1.9} ground={ground} />}
     {dry(0.9, 1.5) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={0.9} z={1.5} length={0.95} turn={0.4} ground={ground} />}
     {dry(2.2, 0.4) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={2.2} z={0.4} length={0.8} turn={-1.6} ground={ground} />}
@@ -283,12 +291,12 @@ function Pebbles({ water, ground }: { water: PondShape; ground: Ground }) {
   const spots = useMemo(() => {
     const found: { x: number; z: number; size: number; turn: number; node: string; wet: boolean }[] = []
     let bank = 0, bed = 0
-    for (let n = 0; n < 6000 && (bank < 12 || bed < 22); n += 1) {
+    for (let n = 0; n < 6000 && (bank < 6 || bed < 7); n += 1) {
       const x = -3.6 + ((n * 0.618034 + 0.31) % 1) * 7.2, z = -3.6 + ((n * 0.7548777 + 0.17) % 1) * 7.2
       if (Math.hypot(x, z) > 3.45) continue
       const d = water.signedDistance(x, z)
       const wet = d < -0.12
-      if (wet ? bed >= 22 : (d < 0.05 || d > 0.4 || bank >= 12)) continue
+      if (wet ? bed >= 7 : (d < 0.05 || d > 0.4 || bank >= 6)) continue
       if (found.some((spot) => Math.hypot(spot.x - x, spot.z - z) < 0.35)) continue
       if (wet) bed += 1; else bank += 1
       found.push({ x, z, size: 0.16 + ((n * 0.37) % 1) * 0.32, turn: n * 2.4, node: `namaqualand_stones_01_${'abcde'[n % 5]}`, wet })

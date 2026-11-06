@@ -13,7 +13,7 @@ test('a new poured jar is planted toward concept image 12, with every plant on i
   assert.deepEqual(added.map((plant) => plant.kind), ['tree', 'bloom', 'grass', 'grass', 'clover', 'fern', 'clover', 'bloom', 'lily', 'lily', 'lily'])
   for (const plant of added) {
     assert.equal(isPondPosition(plant.x, plant.z), plant.kind === 'lily', `${plant.kind} at ${plant.x},${plant.z}`)
-    assert.ok(plant.age > 0 && plant.biomass > plant.capacity * 0.8, 'starts established, not as a seedling')
+    assert.ok(plant.age > 0 && plant.biomass > plant.capacity * 0.5, 'starts established, not as a seedling')
   }
   assert.equal(new Set(planted.plants.map((plant) => plant.id)).size, planted.plants.length)
 })

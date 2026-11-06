@@ -29,6 +29,6 @@ export function Polish({ light }: { light: boolean }) {
     <Vignette offset={0.32} darkness={0.55} />
     <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     <BrightnessContrast brightness={-0.02} contrast={0.16} />
-    <HueSaturation saturation={0.14} />
+    <HueSaturation saturation={0.06} />
   </EffectComposer>
 }
