@@ -13,6 +13,7 @@ import type { PondShape } from '../sim/pondShape'
 import type { Pond } from '../sim/pond'
 import { ShapedPond } from './PondWater'
 import { GlassDroplets } from './GlassDroplets'
+import { DrawnCurledLeaf } from './DrawnPlant'
 import { LayeredGround, smoothGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
@@ -196,8 +197,9 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {cushions.map((cushion, index) => <MossSprigs key={index} x={cushion.x} z={cushion.z} radius={cushion.radius} count={cushion.count} scale={cushion.scale} ground={ground} avoid={avoid} keepOut={keepOut} />)}
     <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={150} ground={ground} spots={shore ?? bank} scale={0.9} />
     {dry(-2.6, 1.9) && <Fern x={-2.6} z={1.9} ground={ground} />}
-    {dry(0.9, 1.5) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={0.9} z={1.5} length={0.95} turn={0.4} ground={ground} />}
-    {dry(2.2, 0.4) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={2.2} z={0.4} length={0.8} turn={-1.6} ground={ground} />}
+    {/* Drawn curled dry leaves on the front bank, the shelter a woodlouse uses in concept image 12. */}
+    {dry(2.1, 2.25) && <group position={[2.1, ground(2.1, 2.25) - 0.03, 2.25]}><DrawnCurledLeaf length={2.0} turn={-0.25} /></group>}
+    {dry(1.7, -0.2) && <group position={[1.7, ground(1.7, -0.2) - 0.03, -0.2]}><DrawnCurledLeaf length={1.0} turn={0.4} /></group>}
     {dry(-1.2, -2.6) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />}
     {dry(1.25, 0.35) && <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={ground} />}
   </>

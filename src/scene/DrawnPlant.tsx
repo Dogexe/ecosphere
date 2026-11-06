@@ -388,6 +388,23 @@ export function useFallenLeaves() {
   }), [textures])
 }
 
+/**
+ * A dry leaf curled into a little roof, as in concept image 12 where a woodlouse sheltering under
+ * one is the focal point. One side painting, cupped, facing the front glass (the view turns only
+ * ±30°), with a crossed copy so it keeps a shape when seen from the side.
+ */
+export function DrawnCurledLeaf({ length, turn = 0 }: { length: number; turn?: number }) {
+  const texture = useTexture(url('fallen-leaf', 'curled')) as Texture
+  const meshes = useMemo(() => {
+    prepare(texture)
+    const height = length / aspect(texture)
+    const pieces: Piece[] = [{ geometry: place(upright(texture, height, { cup: 0.25 }), { yaw: 0 }), texture, bend: false }]
+    return merge(pieces).map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, 0.8, false) }))
+  }, [texture, length])
+  useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
+  return <group rotation={[0, turn, 0]}>{meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} castShadow raycast={() => undefined} />)}</group>
+}
+
 const mushroomFiles = ['side-1', 'side-2', 'side-3', 'cap-1', 'cap-2'].map((name) => url('mushroom', name))
 /** A drawn mushroom: the side painting on two crossed cards, the cap painting laid in it as seen from above. */
 export function DrawnMushroom({ height, lean = 0, variant = 0 }: { height: number; lean?: number; variant?: number }) {
