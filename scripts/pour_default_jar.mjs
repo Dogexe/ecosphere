@@ -27,48 +27,42 @@ const depth = (layer) => layerDepths(state)[layer]
 // of gravel, 4 mm of charcoal and 36 mm of soil; thinned again the same day to
 // about 14 mm gravel and 22 mm soil (Codex review round 1: the brown wall was
 // the biggest gap), the pond hollow dug down to the charcoal.
-pour('gravel', 0.75, 3, spiral, () => depth('gravel') >= 0.75)
-pour('charcoal', 0.2, 1, spiral, () => depth('charcoal') >= 0.2)
-pour('soil', 1.45, 3, spiral, () => depth('soil') >= 1.45)
-// Extra soil towards the back, away from the pond, for a slope to plant on.
-const away = (x, z) => Math.hypot(x - pondCenter.x, z - pondCenter.z) > pondCenter.radius + 0.6
-const back = spiral.filter(([x, z]) => z < -0.4 && x > -0.2 && away(x, z))
-pour('soil', 1.9, 3, back, () => depth('soil') >= 1.9)
-// The pond now runs out to the front glass (the owner wants to watch underwater
-// life from the side), so no soil is banked along the front.
-for (let pass = 0; pass < 200; pass += 1) settle(state, 6)
-// Top up the low spots, as you would by eye before planting, so water only stands where the pond is dug.
-const tops = () => { const t = []; for (let k = 0; k < substrateSize ** 2; k += 1) if (inside[k]) t.push([k, state.gravel[k] + state.charcoal[k] + state.soil[k]]); return t }
-for (let round = 0; round < 3000; round += 1) {
-  const all = tops(), mean = all.reduce((sum, [, top]) => sum + top, 0) / all.length
-  const [k, low] = all.reduce((best, item) => item[1] < best[1] ? item : best)
-  if (low > mean - 0.15) break
-  deposit(state, 'soil', cellX(k % substrateSize), cellX(Math.floor(k / substrateSize)), 1)
-  settle(state, 4)
-}
-// Scoop a hollow for the pond, a little uneven like a hand would leave it, and
-// spread the scooped soil over the rest. The soil then slumps to its own angle.
+pour('gravel', 0.6, 3, spiral, () => depth('gravel') >= 0.6)
+pour('charcoal', 0.12, 1, spiral, () => depth('charcoal') >= 0.12)
+// Concept image 12 (owner's pick, 2026-11-06; thread "Match jar visuals to image 12", 2026-11-07):
+// the substrate is only about a third of the jar's height. A low planted bank (about 33 mm
+// above the base at the front, rising to about 55 mm at the back) and a pond dug right
+// down to the gravel that runs out to the front glass, so the water and its pebble bed are
+// seen side-on. The soil is placed by hand to these heights, then watered and allowed to slump.
 const N = substrateSize
-const reach = (angle) => 1.6 + 0.14 * Math.sin(2 * angle + 1) + 0.08 * Math.sin(3 * angle + 2.2) + 0.05 * Math.sin(5 * angle + 0.4)
-// The hollow is dug from the old pond's middle forward to the front glass (+z faces the camera),
-// so it is measured from that line rather than from one point: the pond meets the glass full depth.
-const glassward = (dx, dz) => { const along = Math.min(Math.max(dz, 0), 3.4); return [dx, dz - along] }
-let scooped = 0
+const smoothstep = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t) }
+const wobble = (x, z) => 0.06 * Math.sin(x * 1.7 + z * 0.9) + 0.05 * Math.sin(z * 2.3 - x * 1.1 + 1.2) + 0.03 * Math.sin(x * 3.9 + 2.0)
+// The hollow: an egg shape from the sim's pond centre forward to the glass, dug to the gravel in the middle.
+const hollow = (x, z) => {
+  const cx = pondCenter.x - 0.1, cz = pondCenter.z + 1.15
+  const dx = (x - cx) / 1.6, dz = (z - cz) / (z > cz ? 2.6 : 1.75)
+  const angle = Math.atan2(dz, dx)
+  return Math.hypot(dx, dz) / (1 + 0.07 * Math.sin(2 * angle + 1) + 0.05 * Math.sin(3 * angle + 2.2))
+}
 for (let k = 0; k < N * N; k += 1) {
   if (!inside[k]) continue
-  const [dx, dz] = glassward(cellX(k % N) - pondCenter.x, cellX(Math.floor(k / N)) - pondCenter.z)
-  const t = 1 - Math.hypot(dx, dz) / reach(Math.atan2(dz, dx))
-  if (t <= 0) continue
-  // Dug right down to the gravel in the middle (concept image 12: a pebble-bedded pond seen through the glass).
-  const take = Math.min(state.soil[k], 2.2 * Math.min(1, t * 2.2) ** 1.4)
-  state.soil[k] -= take; scooped += take
-  const char = t > 0.35 ? state.charcoal[k] : 0
-  state.charcoal[k] -= char; scooped += char
+  const x = cellX(k % N), z = cellX(Math.floor(k / N))
+  const base = state.gravel[k] + state.charcoal[k]
+  const land = 2.15 + 0.85 * smoothstep(1.6, -3.2, z) + 0.25 * smoothstep(-1, 2.5, x) * smoothstep(1.5, -2, z) + wobble(x, z)
+  const t = smoothstep(0.62, 1.08, hollow(x, z))
+  const bed = base - (t < 0.15 ? state.charcoal[k] : 0)
+  if (t < 0.15) state.charcoal[k] = 0
+  const top = bed + (land + base - bed) * t
+  const soil = Math.max(0, top - bed)
+  state.soil[k] = soil; state.loose[k] = 0.35
 }
-// Most of it banks up around the hollow, the way soil piles beside a hole you dig.
-const rim = Array.from({ length: 48 }, (_, n) => { const a = n / 48 * Math.PI * 2, r = reach(a) + 0.45; return [pondCenter.x + Math.cos(a) * r, pondCenter.z + Math.sin(a) * r] }).filter(([x, z]) => Math.hypot(x, z) < 3.4 && z < 2.2)
-for (let n = 0; n < 240; n += 1) { const [x, z] = rim[n % rim.length]; deposit(state, 'soil', x, z, scooped / 240) }
 for (let pass = 0; pass < 300; pass += 1) settle(state, 6)
+// Scrape the slumped soil back off the middle of the hollow so the water stands on bare gravel at the glass.
+for (let k = 0; k < N * N; k += 1) {
+  if (!inside[k]) continue
+  const x = cellX(k % N), z = cellX(Math.floor(k / N)), h = hollow(x, z)
+  if (h < 0.95) { state.soil[k] *= Math.max(0, (h - 0.7) / 0.25) ** 2; if (h < 0.85) state.charcoal[k] = 0 }
+}
 // A gentle watering: enough to settle and firm the top, not to leave puddles.
 for (let n = 0; n < 700; n += 1) { const [x, z] = spiral[n % spiral.length]; deposit(state, 'water', x, z, 2); settle(state, 4) }
 for (let pass = 0; pass < 1500; pass += 1) settle(state, 4)
@@ -85,7 +79,18 @@ for (let round = 0; round < 3000; round += 1) {
   const volume = shape().volume ?? 0
   held = volume
   if (round % 50 === 0) console.log('round', round, 'pond volume', volume.toFixed(2), 'table', state.table.toFixed(2))
-  if (volume > +(process.env.POND_VOLUME ?? 9)) break
+  if (volume > +(process.env.POND_VOLUME ?? 11)) break
+}
+// Against the front glass the pond bed is cleared to the gravel (soil slumped there while it was
+// watered), so the water is seen standing on stones; the water keeps its level.
+for (let k = 0; k < N * N; k += 1) {
+  if (!inside[k] || state.pool[k] < 0.3) continue
+  const x = cellX(k % N), z = cellX(Math.floor(k / N))
+  const near = smoothstep(2.4, 3.3, Math.hypot(x, z)) * smoothstep(0, 1.2, z) * smoothstep(1.1, 0.8, hollow(x, z))
+  if (near <= 0) continue
+  const take = (state.soil[k] + state.charcoal[k]) * near
+  const soilTake = Math.min(state.soil[k], take)
+  state.soil[k] -= soilTake; state.charcoal[k] -= take - soilTake; state.pool[k] += take
 }
 const pond = shape()
 let farthest = 0

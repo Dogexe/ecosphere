@@ -31,6 +31,7 @@ const smooth = (edge0: number, edge1: number, value: number) => { const t = Math
 /** Bed height at distance r from the pond centre: flat 2 cm deep middle, sloping up to the bank. */
 export const pondBedAt = (r: number) => bed + deep * smooth(0.5 * R, 1.04 * R, r)
 const noRaycast = () => undefined
+const white = new Color('#ffffff')
 const wallSamples = 192
 /** Where the water meets the bowl at a given level. */
 function shoreRadius(level: number) {
@@ -245,7 +246,13 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     for (let n = 0; n < wallSamples; n += 1) { const a = n * 2, b = a + 1, c = a + 2, d = a + 3; order.push(a, c, b, b, c, d) }
     side.setIndex(order)
     const sideMaterial = Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.08, metalness: 0, side: DoubleSide, depthWrite: false }), { userData: { realistic: true } })
-    return { side, sideMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: 0.3, clearcoat: 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.025, 0.025), depthWrite: false }), { userData: { realistic: true } }) }
+    // The waterline against the glass: a thin bright meniscus that tells the eye where the water stops (concept image 12).
+    const meniscus = new BufferGeometry()
+    meniscus.setAttribute('position', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 3), 3))
+    meniscus.setAttribute('color', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 4), 4))
+    meniscus.setIndex(order)
+    const meniscusMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false })
+    return { side, sideMaterial, meniscus, meniscusMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: 0.3, clearcoat: 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.025, 0.025), depthWrite: false }), { userData: { realistic: true } }) }
   }, [M])
   // Around the jar wall: the bed height at the glass and whether pond water reaches it there.
   const rim = useMemo(() => {
@@ -297,6 +304,7 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     position.needsUpdate = true; colours.needsUpdate = true
     // The water wall at the glass: clearer near the surface, darker and greener towards the bed.
     const sidePosition = parts.side.getAttribute('position') as BufferAttribute, sideColour = parts.side.getAttribute('color') as BufferAttribute
+    const meniscusPosition = parts.meniscus.getAttribute('position') as BufferAttribute, meniscusColour = parts.meniscus.getAttribute('color') as BufferAttribute
     const wallRadius = R + 0.04
     for (let n = 0; n <= wallSamples; n += 1) {
       const angle = n / wallSamples * Math.PI * 2, cos = Math.cos(angle), sin = Math.sin(angle)
@@ -304,12 +312,19 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
       const top = water ? surface : bedY
       sidePosition.setXYZ(n * 2, cos * wallRadius, floor + Math.min(bedY, top) - 0.02, sin * wallRadius)
       sidePosition.setXYZ(n * 2 + 1, cos * wallRadius, floor + top, sin * wallRadius)
+      // Clear water seen side-on: a faint green cast that thickens toward the bed, so the pebbles show through.
       colour.copy(look.tint).lerp(deep, 0.6)
-      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.9, 0.2 + look.cloud * 0.55) : 0)
-      colour.copy(look.tint)
-      sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.8, 0.08 + look.cloud * 0.6) : 0)
+      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.85, 0.12 + look.cloud * 0.6) : 0)
+      colour.copy(look.tint).lerp(white, 0.15)
+      sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.75, 0.025 + look.cloud * 0.6) : 0)
+      meniscusPosition.setXYZ(n * 2, cos * (wallRadius + 0.005), floor + top - 0.035, sin * (wallRadius + 0.005))
+      meniscusPosition.setXYZ(n * 2 + 1, cos * (wallRadius + 0.005), floor + top + 0.012, sin * (wallRadius + 0.005))
+      meniscusColour.setXYZW(n * 2, 0.86, 0.93, 0.9, water ? 0.12 : 0)
+      meniscusColour.setXYZW(n * 2 + 1, 0.95, 0.98, 0.96, water ? 0.55 : 0)
     }
     sidePosition.needsUpdate = true; sideColour.needsUpdate = true
+    meniscusPosition.needsUpdate = true; meniscusColour.needsUpdate = true
+    parts.meniscus.computeBoundingSphere()
     parts.side.computeVertexNormals(); parts.side.computeBoundingSphere()
     parts.geometry.computeVertexNormals(); parts.geometry.computeBoundingSphere()
     // Still water is level right to the shore: no tilted normals where the sheet tucks under the bank.
@@ -330,5 +345,6 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     <mesh geometry={parts.geometry} material={parts.material} renderOrder={1} visible={pond.water > 1}
       onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onPondClick(event.point.x, event.point.z) }} />
     <mesh geometry={parts.side} material={parts.sideMaterial} renderOrder={1} visible={pond.water > 1} raycast={noRaycast} />
+    <mesh geometry={parts.meniscus} material={parts.meniscusMaterial} renderOrder={2} visible={pond.water > 1 && !underwater} raycast={noRaycast} />
   </>
 }

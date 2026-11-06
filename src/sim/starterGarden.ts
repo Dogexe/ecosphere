@@ -23,6 +23,8 @@ const garden: [PlantKind, number, number][] = [
   ['bloom', -0.3, -1.6],
   ['bloom', 1.2, -1.7],
   ['clover', 1.0, 0.0],
+  // Image 12 round 2 (2026-11-07): a fern on the front bank beside the pond.
+  ['fern', 2.2, 1.55],
   ['lily', -1.45, 1.25],
   ['lily', -0.45, 2.2],
   ['lily', -2.15, 2.05],
@@ -43,7 +45,7 @@ export function withStarterGarden(world: World): World {
     if (next === planted) continue
     // Already established when the player first looks in, not seedlings.
     const plant = next.plants[next.plants.length - 1]
-    planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * (plant.kind === 'tree' ? 0.55 : 0.85), age: 90, development: 90 }] }
+    planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * (plant.kind === 'tree' ? 0.8 : 0.85), age: 90, development: 90 }] }
   }
   for (const [kind, x, z] of pondCrew) planted = introduceLife(planted, kind, x, z)
   return planted

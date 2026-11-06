@@ -183,7 +183,7 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
     pebble = 1
     band(0, a.g, 0, b.g, layerColours.gravel, layerColours.gravel)
     // Drained water standing in the gravel shows as a darker, bluish band through the glass.
-    band(0.002, Math.min(state.table, a.g), 0.002, Math.min(state.table, b.g), other.copy(layerColours.gravel).lerp(layerColours.water, 0.55), other)
+    band(0.002, Math.min(state.table, a.g), 0.002, Math.min(state.table, b.g), other.copy(layerColours.gravel).lerp(layerColours.water, 0.2).multiplyScalar(0.85), other)
     pebble = 0
     band(a.g, a.g + a.c, b.g, b.g + b.c, layerColours.charcoal, layerColours.charcoal)
     const sa = tint.copy(layerColours.soil).lerp(layerColours.wetSoil, a.wet).clone(), sb = new Color().copy(layerColours.soil).lerp(layerColours.wetSoil, b.wet)
@@ -213,10 +213,11 @@ export function useLayerMaterials() {
     pebble: `${polyHaven}clean_pebbles/clean_pebbles_diff_1k.jpg`, grit: `${polyHaven}gravel_stones/gravel_stones_diff_1k.jpg`,
   }, ['soil', 'pebble', 'grit'])
   return useMemo(() => {
-    const make = (roughness: number, double: boolean) => {
+    const make = (roughness: number, double: boolean, pebbleScale = 0.6) => {
       const material = new MeshStandardMaterial({ vertexColors: true, map: set.soil, normalMap: set.soilNormal, roughness, side: double ? DoubleSide : undefined })
       material.normalScale.set(1.1, 1.1)
       material.userData.realistic = true
+      material.customProgramCacheKey = () => `layer-${pebbleScale}`
       material.onBeforeCompile = (shader) => {
         shader.uniforms.pebbleMap = { value: set.pebble }
         shader.uniforms.gritMap = { value: set.grit }
@@ -227,7 +228,7 @@ export function useLayerMaterials() {
           .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nvarying float vPebble;')
           .replace('#include <map_fragment>', `
             vec3 soilScan = texture2D(map, vMapUv).rgb;
-            vec3 pebbleScan = texture2D(pebbleMap, vMapUv * 0.6).rgb;
+            vec3 pebbleScan = texture2D(pebbleMap, vMapUv * ${pebbleScale.toFixed(3)}).rgb;
             vec3 gritScan = texture2D(gritMap, vMapUv * 0.8).rgb;
             // Wetness darkens the soil scan; grey vertex colour marks the charcoal layer.
             vec3 ratio = clamp(vColor.rgb / soilRef, 0.0, 1.6);
@@ -248,7 +249,8 @@ export function useLayerMaterials() {
       return material
     }
     const puddles = new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.06, metalness: 0, ior: 1.333, specularIntensity: 1, depthWrite: false })
-    return { surface: make(0.95, false), walls: make(0.9, true), puddles }
+    // Against the glass the gravel reads as rounded 5-8 mm stones, as in concept image 12.
+    return { surface: make(0.95, false, 0.28), walls: make(0.9, true, 0.16), puddles }
   }, [set])
 }
 
