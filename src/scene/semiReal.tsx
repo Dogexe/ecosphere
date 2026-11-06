@@ -182,8 +182,9 @@ function ScanMoss({ x, z, radius, count, ground, flat = false, spots, scale = 1,
       const px = spot ? spot.x + (rand() - 0.5) * 0.12 : x + Math.cos(angle) * distance, pz = spot ? spot.z + (rand() - 0.5) * 0.12 : z + Math.sin(angle) * distance
       if (avoid.some((circle) => Math.hypot(px - circle.x, pz - circle.z) < circle.radius) || (!spot && keepOut?.(px, pz))) continue
       const edge = spot || flat ? 0.5 : distance / radius
-      const dome = spot || flat ? 0 : Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.12
-      const tall = (0.3 + rand() * 0.2) * (1 - edge * 0.45) * scale
+      // Rounded cushions (Codex review vs image 12, 2026-11-07): a taller dome and shoots that shorten toward the rim.
+      const dome = spot || flat ? 0 : Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.3
+      const tall = (0.26 + rand() * 0.14) * (1 - edge * 0.55) * scale
       place.set(px, (spot ? spot.y - 0.04 : ground(px, pz) + dome - 0.05), pz)
       turn.setFromAxisAngle(up, rand() * Math.PI * 2)
       const out = spot ? rand() * Math.PI * 2 : Math.atan2(pz - z, px - x)
@@ -197,8 +198,9 @@ function ScanMoss({ x, z, radius, count, ground, flat = false, spots, scale = 1,
       const light = 0.85 + noise(px * 3, pz * 3) * 0.35 + rand() * 0.12, warm = 0.9 + rand() * 0.2
       for (let vertex = 0; vertex < local.count; vertex += 1) {
         const rise = Math.min(1, Math.max(0, (local.getY(vertex) - place.y) / tall))
-        const shade = light * (0.35 + 0.65 * rise)
-        colours.set([shade * warm * 0.78, shade * 0.9, shade * 0.5], vertex * 3)
+        const shade = light * (0.4 + 0.75 * rise)
+        // Sunlit tips go yellow-green like the cushions in image 12; the base stays deep olive.
+        colours.set([shade * warm * (0.72 + 0.2 * rise), shade * (0.92 + 0.1 * rise), shade * 0.38], vertex * 3)
       }
       shoot.setAttribute('color', new BufferAttribute(colours, 3))
       pieces.push(shoot)
