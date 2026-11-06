@@ -1,0 +1,29 @@
+ECOSPHERE round 3 - shared style prompt (prepended verbatim to every image; the per-image SHOT text follows it)
+Generator: Codex built-in image_gen tool (image_gen.imagegen), called through `codex exec` with attached reference images.
+
+In-game screenshot from ECOSPHERE, an original, finished, polished indie game about a living glass-jar ecosystem on a windowsill. One single game view, landscape 3:2 (1536x1024), filling the whole frame edge to edge, no border. It must look like a real captured frame from a shipped game, not like generic AI art or an illustration poster.
+
+THE GAME'S LOOK - TWO MATERIALS:
+1. EVERYTHING ALIVE IS HAND-DRAWN. Plants, fungi, moss and animals are illustrator drawings that came alive: a confident, slightly wobbly dark brown-black ink outline of gently varying weight around every shape; flat colour in only 2-3 tones (base, one shadow tone, one highlight tone) with a light hand-coloured marker or coloured-pencil grain; simple readable silhouettes; a few inked lines for veins and segments only. Charming but anatomically correct. They may be flat 2D or have the volume of a cel-shaded 3D model, whichever looks better in this particular shot (owner's note: good visuals first), but they must always read as drawings. NO photo-real skin or leaf texture, NO soft plastic or clay 3D shading, NO smooth airbrush gradients, NO white paper or sticker edge around them, NO cute faces or smiles; eyes only where the real animal has them, small and simple.
+2. EVERYTHING NOT ALIVE IS A REAL MACRO PHOTOGRAPH: soil crumbs and grains, leaf litter, real pebbles and stones, gravel and charcoal, wet stones under water, clear water with real caustics, refraction and reflections, and real curved glass with rim highlights and condensation. NO ink lines anywhere on the real world.
+
+DRAWINGS LIVE PHYSICALLY IN THE REAL WORLD: every drawn creature and plant has a dark contact shadow where it touches the ground, a soft cast shadow that follows the window light, a reflection where it is near water and moving caustic light where it is under water; a warm rim light on the edge facing the window; real soil crumbs or leaf litter may overlap feet and leg tips.
+
+CAMERA: we always look into the FRONT of the jar from the room. The window is BEHIND the jar, so the light comes from behind and slightly above the jar toward the camera (backlight / three-quarter backlight): shadows fall toward the camera and slightly to one side, edges glow. The camera tilts down 15-45 degrees above horizontal. The room and window behind the jar are blurred like a macro lens. Keep the bottom 15% of the frame and the two top corners calm and simple (soft dark soil, glass or blurred background) so a game HUD can sit there later, but draw NO UI.
+
+LIGHT: one clear sun direction readable from every shadow; key to fill about 4:1 in daylight; cinematic but cozy, natural colour, gentle contrast. No haze filter over everything.
+
+SCALE (keep consistent): woodlouse / pill bug about 1 cm long, springtail about 2 mm (a tiny speck next to a woodlouse), ramshorn snail shell 1.5-2.5 cm, cherry shrimp 2-3 cm, Fittonia leaves 2-4 cm, pebbles 0.5-3 cm.
+
+CONSISTENCY: one palette and one ink line weight for the whole game: warm earthy browns, moss and leaf greens, cherry red, clear blue-green water, warm amber window light. Every frame looks like the SAME game.
+
+STRICTLY AVOID (AI-slop): any text, letters, numbers, labels, logos, watermark, UI, buttons; extra, missing or melted legs; random sparkles, floating bokeh orbs or glow everywhere; perfectly symmetrical composition; over-busy micro-detail on the drawn creatures; inconsistent creature scale; people, hands, characters from other games, extra jars.
+
+ANATOMY NOTES (use when that creature appears):
+- Woodlouse (Porcellio-type): flat oval grey-brown body, 7 overlapping back plates plus head and short tail plates with two small tail prongs (uropods), exactly 7 pairs of short legs, 2 long bent antennae, tiny dark eyes at the head sides.
+- Pill bug (Armadillidium): domed slate-grey body, 7 smooth back plates, short blunt antennae, 7 pairs of legs, no visible tail prongs; when rolled it is a perfect small banded sphere with no legs showing.
+- Springtail: about 2 mm, soft round pale-lilac body, 3 pairs of tiny legs, short antennae, a forked tail (furcula) tucked under the rear; NOT a tiny woodlouse, no armour plates.
+- Ramshorn snail (Planorbella): flat, planar coiled red-brown shell like a rolled ribbon seen from the side, dark red-brown soft body, two long thin tentacles with eyes at their bases (not on stalk tips).
+- Cherry shrimp (Neocaridina): translucent-to-solid cherry red body, curved segmented abdomen, fan tail, 2 long antennae plus short antennules, small black eyes, 5 pairs of thin walking legs and small swimmerets under the abdomen.
+- Fittonia (nerve plant): low oval leaves 2-4 cm, deep green with a bold net of white or pink veins.
+- Dicranum cushion moss: dense rounded green cushions with fine, slightly curved leaves all combed in one direction.
