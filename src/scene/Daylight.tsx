@@ -40,6 +40,8 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
     <ambientLight ref={ambient} intensity={0.8} color={sky.cycling ? '#d9e5ec' : '#e4eee3'} />
     <hemisphereLight ref={hemisphere} args={['#edf6e9', '#a38368', 1]} />
     <directionalLight ref={key} position={[-5, 9, 6]} intensity={1} color={tint} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-5} shadow-camera-right={5} shadow-camera-top={5} shadow-camera-bottom={-5} shadow-bias={-0.0002} />
+    {/* In the room, light from the window bounces off the walls and comes back at the jar's front, soft and warm. */}
+    {room && <directionalLight position={[2, 4, 12]} intensity={0.45 + brightness * 0.5} color="#ffe6c8" />}
     {dramatic && !room && <pointLight position={[4.5, 3.2, -4.5]} intensity={28} distance={14} decay={1.6} color="#ffb46b" />}
   </>
 }

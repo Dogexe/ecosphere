@@ -714,6 +714,16 @@ function RemainsField({ world }: { world: World }) {
   return <instancedMesh key={remains.length} ref={instances} args={[undefined, undefined, remains.length * 3]} receiveShadow><sphereGeometry args={[1, 7, 4]} /><meshStandardMaterial roughness={1} flatShading /></instancedMesh>
 }
 
+/**
+ * Front view (owner, 2026-11-06): the camera faces the jar from the room, with the
+ * window behind it, and turns at most 30 degrees either way and tilts a little,
+ * so the drawn plants and animals are always seen from the side they were drawn
+ * for and the light from the window stays behind the jar, as in the concept art.
+ * ?cam=orbit brings back the free orbit.
+ */
+const frontView = paperLook && (() => { try { return new URLSearchParams(window.location.search).get('cam') !== 'orbit' } catch { return true } })()
+const frontTurn = MathUtils.degToRad(30)
+
 function WatchingControls({ creature, plant, ant, surfacePose, remains }: { creature: Creature | undefined; plant: Plant | undefined; ant?: { id: number; x: number; y: number; z: number }; surfacePose: SurfacePose; remains?: Remains }) {
   const subject = ant ?? (remains?.ant ? { id: remains.id, x: remains.x, y: remains.ant.y + 0.01, z: remains.z } : undefined)
   const micro = creature?.kind === 'springtail'
@@ -788,7 +798,7 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
     if (layout.current !== layoutKey) {
       const restoring = layout.current === '' && surfacePose.ready && surfacePose.width === size.width && surfacePose.height === size.height
       layout.current = layoutKey
-      const overview = Math.min(21, Math.max(14.5, 13.5 / (size.width / size.height)))
+      const overview = frontView ? Math.min(14, Math.max(8.5, 8 / (size.width / size.height))) : Math.min(21, Math.max(14.5, 13.5 / (size.width / size.height)))
       focus.current.previous = overview
       if (!creature && !plant && !ant && !restoring) { focus.current.distance = overview; focus.current.remaining = 1.4 }
     }
@@ -820,7 +830,7 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
     surfacePose.width = size.width; surfacePose.height = size.height
   }, -0.5)
   const minimum = closePlant && focusedFrame ? focusedFrame.distance / 2 : micro ? 0.06 : subject ? 0.22 : 1.7
-  return <OrbitControls ref={controls} makeDefault enablePan screenSpacePanning minDistance={minimum} maxDistance={focusedFrame?.maxDistance ?? 21} minPolarAngle={0.25} maxPolarAngle={1.42} target={surfacePose.target} enableDamping dampingFactor={0.08} onStart={() => { if (plant || remains) { autoPlant.current = false; focus.current.remaining = 0 } }} />
+  return <OrbitControls ref={controls} makeDefault enablePan screenSpacePanning minDistance={minimum} maxDistance={focusedFrame?.maxDistance ?? 21} minPolarAngle={frontView ? 0.95 : 0.25} maxPolarAngle={frontView ? 1.5 : 1.42} minAzimuthAngle={frontView ? -frontTurn : -Infinity} maxAzimuthAngle={frontView ? frontTurn : Infinity} target={surfacePose.target} enableDamping dampingFactor={0.08} onStart={() => { if (plant || remains) { autoPlant.current = false; focus.current.remaining = 0 } }} />
 }
 
 function RenderProbe({ onSample }: { onSample: (sample: RenderSample) => void }) {
@@ -849,7 +859,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
   const [profile, setProfile] = useState<RenderSample | null>(null)
   const broodCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
   const antCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
-  const surfacePose = useRef<SurfacePose>({ position: new Vector3(8.5, 6.55, 10), target: new Vector3(0, -0.4, 0), ready: false, width: 0, height: 0 }).current
+  const surfacePose = useRef<SurfacePose>({ position: frontView ? new Vector3(2.2, 4.8, 12.6) : new Vector3(8.5, 6.55, 10), target: frontView ? new Vector3(-0.6, -0.3, 0.6) : new Vector3(0, -0.4, 0), ready: false, width: 0, height: 0 }).current
   const viewWorld = underwater ? { ...world, plants: world.plants.filter((plant) => isAquatic(plant.kind)), creatures: world.creatures.filter((creature) => isAquatic(creature.kind)), remains: (world.remains ?? []).filter((remains) => isAquatic(remains.kind)) } : world
   const profiling = new URLSearchParams(window.location.search).get('profile') === '1'
   const followedAnt = world.colony ? [world.colony.queen, ...world.colony.workers].find((ant) => ant?.id === followAnt) ?? undefined : undefined
@@ -869,7 +879,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
     <Canvas
       shadows
       dpr={[1, coarsePointer ? 1.25 : 1.7]}
-      camera={{ position: [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
+      camera={{ position: frontView ? [2.8, 5.2, 12] : [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onPointerMissed={() => { if (!placing) onClearSelection() }}
       style={{ cursor: placing ? 'crosshair' : 'grab' }}

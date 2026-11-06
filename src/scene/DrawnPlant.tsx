@@ -71,7 +71,25 @@ function paperMaterial(map: Texture | null, health: number, bend: boolean) {
   standard.color.lerp(dry, (1 - healthStep(health)) * 0.7)
   ;(standard as unknown as { defines: Record<string, string> }).defines = { SEMI_REAL: '' }
   standard.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;')
+    shader.fragmentShader = shader.fragmentShader
+      .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        #ifdef USE_MAP
+        {
+          // Ink line round the drawing (concept art, 2026-11-06): where a nearby texel is
+          // outside the cut-out, darken to ink. The width wobbles along the edge like a pen line.
+          // About 1.6 screen pixels wide however near the leaf is, but at least 1.5 texels.
+          vec2 texel = 1.0 / vec2(textureSize(map, 0));
+          float wobble = 1.0 + 0.45 * sin(vMapUv.x * 61.0 + vMapUv.y * 47.0) * sin(vMapUv.y * 23.0 - vMapUv.x * 17.0);
+          vec2 reach = max(fwidth(vMapUv) * 1.6, texel * 1.5) * wobble;
+          float outside = 0.0;
+          for (int k = 0; k < 8; k++) {
+            float angle = float(k) * 0.7853982;
+            outside = max(outside, 1.0 - smoothstep(0.35, 0.55, texture2D(map, vMapUv + vec2(cos(angle), sin(angle)) * reach).a));
+          }
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.09, 0.08, 0.06), outside * 0.92);
+        }
+        #endif`)
     if (!bend) return
     shader.uniforms.swayTime = sway
     shader.vertexShader = shader.vertexShader
@@ -84,7 +102,7 @@ function paperMaterial(map: Texture | null, health: number, bend: boolean) {
         transformed.x += sin(swayTime * 1.1 + phase) * 0.03 * lift;
         transformed.z += sin(swayTime * 0.8 + phase * 1.3) * 0.02 * lift;`)
   }
-  standard.customProgramCacheKey = () => bend ? 'paper-sway' : 'paper'
+  standard.customProgramCacheKey = () => bend ? 'paper-ink-sway' : 'paper-ink'
   materials.set(key, standard)
   return standard
 }
