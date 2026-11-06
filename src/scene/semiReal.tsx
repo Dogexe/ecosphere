@@ -109,9 +109,11 @@ function cutOut(texture: Texture) {
 }
 
 /** The shoots of Poly Haven "Moss 01" (CC0, Rob Tuytel), each seated on its base and one unit tall. */
+let mossShoots: { shoots: BufferGeometry[]; material: MeshStandardMaterial } | null = null
 function useMossShoots() {
   const { nodes } = useGLTF(`${polyHaven}moss_01/moss_01_1k.gltf`)
-  return useMemo(() => {
+  // Built once and shared by every cushion: one texture and one material for all the moss.
+  return useMemo(() => mossShoots ??= (() => {
     const shoots: BufferGeometry[] = []
     let source: MeshStandardMaterial | undefined
     for (const node of Object.values(nodes)) {
@@ -129,7 +131,7 @@ function useMossShoots() {
     const material = new MeshStandardMaterial({ map: cutOut(source!.map!), normalMap: source!.normalMap, alphaTest: 0.5, side: DoubleSide, roughness: 0.75, vertexColors: true })
     material.normalScale = new Vector2(1.2, 1.2)
     return { shoots, material }
-  }, [nodes])
+  })(), [nodes])
 }
 
 /**
@@ -178,7 +180,8 @@ function ScanMoss({ x, z, radius, count, ground, flat = false, spots, scale = 1,
     return pieces.length ? mergeGeometries(pieces) : null
   }, [shoots, x, z, radius, count, ground, flat, spots, scale, avoid, keepOut])
   if (!geometry) return null
-  return <mesh geometry={geometry} material={material} frustumCulled={false} raycast={noRaycast} castShadow receiveShadow />
+  // Receives shadows but casts none: thousands of cut-out shoots in the shadow pass cost more than the soft shade is worth.
+  return <mesh geometry={geometry} material={material} raycast={noRaycast} receiveShadow />
 }
 
 /** Dense shrubs of painted sprig cards (two crossed planes each), like a tiny forest. `avoid` keeps sprigs out of circles such as the pond. */
@@ -268,19 +271,32 @@ function seat(geometry: BufferGeometry, lieDown: boolean) {
   return Math.max(size.x, size.y, size.z)
 }
 
+const scanParts = new WeakMap<Mesh, { geometry: BufferGeometry; material: MeshStandardMaterial; largest: number }>()
+const stoneParts = new WeakMap<Mesh, { geometry: BufferGeometry; material: MeshStandardMaterial; footprint: number }>()
+/** A scan's material with its colour map softened by `paintify`. */
+function paintedScan(source: MeshStandardMaterial, extra: string, blur: number, normal: number) {
+  const material = source.clone()
+  if (source.map) { material.map = paintify(source.map, extra, blur); material.map.repeat.set(1, 1); material.map.flipY = source.map.flipY }
+  material.normalScale = new Vector2(normal, normal)
+  return material
+}
+
 /** A Poly Haven CC0 scan placed on the soil: one node, painted like the rest of the set, scaled to `length` units. */
 export function ScannedProp({ file, node, x, z, length, turn, ground, lift = 0 }: { file: string; node: string; x: number; z: number; length: number; turn: number; ground: Ground; lift?: number }) {
   const { nodes } = useGLTF(`${polyHaven}${file}`)
   const mesh = nodes[node] as Mesh
-  const { geometry, material, scale } = useMemo(() => {
+  const { geometry, material, largest } = useMemo(() => {
+    // One seated geometry and one painted material per scan node, shared by every copy
+    // (each copy used to paint its own 1k texture: 13 pebbles meant 13 textures).
+    const cached = scanParts.get(mesh)
+    if (cached) return cached
     const geometry = lighter(mesh.geometry, 0.12).clone()
     const largest = seat(geometry, true)
-    const source = mesh.material as MeshStandardMaterial
-    const material = source.clone()
-    if (source.map) { material.map = paintify(source.map, 'saturate(0.9)', 1.5); material.map.repeat.set(1, 1); material.map.flipY = source.map.flipY }
-    material.normalScale = new Vector2(0.6, 0.6)
-    return { geometry, material, scale: length / largest }
-  }, [mesh, length])
+    const parts = { geometry, material: paintedScan(mesh.material as MeshStandardMaterial, 'saturate(0.9)', 1.5, 0.6), largest }
+    scanParts.set(mesh, parts)
+    return parts
+  }, [mesh])
+  const scale = length / largest
   return <mesh geometry={geometry} material={material} position={[x, ground(x, z) - 0.02 + lift, z]} rotation={[0, turn, 0]} scale={scale} raycast={noRaycast} castShadow receiveShadow />
 }
 
@@ -288,19 +304,21 @@ export function ScannedProp({ file, node, x, z, length, turn, ground, lift = 0 }
 export function MossyStone({ node, x, z, width, turn, ground, sink = 0.2, moss = true }: { node: string; x: number; z: number; width: number; turn: number; ground: Ground; sink?: number; moss?: boolean }) {
   const { nodes } = useGLTF(`${polyHaven}rock_moss_set_01/rock_moss_set_01_1k.gltf`)
   const rock = nodes[node] as Mesh
-  const { geometry, material, scale } = useMemo(() => {
+  const { geometry, material, footprint } = useMemo(() => {
+    const cached = stoneParts.get(rock)
+    if (cached) return cached
     const geometry = lighter(rock.geometry, 0.4).clone()
     geometry.computeBoundingBox()
     const size = geometry.boundingBox!.getSize(new Vector3())
     seat(geometry, false)
-    const source = rock.material as MeshStandardMaterial
-    const material = source.clone()
-    if (source.map) { material.map = paintify(source.map, 'saturate(0.45) brightness(1.15)', 0); material.map.repeat.set(1, 1); material.map.flipY = source.map.flipY }
-    material.normalScale = new Vector2(1, 1)
+    const material = paintedScan(rock.material as MeshStandardMaterial, 'saturate(0.45) brightness(1.15)', 0, 1)
     material.userData.realistic = true
     material.color = new Color('#ece8e2')
-    return { geometry, material, scale: width / Math.max(size.x, size.z) }
-  }, [rock, width])
+    const parts = { geometry, material, footprint: Math.max(size.x, size.z) }
+    stoneParts.set(rock, parts)
+    return parts
+  }, [rock])
+  const scale = width / footprint
   const position = useMemo(() => new Vector3(x, ground(x, z) - sink * width, z), [x, z, ground, sink, width])
   const top = useMemo(() => {
     const placement = new Object3D()

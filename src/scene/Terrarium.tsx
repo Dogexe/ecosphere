@@ -5,7 +5,7 @@ import { DrawnMushroom, drawnLook, useFallenLeaves } from './DrawnPlant'
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { OrbitControls, PerformanceMonitor } from '@react-three/drei'
 import { Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, MathUtils, Object3D, PerspectiveCamera, SphereGeometry, Vector2 } from 'three'
 import { Vector3 } from 'three'
 import type { Ray } from 'three'
@@ -857,6 +857,10 @@ function DebugHandle() {
 
 export function Terrarium({ world, events, worldRevision, selectedPlant, selectedCreature, selectedSoil, placing, onSelectPlant, onSelectCreature, onSelectSoil, onPlace, onClearSelection, onSelectPond, followCreature, focusPlant, speed, underwater, underground, selectedAnt, followAnt, onSelectAnt, onSelectColony, focusBrood, selectedBrood, onSelectBrood, focusChamber, onSelectChamber, showAntFood, focusedRemains, onSelectRemains }: SceneProps) {
   const [profile, setProfile] = useState<RenderSample | null>(null)
+  const maxDpr = Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, coarsePointer ? 1.25 : 1.5)
+  const [dpr, setDpr] = useState(maxDpr)
+  // With the finishing passes on, they antialias (MSAA in the composer), so the canvas itself need not.
+  const composited = paperLook && watercolorLook && polishLook
   const broodCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
   const antCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
   const surfacePose = useRef<SurfacePose>({ position: frontView ? new Vector3(1.1, 2.85, 13.8) : new Vector3(8.5, 6.55, 10), target: frontView ? new Vector3(0, 0.45, 0) : new Vector3(0, -0.4, 0), ready: false, width: 0, height: 0 }).current
@@ -878,13 +882,15 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
     <>
     <Canvas
       shadows
-      dpr={[1, coarsePointer ? 1.25 : 1.7]}
+      dpr={dpr}
       camera={{ position: frontView ? [1.1, 2.85, 13.8] : [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
-      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+      gl={{ antialias: !composited, alpha: true, powerPreference: 'high-performance' }}
       onPointerMissed={() => { if (!placing) onClearSelection() }}
       style={{ cursor: placing ? 'crosshair' : 'grab' }}
     >
       <DebugHandle />
+      {/* Drop to 1x pixels while frames run slow, and go back up once they recover. */}
+      <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(maxDpr)} flipflops={3} onFallback={() => setDpr(1)} />
       {paperLook && watercolorLook && <Watercolor />}
       {!underground && <Daylight world={world} dramatic={paperLook && watercolorLook} room={paperLook && watercolorLook && !underwater} />}
       {paperLook && watercolorLook && !underground && !underwater && <Room world={world} />}

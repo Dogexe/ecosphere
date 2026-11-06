@@ -42,13 +42,13 @@ const charcoalBottom = soilBottom - jarLayers.charcoal
 const gravelBottom = charcoalBottom - jarLayers.gravel
 /*
  * The jar's shape follows the owner's target picture (concept round 3, image 12,
- * picked 2026-11-06): a fat, squat jar with a slight belly, rounded shoulders and
- * a wide screw-top neck. Below the soil the wall is straight, so the poured
- * layers still meet the glass; above it the glass swells about 6 mm and then
- * rounds in to the neck.
+ * picked 2026-11-06): a fat, squat jar with straight sides, rounded shoulders
+ * and a wide screw-top neck. The owner asked the same day for no bulge, so the
+ * wall runs straight up from the base to the shoulder and then rounds in to the
+ * neck.
  */
 const wall = R + 0.12
-const belly = 0.22
+const belly = 0
 const bellyTop = top + 1.6
 const neck = top + 2.7
 const neckRadius = R * 0.93
@@ -139,7 +139,7 @@ function Glass({ bottom = gravelBottom, sealed = false }: { bottom?: number; sea
   const lid = neckRadius + 0.16
   return <group>
     <mesh geometry={geometry} raycast={noRaycast} renderOrder={2}>
-      <meshPhysicalMaterial color="#ffffff" transparent opacity={0.035} roughness={0.02} metalness={0} clearcoat={1} clearcoatRoughness={0.02} envMapIntensity={0.7} side={DoubleSide} depthWrite={false} />
+      <meshStandardMaterial color="#ffffff" transparent opacity={0.045} roughness={0.02} metalness={0} envMapIntensity={0.8} depthWrite={false} />
     </mesh>
     {/* Glass is seen by its edges: where you look along the curved wall it turns pale and reflective. */}
     <mesh geometry={geometry} raycast={noRaycast} renderOrder={3} material={glassEdge} />

@@ -20,7 +20,7 @@ import type { Ground } from './semiReal'
 
 const count = 90
 /** Fine pinned beads that mist the glass, as in concept image 12; more show as the fog thickens. */
-const mistCount = 1600
+const mistCount = 900
 const noRaycast = () => undefined
 
 type Bead = { angle: number; y: number; size: number; wait: number; speed: number; start: number }
@@ -93,8 +93,8 @@ export function GlassDroplets({ fog, radiusAt, top, ground }: { fog: number; rad
   })
   return <group>
     <instancedMesh ref={mist} args={[undefined, undefined, mistCount]} raycast={noRaycast} renderOrder={3} frustumCulled={false}>
-      <sphereGeometry args={[1, 7, 5]} />
-      <meshPhysicalMaterial color="#f4fbff" transparent opacity={0.4} roughness={0.02} clearcoat={1} envMapIntensity={2.4} depthWrite={false} />
+      <sphereGeometry args={[1, 6, 4]} />
+      <meshStandardMaterial color="#f4fbff" transparent opacity={0.45} roughness={0.05} metalness={0.1} envMapIntensity={2.4} depthWrite={false} />
     </instancedMesh>
     <instancedMesh ref={beads} args={[undefined, undefined, count]} raycast={noRaycast} renderOrder={3} frustumCulled={false}>
       <sphereGeometry args={[1, 10, 8]} />
