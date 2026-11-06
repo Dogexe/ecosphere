@@ -18,6 +18,12 @@ const garden: [PlantKind, number, number][] = [
   ['fern', 1.6, -2.3],
   ['clover', 2.6, -1.3],
   ['bloom', 0.0, -0.3],
+  // Fuller planting (Codex review against image 12): violets in drifts, clover down to the shore.
+  ['bloom', -1.6, -0.6],
+  ['bloom', -0.3, -1.6],
+  ['bloom', 1.2, -1.7],
+  ['clover', 0.4, 1.0],
+  ['clover', 1.0, 0.0],
   ['lily', -1.45, 1.25],
   ['lily', -0.45, 2.2],
   ['lily', -2.15, 2.05],

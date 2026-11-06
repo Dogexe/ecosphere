@@ -106,7 +106,7 @@ export const animalDimensions: Record<CreatureKind, { length: number; sourceLeng
  * - beetle: green tiger beetle Cicindela campestris, 12-17 mm (Atlas of Beetles of Russia, https://www.zin.ru/ANIMALIA/COLEOPTERA/ENG/ciccaman.htm); 14 mm.
  * - flea: Daphnia pulex, 0.2-3 mm (ADW, https://animaldiversity.org/accounts/Daphnia_pulex/); 2 mm.
  * - snail: ramshorn Planorbella duryi; ramshorns reach up to 25 mm (https://en.wikipedia.org/wiki/Ramshorn_snail);
- *   a 10 mm shell (a young adult; the poured pond is only about 13 mm deep), 13 mm with the foot out.
+ *   an 8 mm shell (a young adult; the poured pond is only about 13 mm deep), 10 mm with the foot out.
  * - shrimp: cherry shrimp Neocaridina davidi, full grown about 40 mm (https://en.wikipedia.org/wiki/Cherry_shrimp),
  *   32-38 mm overall (https://dimensions.com/element/cherry-shrimp-neocaridina-davidi); a 20 mm adult
  *   so it still fits under the shallow poured pond's water.
@@ -115,7 +115,7 @@ export const animalDimensions: Record<CreatureKind, { length: number; sourceLeng
  */
 export const millimetresPerUnit = 19
 export const realAdultLengthMm: Record<CreatureKind, number> = {
-  woodlouse: 12, springtail: 2.5, grazer: 25, beetle: 14, flea: 2, fish: 0.43 * 19, snail: 13, shrimp: 20,
+  woodlouse: 12, springtail: 2.5, grazer: 25, beetle: 14, flea: 2, fish: 0.43 * 19, snail: 10, shrimp: 20,
 }
 /**
  * Real hatchling length / adult length where it differs a lot from the

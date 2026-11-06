@@ -151,6 +151,8 @@ try {
   const solidParam = new URLSearchParams(window.location.search).get('solid')
   if (solidParam !== null) { paperStyle.solid.clear(); for (const name of solidParam.split(',')) if (name && name !== 'none') paperStyle.solid.add(name) }
 } catch { /* no window in tests */ }
+/** Animals whose painting reads badly edge-on may turn further toward the lens (a ramshorn shell is a thin disc). */
+const turnLimit: Record<string, number> = { snail: 1.45, shrimp: 1.2 }
 const solidHalfWidth: Record<string, number> = { woodlouse: 0.25, 'tiger-beetle': 0.17, caterpillar: 0.07, springtail: 0.1 }
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))
@@ -369,7 +371,8 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
       const right = wrapAngle(yaw - Math.PI / 2 - toCamera), left = wrapAngle(yaw + Math.PI / 2 - toCamera)
       const kept = facing.current > 0 ? right : left, other = facing.current > 0 ? left : right
       if (Math.abs(other) + 0.2 < Math.abs(kept)) facing.current = -facing.current
-      const target = toCamera + MathUtils.clamp(facing.current > 0 ? right : left, -paperStyle.maxTurn, paperStyle.maxTurn)
+      const limit = turnLimit[animal] ?? paperStyle.maxTurn
+      const target = toCamera + MathUtils.clamp(facing.current > 0 ? right : left, -limit, limit)
       const current = sheetYaw.current ?? target
       sheetYaw.current = current + wrapAngle(target - current) * factor
       sheet.current.rotation.order = 'YXZ'

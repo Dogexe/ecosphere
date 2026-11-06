@@ -10,7 +10,7 @@ test('a new poured jar is planted toward concept image 12, with every plant on i
   const bare = adoptPouredJar(createWorld(), defaultJar)
   const planted = withStarterGarden(bare)
   const added = planted.plants.slice(bare.plants.length)
-  assert.deepEqual(added.map((plant) => plant.kind), ['tree', 'bloom', 'grass', 'grass', 'clover', 'fern', 'clover', 'bloom', 'lily', 'lily', 'lily'])
+  assert.deepEqual(added.map((plant) => plant.kind), ['tree', 'bloom', 'grass', 'grass', 'clover', 'fern', 'clover', 'bloom', 'bloom', 'bloom', 'bloom', 'clover', 'clover', 'lily', 'lily', 'lily'])
   for (const plant of added) {
     assert.equal(isPondPosition(plant.x, plant.z), plant.kind === 'lily', `${plant.kind} at ${plant.x},${plant.z}`)
     assert.ok(plant.age > 0 && plant.biomass > plant.capacity * 0.5, 'starts established, not as a seedling')
