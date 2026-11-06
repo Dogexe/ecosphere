@@ -22,7 +22,6 @@ const garden: [PlantKind, number, number][] = [
   ['bloom', -1.6, -0.6],
   ['bloom', -0.3, -1.6],
   ['bloom', 1.2, -1.7],
-  ['clover', 0.4, 1.0],
   ['clover', 1.0, 0.0],
   ['lily', -1.45, 1.25],
   ['lily', -0.45, 2.2],

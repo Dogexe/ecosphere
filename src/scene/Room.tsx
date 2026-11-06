@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CanvasTexture, Color, Fog, MathUtils, SRGBColorSpace } from 'three'
-import type { Mesh, MeshBasicMaterial, MeshStandardMaterial, PointLight } from 'three'
+import type { MeshBasicMaterial, MeshStandardMaterial } from 'three'
 import type { World } from '../sim/ecosystem'
 import { environmentAt } from '../sim/climate'
 import { markRealistic } from './watercolor'
@@ -14,8 +14,8 @@ import { environmentScale } from './scale'
  *   little to the left of the usual view. Daylight's key light shines from
  *   that window (see `windowLight`), so the jar is lit from behind and above
  *   like a jar on a real windowsill.
- * - At night the window turns deep blue with a moon, and a small paper lamp
- *   on the sill gives the warm light.
+ * - At night the window turns deep blue with a moon (the sill lamp was removed
+ *   at the owner's request, 2026-11-06: it cluttered the view).
  * - The walls follow the light, so the room is bright and soft by day and
  *   dim at night, and the jar stays the brightest thing in view.
  */
@@ -34,8 +34,6 @@ export function windowLight(solar: number, hour: number) {
   const along = MathUtils.clamp((hour - 6) / 12, 0, 1)
   return [windowCentre.x + (along - 0.5) * windowCentre.width * 0.6, windowCentre.y - windowCentre.height * 0.2 + solar * windowCentre.height * 0.6, backZ - 9] as const
 }
-/** The lamp on the sill, back right: a paper lamp about 15 cm tall. */
-const lamp = { x: 5.6, z: -4.2, y: sillTop, scale: 3 }
 
 /** The back wall in four pieces around the window opening (x -30..30, y -12..28). */
 const backWall = (() => {
@@ -91,8 +89,6 @@ export function Room({ world }: { world: World }) {
   const scene = useThree((state) => state.scene)
   const day = useRef<MeshBasicMaterial>(null)
   const walls = useRef<MeshStandardMaterial[]>([])
-  const lampLight = useRef<PointLight>(null)
-  const shade = useRef<Mesh>(null)
   const sky = environmentAt(lightingWorld(world))
   const solar = sky.cycling ? sky.solar : 1
   const wallDay = useMemo(() => new Color('#b3a58c'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
@@ -107,10 +103,6 @@ export function Room({ world }: { world: World }) {
     const d = daylight.current
     if (day.current) day.current.opacity = MathUtils.smoothstep(d, 0.02, 0.35)
     for (const material of walls.current) if (material) material.color.copy(wallNight).lerp(wallDay, MathUtils.smoothstep(d, 0, 0.6))
-    // The lamp is switched on as the daylight goes.
-    const on = 1 - MathUtils.smoothstep(d, 0.05, 0.4)
-    if (lampLight.current) lampLight.current.intensity = 3 + on * 70
-    if (shade.current) (shade.current.material as MeshBasicMaterial).color.setRGB(0.6 + on * 0.4, 0.45 + on * 0.3, 0.3 + on * 0.1)
     background.copy(wallNight).lerp(wallDay, MathUtils.smoothstep(d, 0, 0.6)).multiplyScalar(0.55)
     scene.background = background
     fog.color.copy(background)
@@ -131,13 +123,6 @@ export function Room({ world }: { world: World }) {
       {[-1, 1].map((side) => <mesh key={`h${side}`} position={[0, side * windowCentre.height / 2, 0.3]}><boxGeometry args={[windowCentre.width + 0.5, 0.5, 0.6]} /><meshStandardMaterial color={frame} roughness={0.6} /></mesh>)}
       <mesh position={[0, 0, 0.3]}><boxGeometry args={[0.25, windowCentre.height, 0.3]} /><meshStandardMaterial color={frame} roughness={0.6} /></mesh>
       <mesh position={[0, 0.8, 0.3]}><boxGeometry args={[windowCentre.width, 0.25, 0.3]} /><meshStandardMaterial color={frame} roughness={0.6} /></mesh>
-    </group>
-    {/* A paper lamp on the sill. */}
-    <group position={[lamp.x, lamp.y, lamp.z]} scale={lamp.scale}>
-      <mesh position={[0, 0.9, 0]}><cylinderGeometry args={[0.08, 0.12, 1.8, 10]} /><meshStandardMaterial color="#3b3530" roughness={0.5} /></mesh>
-      <mesh position={[0, -0.05, 0]}><cylinderGeometry args={[0.6, 0.7, 0.12, 20]} /><meshStandardMaterial color="#3b3530" roughness={0.5} /></mesh>
-      <mesh ref={shade} position={[0, 2.2, 0]}><cylinderGeometry args={[0.7, 1.05, 1.1, 24, 1, true]} /><meshBasicMaterial color="#f5dcb0" side={2} toneMapped={false} /></mesh>
-      <pointLight ref={lampLight} position={[0, 1.9, 0]} intensity={20} distance={14} decay={1.3} color="#ffb46b" />
     </group>
   </group>
 }

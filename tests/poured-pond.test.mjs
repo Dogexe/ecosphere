@@ -11,7 +11,7 @@ import { walkOnLand } from '../src/sim/land.ts'
 
 test('the default poured jar holds an uneven pond that runs from the old round one out to the front glass', () => {
   const shape = maskShape(defaultJar)
-  assert.ok(shape.volume > 2.5 && shape.volume < 6, `volume ${shape.volume}`)
+  assert.ok(shape.volume > 6 && shape.volume < 12, `volume ${shape.volume}`)
   // The old pond's middle is still water, and the pond reaches the front glass (+z, radius 3.77) so you can look into it from the side.
   assert.ok(shape.signedDistance(pondCenter.x, pondCenter.z) < 0)
   assert.ok(shape.signedDistance(pondCenter.x, 3.3) < 0)

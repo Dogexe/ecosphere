@@ -19,7 +19,17 @@ export function settleOnLand(x: number, z: number, clearance = 0): { x: number; 
   if (isLand(x, z, clearance)) return { x, z }
   if (poured()) {
     const point = pushToShore(x, z, bankWidth + clearance + 0.02)
-    return isLand(point.x, point.z, clearance) ? point : { x, z }
+    if (isLand(point.x, point.z, clearance)) return point
+    // Where the pond meets the glass the shore's outward push leaves the jar: take the nearest bank instead.
+    for (let ring = 1; ring <= 40; ring += 1) {
+      const radius = ring * 0.08
+      for (let step = 0; step < 32; step += 1) {
+        const angle = step / 32 * Math.PI * 2
+        const near = { x: x + Math.cos(angle) * radius, z: z + Math.sin(angle) * radius }
+        if (isLand(near.x, near.z, clearance)) return near
+      }
+    }
+    return { x, z }
   }
   const fromPond = Math.atan2(z - pond.z, x - pond.x)
   const reach = pond.radius + clearance + 0.01

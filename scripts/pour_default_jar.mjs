@@ -29,11 +29,11 @@ const depth = (layer) => layerDepths(state)[layer]
 // the biggest gap), the pond hollow dug down to the charcoal.
 pour('gravel', 0.75, 3, spiral, () => depth('gravel') >= 0.75)
 pour('charcoal', 0.2, 1, spiral, () => depth('charcoal') >= 0.2)
-pour('soil', 1.15, 3, spiral, () => depth('soil') >= 1.15)
+pour('soil', 1.45, 3, spiral, () => depth('soil') >= 1.45)
 // Extra soil towards the back, away from the pond, for a slope to plant on.
 const away = (x, z) => Math.hypot(x - pondCenter.x, z - pondCenter.z) > pondCenter.radius + 0.6
 const back = spiral.filter(([x, z]) => z < -0.4 && x > -0.2 && away(x, z))
-pour('soil', 1.5, 3, back, () => depth('soil') >= 1.5)
+pour('soil', 1.9, 3, back, () => depth('soil') >= 1.9)
 // The pond now runs out to the front glass (the owner wants to watch underwater
 // life from the side), so no soil is banked along the front.
 for (let pass = 0; pass < 200; pass += 1) settle(state, 6)
@@ -49,7 +49,7 @@ for (let round = 0; round < 3000; round += 1) {
 // Scoop a hollow for the pond, a little uneven like a hand would leave it, and
 // spread the scooped soil over the rest. The soil then slumps to its own angle.
 const N = substrateSize
-const reach = (angle) => 1.22 + 0.14 * Math.sin(2 * angle + 1) + 0.08 * Math.sin(3 * angle + 2.2) + 0.05 * Math.sin(5 * angle + 0.4)
+const reach = (angle) => 1.6 + 0.14 * Math.sin(2 * angle + 1) + 0.08 * Math.sin(3 * angle + 2.2) + 0.05 * Math.sin(5 * angle + 0.4)
 // The hollow is dug from the old pond's middle forward to the front glass (+z faces the camera),
 // so it is measured from that line rather than from one point: the pond meets the glass full depth.
 const glassward = (dx, dz) => { const along = Math.min(Math.max(dz, 0), 3.4); return [dx, dz - along] }
@@ -59,8 +59,11 @@ for (let k = 0; k < N * N; k += 1) {
   const [dx, dz] = glassward(cellX(k % N) - pondCenter.x, cellX(Math.floor(k / N)) - pondCenter.z)
   const t = 1 - Math.hypot(dx, dz) / reach(Math.atan2(dz, dx))
   if (t <= 0) continue
-  const take = Math.min(state.soil[k] - 0.05, 1.3 * Math.min(1, t * 2.2) ** 1.4)
+  // Dug right down to the gravel in the middle (concept image 12: a pebble-bedded pond seen through the glass).
+  const take = Math.min(state.soil[k], 2.2 * Math.min(1, t * 2.2) ** 1.4)
   state.soil[k] -= take; scooped += take
+  const char = t > 0.35 ? state.charcoal[k] : 0
+  state.charcoal[k] -= char; scooped += char
 }
 // Most of it banks up around the hollow, the way soil piles beside a hole you dig.
 const rim = Array.from({ length: 48 }, (_, n) => { const a = n / 48 * Math.PI * 2, r = reach(a) + 0.45; return [pondCenter.x + Math.cos(a) * r, pondCenter.z + Math.sin(a) * r] }).filter(([x, z]) => Math.hypot(x, z) < 3.4 && z < 2.2)
@@ -82,7 +85,7 @@ for (let round = 0; round < 3000; round += 1) {
   const volume = shape().volume ?? 0
   held = volume
   if (round % 50 === 0) console.log('round', round, 'pond volume', volume.toFixed(2), 'table', state.table.toFixed(2))
-  if (volume > 4.4) break
+  if (volume > +(process.env.POND_VOLUME ?? 9)) break
 }
 const pond = shape()
 let farthest = 0

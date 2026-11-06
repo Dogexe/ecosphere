@@ -104,6 +104,8 @@ export function useLayeredGeometry() {
 }
 
 const tint = new Color(), other = new Color()
+/** Pebbles under pond water: grey stone greened by a film of algae, darker with depth. */
+const pondBed = new Color('#7d8466')
 /** Puddle water over soil: clear but tea-coloured from the humus it sits on. */
 const waterTint = new Color('#5e6650')
 
@@ -123,7 +125,11 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
     if (!layer) tint.set('#eef2f0')
     else if (layer === 'soil') tint.copy(layerColours.soil).lerp(layerColours.wetSoil, wetness(state, k))
     else tint.copy(layerColours[layer])
-    cells[o] = tint.r; cells[o + 1] = tint.g; cells[o + 2] = tint.b; cells[o + 3] = layer === 'gravel' ? 1 : 0; cells[o + 4] = state.pool[k]
+    // Under standing water the bed reads as washed pebbles and silt, as in concept image 12: the
+    // fines wash off the slope and the pond floor is gravel-coloured even where the model keeps soil.
+    const bed = smoothstep(0.2, 0.6, state.pool[k])
+    if (bed > 0) tint.lerp(pondBed, bed * 0.75)
+    cells[o] = tint.r; cells[o + 1] = tint.g; cells[o + 2] = tint.b; cells[o + 3] = Math.max(layer === 'gravel' ? 1 : 0, bed); cells[o + 4] = state.pool[k]
   }
   const step = (2 * R) / (M - 1), limit = R - 0.02
   for (let j = 0; j < M; j += 1) for (let i = 0; i < M; i += 1) {

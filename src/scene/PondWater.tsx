@@ -305,9 +305,9 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
       sidePosition.setXYZ(n * 2, cos * wallRadius, floor + Math.min(bedY, top) - 0.02, sin * wallRadius)
       sidePosition.setXYZ(n * 2 + 1, cos * wallRadius, floor + top, sin * wallRadius)
       colour.copy(look.tint).lerp(deep, 0.6)
-      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.9, 0.3 + look.cloud * 0.55) : 0)
+      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.9, 0.2 + look.cloud * 0.55) : 0)
       colour.copy(look.tint)
-      sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.8, 0.14 + look.cloud * 0.6) : 0)
+      sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.8, 0.08 + look.cloud * 0.6) : 0)
     }
     sidePosition.needsUpdate = true; sideColour.needsUpdate = true
     parts.side.computeVertexNormals(); parts.side.computeBoundingSphere()
