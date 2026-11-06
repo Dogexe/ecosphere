@@ -44,7 +44,7 @@ export const hasDrawnPlant = (kind: PlantKind) => drawnKinds.includes(kind)
 const files: Partial<Record<PlantKind, string[]>> = {
   clover: ['leaf-1', 'leaf-2', 'leaf-3', 'flower'],
   bloom: ['leaf-1', 'leaf-2', 'leaf-3', 'flower-1', 'flower-2', 'flower-side'],
-  tree: ['leaf-1', 'leaf-2', 'leaf-3', 'leaf-4', 'base'],
+  tree: ['leaf-1', 'leaf-2', 'leaf-3', 'leaf-4', 'leaf-5', 'leaf-6', 'base'],
   fern: ['frond-1', 'frond-2', 'frond-3'],
   grass: ['tuft-1', 'tuft-2'],
   reed: ['tuft-1', 'tuft-2', 'stalk-1', 'stalk-2', 'stalk-3'],
@@ -90,6 +90,20 @@ function paperMaterial(map: Texture | null, health: number, bend: boolean) {
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.09, 0.08, 0.06), outside * 0.92);
         }
         #endif`)
+      // Backlight through the leaf (2026-11-07, after how big-budget games light foliage, e.g. the
+      // backlit grass of Crimson Desert): the window is behind the jar, so leaves between the
+      // sun and the camera glow with their own colour, and their edges catch a warm rim.
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        #if NUM_DIR_LIGHTS > 0
+        {
+          vec3 toLight = directionalLights[0].direction;
+          float through = pow(clamp(dot(geometryViewDir, -toLight), 0.0, 1.0), 2.0);
+          float rim = pow(1.0 - abs(dot(normalize(normal), geometryViewDir)), 3.0);
+          vec3 sun = directionalLights[0].color;
+          reflectedLight.indirectDiffuse += diffuseColor.rgb * diffuseColor.rgb * sun * 0.45 * through;
+          reflectedLight.directSpecular += sun * vec3(1.0, 0.9, 0.7) * rim * through * 0.12;
+        }
+        #endif`)
     if (!bend) return
     shader.uniforms.swayTime = sway
     shader.vertexShader = shader.vertexShader
@@ -102,7 +116,7 @@ function paperMaterial(map: Texture | null, health: number, bend: boolean) {
         transformed.x += sin(swayTime * 1.1 + phase) * 0.03 * lift;
         transformed.z += sin(swayTime * 0.8 + phase * 1.3) * 0.02 * lift;`)
   }
-  standard.customProgramCacheKey = () => bend ? 'paper-ink-sway' : 'paper-ink'
+  standard.customProgramCacheKey = () => bend ? 'paper-ink-glow-sway' : 'paper-ink-glow'
   materials.set(key, standard)
   return standard
 }
@@ -207,13 +221,13 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     // Oxalis: trifoliate leaves held flat on 1-7 cm stalks, leaflets 4-13 mm (VicFlora).
     const count = 7
     for (let index = 0; index < count; index += 1) {
-      const angle = turn + index * golden, reach = spread * (0.12 + rand() * 0.26), top = height * (0.45 + rand() * 0.45)
+      const angle = turn + index * golden, reach = spread * (0.12 + rand() * 0.26), top = height * (0.35 + rand() * 0.4)
       const tip = new Vector3(Math.cos(angle) * reach, top, Math.sin(angle) * reach)
       // Stalks rise from the crown, wander a little and bow out under the leaf.
       const side = (rand() - 0.5) * 0.25
       add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.1 - tip.z * side, top * 0.4, tip.z * 0.1 + tip.x * side), new Vector3(tip.x * 0.55, top * 0.92, tip.z * 0.55), tip], 0.01), null)
       const leaf = textures[`leaf-${1 + index % 3}`]
-      add(place(flat(leaf, spread * (0.22 + rand() * 0.12), 0.08 + rand() * 0.12), { x: tip.x, y: tip.y, z: tip.z, yaw: -angle + Math.PI / 2 + (rand() - 0.5) * 1.4, tilt: (rand() - 0.5) * 0.4, roll: 0.05 + rand() * 0.25 }), leaf, true)
+      add(place(flat(leaf, spread * (0.34 + rand() * 0.14), 0.08 + rand() * 0.12), { x: tip.x, y: tip.y, z: tip.z, yaw: -angle + Math.PI / 2 + (rand() - 0.5) * 1.4, tilt: (rand() - 0.5) * 0.4, roll: 0.05 + rand() * 0.25 }), leaf, true)
     }
     if (flowering) for (let index = 0; index < 2; index += 1) {
       const angle = turn + 1 + index * 2.8, reach = spread * 0.15, top = height * 0.98
@@ -227,7 +241,7 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     // Violet: heart leaves tilted out from the crown, flowers nodding on arched stems.
     for (let index = 0; index < 5; index += 1) {
       const angle = turn + index * golden, leaf = textures[`leaf-${1 + index % 3}`]
-      add(place(upright(leaf, height * (0.42 + rand() * 0.25), { cup: 0.15 + rand() * 0.2, curl: 0.1 + rand() * 0.2, lean: (rand() - 0.5) * 0.3, twist: (rand() - 0.5) * 0.6 }), { yaw: Math.PI / 2 - angle + (rand() - 0.5) * 0.4, tilt: 0.35 + rand() * 0.6, roll: (rand() - 0.5) * 0.3 }), leaf, true)
+      add(place(upright(leaf, height * (0.58 + rand() * 0.25), { cup: 0.15 + rand() * 0.2, curl: 0.1 + rand() * 0.2, lean: (rand() - 0.5) * 0.3, twist: (rand() - 0.5) * 0.6 }), { yaw: Math.PI / 2 - angle + (rand() - 0.5) * 0.4, tilt: 0.35 + rand() * 0.6, roll: (rand() - 0.5) * 0.3 }), leaf, true)
     }
     if (flowering) for (let index = 0; index < 2; index += 1) {
       const angle = turn + 0.8 + index * 3.1, reach = spread * 0.22, top = height * (0.85 + index * 0.12)
@@ -241,14 +255,24 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
   }
 
   if (kind === 'tree') {
-    // Calathea: each leaf on its own petiole from the base, leaning out, the youngest most upright.
-    for (let index = 0; index < 6; index += 1) {
-      const angle = turn + index * golden, leaf = textures[`leaf-${1 + index % 4}`]
-      // Petioles bow out and the blades tip and turn to the light, each its own way.
-      add(place(upright(leaf, height * (0.55 + rand() * 0.42), { cup: 0.18 + rand() * 0.2, curl: 0.12 + rand() * 0.22, lean: (rand() - 0.5) * 0.35, twist: (rand() - 0.5) * 0.9 }), { yaw: Math.PI / 2 - angle + (rand() - 0.5) * 0.5, tilt: 0.05 + index / 6 * 0.4 + rand() * 0.25, roll: (rand() - 0.5) * 0.35 }), leaf, true)
+    // Fittonia (nerve plant), as in concept image 12 (owner, 2026-11-07: plants must match the cover):
+    // a low mound of soft stems, each ending in opposite pairs of broad pink-veined leaves that
+    // splay out and up toward the light, the lower pairs larger and flatter.
+    for (let index = 0; index < 5; index += 1) {
+      const angle = turn + index * golden, reach = spread * (0.1 + rand() * 0.2), top = height * (0.28 + rand() * 0.3)
+      const tip = new Vector3(Math.cos(angle) * reach, top, Math.sin(angle) * reach)
+      add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.3, top * 0.45, tip.z * 0.3), tip], 0.016), null)
+      for (const [level, size, tilt] of [[1, 0.5, 0.65], [0.55, 0.6, 1.0], [0.15, 0.62, 1.3]] as const) {
+        const at = new Vector3(tip.x * (0.35 + 0.65 * level), top * level, tip.z * (0.35 + 0.65 * level))
+        for (const side of [0, Math.PI]) {
+          const out = angle + side + (level < 1 ? Math.PI / 2 : 0) + (rand() - 0.5) * 0.5
+          const leaf = textures[`leaf-${1 + Math.floor(rand() * 6)}`]
+          add(place(upright(leaf, height * size * (0.85 + rand() * 0.3), { cup: 0.2 + rand() * 0.2, curl: 0.12 + rand() * 0.2, lean: (rand() - 0.5) * 0.25, twist: (rand() - 0.5) * 0.5 }), { x: at.x, y: at.y - 0.02, z: at.z, yaw: Math.PI / 2 - out, tilt: tilt + rand() * 0.3, roll: (rand() - 0.5) * 0.3 }), leaf, true)
+        }
+      }
     }
     const base = textures.base
-    for (const cross of [0, Math.PI / 2]) add(place(upright(base, height * 0.12), { yaw: turn + cross }), base)
+    for (const cross of [0, Math.PI / 2]) add(place(upright(base, height * 0.22), { yaw: turn + cross }), base)
   }
 
   if (kind === 'fern') {

@@ -147,8 +147,8 @@ function Glass({ bottom = gravelBottom, sealed = false }: { bottom?: number; sea
     {sealed && <group position={[0, glassTop + 0.02, 0]}>
       {/* A brushed tin screw cap with a ribbed skirt, like a canning jar. */}
       <mesh position={[0, 0.12, 0]} castShadow raycast={noRaycast}>
-        <cylinderGeometry args={[lid, lid, 0.24, 96, 1, true]} />
-        <meshStandardMaterial color="#b9b6ad" metalness={0.85} roughness={0.38} side={DoubleSide} />
+        <cylinderGeometry args={[lid, lid, 0.24, 96, 1, false]} />
+        <meshStandardMaterial color="#9d9890" metalness={0.55} roughness={0.32} />
       </mesh>
       <mesh position={[0, 0.24, 0]} castShadow raycast={noRaycast}>
         <cylinderGeometry args={[lid - 0.06, lid, 0.06, 96]} />

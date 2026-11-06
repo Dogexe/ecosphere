@@ -245,7 +245,8 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     const order: number[] = []
     for (let n = 0; n < wallSamples; n += 1) { const a = n * 2, b = a + 1, c = a + 2, d = a + 3; order.push(a, c, b, b, c, d) }
     side.setIndex(order)
-    const sideMaterial = Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.3, metalness: 0, specularIntensity: 0.2, side: DoubleSide, depthWrite: false }), { userData: { realistic: true } })
+    // Unlit: the glass in front already carries the reflections, and a lit sheet streaked where it met the sloping bank.
+    const sideMaterial = Object.assign(new MeshBasicMaterial({ vertexColors: true, transparent: true, side: DoubleSide, depthWrite: false }), { userData: { realistic: true } })
     // The waterline against the glass: a thin bright meniscus that tells the eye where the water stops (concept image 12).
     const meniscus = new BufferGeometry()
     meniscus.setAttribute('position', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 3), 3))
