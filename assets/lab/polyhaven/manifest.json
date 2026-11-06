@@ -2,7 +2,7 @@
   "source": "https://polyhaven.com",
   "api": "https://api.polyhaven.com",
   "fetched": "2026-11-03",
-  "total_bytes": 29142771,
+  "total_bytes": 30063874,
   "assets": [
     {
       "id": "rock_moss_set_01",
@@ -228,6 +228,105 @@
       ],
       "bytes": 1724856,
       "note": "diffuse JPG merged with the 1k alpha map into an RGBA PNG for the leaf cutout"
+    },
+    {
+      "id": "farm_soil",
+      "type": "texture",
+      "name": "Farm Soil",
+      "purpose": "soil layer and surface in the jar",
+      "license": "CC0",
+      "authors": [
+        "Amal Kumar"
+      ],
+      "source": "https://polyhaven.com/a/farm_soil",
+      "resolution": "1k",
+      "files": [
+        "farm_soil_ao_1k.jpg",
+        "farm_soil_diff_1k.jpg",
+        "farm_soil_nor_gl_1k.jpg",
+        "farm_soil_rough_1k.jpg"
+      ],
+      "fetched": "2026-11-06"
+    },
+    {
+      "id": "gravel_stones",
+      "type": "texture",
+      "name": "Gravel Stones",
+      "purpose": "black grit standing in for the horticultural charcoal layer",
+      "license": "CC0",
+      "authors": [
+        "Amal Kumar"
+      ],
+      "source": "https://polyhaven.com/a/gravel_stones",
+      "resolution": "1k",
+      "files": [
+        "gravel_stones_ao_1k.jpg",
+        "gravel_stones_diff_1k.jpg",
+        "gravel_stones_nor_gl_1k.jpg",
+        "gravel_stones_rough_1k.jpg"
+      ],
+      "fetched": "2026-11-06"
+    },
+    {
+      "id": "ganges_river_pebbles",
+      "type": "texture",
+      "name": "Ganges River Pebbles",
+      "purpose": "pebble bed of the pond",
+      "license": "CC0",
+      "authors": [
+        "Amal Kumar"
+      ],
+      "source": "https://polyhaven.com/a/ganges_river_pebbles",
+      "resolution": "1k",
+      "files": [
+        "ganges_river_pebbles_ao_1k.jpg",
+        "ganges_river_pebbles_diff_1k.jpg",
+        "ganges_river_pebbles_nor_gl_1k.jpg",
+        "ganges_river_pebbles_rough_1k.jpg"
+      ],
+      "fetched": "2026-11-06"
+    },
+    {
+      "id": "namaqualand_stones_01",
+      "type": "model",
+      "name": "Namaqualand Stones 01",
+      "purpose": "small stones scattered on the soil and in the pond",
+      "license": "CC0",
+      "authors": [
+        "Greg Zaal",
+        "Jenelle van Heerden"
+      ],
+      "source": "https://polyhaven.com/a/namaqualand_stones_01",
+      "resolution": "1k",
+      "files": [
+        "namaqualand_stones_01.bin",
+        "namaqualand_stones_01_1k.gltf",
+        "textures/namaqualand_stones_01_arm_1k.jpg",
+        "textures/namaqualand_stones_01_diff_1k.jpg",
+        "textures/namaqualand_stones_01_nor_gl_1k.jpg"
+      ],
+      "fetched": "2026-11-06"
+    },
+    {
+      "id": "moss_01",
+      "type": "model",
+      "name": "Moss 01",
+      "purpose": "real moss shoots built into cushions on the soil",
+      "license": "CC0",
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "source": "https://polyhaven.com/a/moss_01",
+      "resolution": "1k",
+      "files": [
+        "moss_01_1k.gltf",
+        "moss_01.bin",
+        "textures/moss_01_diff_1k.jpg",
+        "textures/moss_01_nor_gl_1k.jpg",
+        "textures/moss_01_arm_1k.jpg"
+      ],
+      "bytes": 921103,
+      "fetched": "2026-11-06"
     }
   ]
 }
