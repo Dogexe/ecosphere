@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { InstancedMesh, Object3D } from 'three'
 import type { Ground } from './semiReal'
@@ -19,6 +19,8 @@ import type { Ground } from './semiReal'
  */
 
 const count = 90
+/** Fine pinned beads that mist the glass, as in concept image 12; more show as the fog thickens. */
+const mistCount = 1600
 const noRaycast = () => undefined
 
 type Bead = { angle: number; y: number; size: number; wait: number; speed: number; start: number }
@@ -33,7 +35,27 @@ export function GlassDroplets({ fog, radiusAt, top, ground }: { fog: number; rad
   const state = useMemo<Bead[]>(() => Array.from({ length: count }, (_, n) => ({ angle: hash(n) * Math.PI * 2, y: top - hash(n + 50) * 3, size: 0.025 + hash(n + 90) * 0.03, wait: hash(n + 130) * 14, speed: 0, start: 0 })).map((bead) => ({ ...bead, start: bead.y })), [top])
   // Where each bead's path meets the ground, just inside the glass.
   const floorAt = (angle: number) => { const r = radiusAt(-1) - 0.24; return ground(Math.cos(angle) * r, Math.sin(angle) * r) + 0.04 }
+  const mist = useRef<InstancedMesh>(null)
+  useLayoutEffect(() => {
+    const mesh = mist.current
+    if (!mesh) return
+    for (let n = 0; n < mistCount; n += 1) {
+      const angle = hash(n + 7000) * Math.PI * 2
+      const low = floorAt(angle) + 0.15, y = low + (top - low) * Math.sqrt(hash(n + 9000))
+      const r = radiusAt(y) - 0.015
+      // Mostly tiny beads with a few bigger ones, flattened against the glass.
+      const size = 0.012 + hash(n + 11000) ** 3 * 0.06
+      dummy.position.set(Math.cos(angle) * r, y, Math.sin(angle) * r)
+      dummy.rotation.set(0, -angle + Math.PI / 2, 0)
+      dummy.scale.set(size, size * (1 + hash(n + 13000) * 0.3), size * 0.4)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(n, dummy.matrix)
+    }
+    mesh.instanceMatrix.needsUpdate = true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [top, radiusAt, ground, dummy])
   useFrame((_, delta) => {
+    if (mist.current) mist.current.count = Math.round(mistCount * Math.min(1, Math.max(0, (fog - 0.2) / 0.5)))
     const step = Math.min(delta, 0.1)
     const show = fog > 0.2
     state.forEach((bead, n) => {
@@ -69,6 +91,10 @@ export function GlassDroplets({ fog, radiusAt, top, ground }: { fog: number; rad
     if (trails.current) trails.current.instanceMatrix.needsUpdate = true
   })
   return <group>
+    <instancedMesh ref={mist} args={[undefined, undefined, mistCount]} raycast={noRaycast} renderOrder={3} frustumCulled={false}>
+      <sphereGeometry args={[1, 7, 5]} />
+      <meshPhysicalMaterial color="#f4fbff" transparent opacity={0.4} roughness={0.02} clearcoat={1} envMapIntensity={2.4} depthWrite={false} />
+    </instancedMesh>
     <instancedMesh ref={beads} args={[undefined, undefined, count]} raycast={noRaycast} renderOrder={3} frustumCulled={false}>
       <sphereGeometry args={[1, 10, 8]} />
       <meshPhysicalMaterial color="#f4fbff" transparent opacity={0.32} roughness={0.02} clearcoat={1} envMapIntensity={2} depthWrite={false} />

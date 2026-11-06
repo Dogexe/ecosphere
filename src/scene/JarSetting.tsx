@@ -259,6 +259,8 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
   useLayoutEffect(() => { groundShape.offset = (x, z) => ground(x, z) - top; groundShape.poured = !!water; return () => { groundShape.offset = () => 0; groundShape.poured = false } }, [ground, water])
   const keepOut = useMemo(() => water && hasPond ? (x: number, z: number) => water.signedDistance(x, z) < 0.12 : undefined, [water, hasPond])
   const shore = useMemo(() => water && hasPond ? shoreSpots(water, ground) : undefined, [water, hasPond, ground])
+  // A closed jar with standing water always beads a little on the glass, as in concept image 12; the sim's fog adds more.
+  const mist = sealed && hasPond ? Math.max(fog, 0.45) : fog
   return <>
     <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} poolScale={poolScale} onClick /></Suspense>
     {water && hasPond && water.cells && pond && <ShapedPond ground={ground} cells={water.cells} level={water.level ?? 0} floor={floor} pond={pond} underwater={!!underwater} onPondClick={onPondClick ?? (() => undefined)} />}
@@ -267,7 +269,7 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
     {dressed && water && hasPond && <Suspense fallback={null}><Pebbles water={water} ground={ground} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
     <Glass bottom={floor} sealed={sealed} />
-    {fog > 0.2 && !underwater && <GlassDroplets fog={fog} radiusAt={glassRadiusAt} top={neck - 0.3} ground={ground} />}
+    {mist > 0.2 && !underwater && <GlassDroplets fog={mist} radiusAt={glassRadiusAt} top={neck - 0.3} ground={ground} />}
   </>
 }
 

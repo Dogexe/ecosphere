@@ -261,10 +261,11 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
   }
 
   if (kind === 'lily') {
-    // Pads float flat; a flower when the plant is flowering.
+    // Pads float flat on the surface (the plant's origin sits a little under it), about
+    // 10-14 mm across like frogbit, so they read on the water as in concept image 12.
     for (let index = 0; index < 3; index += 1) {
-      const angle = turn + index * golden, reach = index === 0 ? 0 : spread * 0.28, pad = textures[`pad-${index + 1}`]
-      add(place(flat(pad, spread * (0.55 - index * 0.1), 0.03 + rand() * 0.04), { x: Math.cos(angle) * reach, y: 0.004 + index * 0.002, z: Math.sin(angle) * reach, yaw: rand() * Math.PI * 2 }), pad)
+      const angle = turn + index * golden, reach = index === 0 ? 0 : spread * 0.55, pad = textures[`pad-${index + 1}`]
+      add(place(flat(pad, spread * (1.05 - index * 0.2), 0.03 + rand() * 0.04), { x: Math.cos(angle) * reach, y: 0.03 + index * 0.002, z: Math.sin(angle) * reach, yaw: rand() * Math.PI * 2 }), pad)
     }
     if (flowering) {
       const size = spread * 0.3
