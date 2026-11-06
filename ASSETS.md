@@ -117,3 +117,7 @@ Kenney flower variants A/B/C remain excluded. Original GLB source hashes for rej
 
 Poly Haven CC0 models in `public/assets/lab/polyhaven/` (see its `manifest.json`): `calathea_orbifolia_01` (tree kind, a young Calathea), `shrub_sorrel_01` (clover kind, Oxalis), `fern_02` (fern kind). Downloaded at 1k; the diffuse JPG was merged with Poly Haven's 1k alpha map into an RGBA PNG so the leaf cutouts work. Used by `src/scene/ScanPlant.tsx`, scaled to `plantDimensions` in `src/scene/scale.ts`.
 Mushrooms (Mycena-like bonnets), floating pads (frogbit-like, lily kind), hairgrass (reed kind) and fallen leaflets in the paper look are modelled in code with canvas-painted textures (`src/scene/paperNature.tsx`); no third-party files.
+
+## Image 12 plant parts (2026-11-07)
+
+`public/assets/paper/plants/{tree,bloom,clover,grass,mushroom}` were repainted to match concept round 3 image 12 (owner: "plant models don't match the cover"). Three part sheets were generated with Codex's built-in image generation, with image 12 attached as the style reference; prompts, sheets and the cut pieces are in `artifacts/image12-plants-r1/` and the previous parts are kept in `artifacts/image12-plants-r1/replaced/`. Cut with a canvas script (white background flood-filled from the edges, connected pieces cropped, WebP 0.9, longest side 512 px); violet leaves flipped so stalks point down. The `tree` kind's art is now a pink-veined Fittonia (nerve plant) instead of Calathea; simulation kind and ecology unchanged. Personal, non-commercial game; generated images, no third-party licence.
