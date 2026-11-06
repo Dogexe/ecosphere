@@ -1,0 +1,7 @@
+{
+  "canvas": [767, 656],
+  "length": { "from": 10, "to": 700, "units": 1 },
+  "ground": 640,
+  "parts": [ { "file": "body.png", "motion": "body", "pivot": [380, 600] } ],
+  "joints": { "at": [], "limit": 0 }
+}

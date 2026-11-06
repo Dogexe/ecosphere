@@ -140,7 +140,7 @@ function parseWorld(text: string, settle: boolean): World {
   }
   const remains = (source.remains === undefined ? [] : array(source, 'remains', 300)).map((value): Remains => {
     const item = record(value)
-    if (typeof item.kind !== 'string' || !['clover', 'fern', 'bloom', 'moss', 'grass', 'tree', 'lily', 'reed', 'grazer', 'woodlouse', 'springtail', 'beetle', 'flea', 'fish', ...(envelope.version === 3 ? ['ant'] : [])].includes(item.kind)) throw damaged()
+    if (typeof item.kind !== 'string' || !['clover', 'fern', 'bloom', 'moss', 'grass', 'tree', 'lily', 'reed', 'grazer', 'woodlouse', 'springtail', 'beetle', 'flea', 'fish', 'snail', 'shrimp', ...(envelope.version === 3 ? ['ant'] : [])].includes(item.kind)) throw damaged()
     const result: Remains = { id: number(item, 'id', 0, 1e9, true), kind: item.kind as Remains['kind'], x: number(item, 'x', -3.7, 3.7), z: number(item, 'z', -3.7, 3.7), material: number(item, 'material', 0, 1e9), initial: number(item, 'initial', 0, 1e9), age: number(item, 'age', 0, 1e9, true), patchId: number(item, 'patchId', 0, 4, true) }
     if (item.ant !== undefined) {
       if (envelope.version !== 3 || item.kind !== 'ant') throw damaged()

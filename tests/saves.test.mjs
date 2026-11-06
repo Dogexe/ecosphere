@@ -62,7 +62,7 @@ test('legacy animals migrate to grazers without adding new organisms', () => {
   save.world.creatures = save.world.creatures.filter((creature) => creature.kind === 'grazer')
   for (const creature of save.world.creatures) delete creature.kind
   const restored = parseSave(JSON.stringify(save))
-  assert.deepEqual(creatureCounts(restored.creatures), { grazer: 3, woodlouse: 0, beetle: 0, springtail: 0, flea: 0, fish: 0 })
+  assert.deepEqual(creatureCounts(restored.creatures), { grazer: 3, woodlouse: 0, beetle: 0, springtail: 0, flea: 0, fish: 0, snail: 0, shrimp: 0 })
   assert.deepEqual(stepWorld(restored), stepWorld(save.world))
 })
 

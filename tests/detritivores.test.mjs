@@ -77,7 +77,7 @@ test('each animal role has its own cap', () => {
   const base = habitat()
   const grazers = Array.from({ length: 7 }, (_, id) => ({ id, kind: 'grazer', x: 1, z: -1, energy: 50, heading: 0 }))
   const introduced = introduceLife({ ...base, creatures: grazers }, 'woodlouse', -1.4, 2.5)
-  assert.deepEqual(creatureCounts(introduced.creatures), { grazer: 7, woodlouse: 1, beetle: 0, springtail: 0, flea: 0, fish: 0 })
+  assert.deepEqual(creatureCounts(introduced.creatures), { grazer: 7, woodlouse: 1, beetle: 0, springtail: 0, flea: 0, fish: 0, snail: 0, shrimp: 0 })
   const full = { ...base, creatures: Array.from({ length: 4 }, (_, id) => ({ ...base.creatures[0], id, energy: 95 })) }
   assert.equal(stepWorld(full).creatures.length, 4)
   assert.equal(introduceLife(full, 'woodlouse', 1.7, -1.7), full)

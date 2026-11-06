@@ -65,6 +65,8 @@ const nursery: { kind: Lifeform; name: string; niche: string }[] = [
   { kind: 'reed', name: 'Reed', niche: 'Pond · rooted producer' },
   { kind: 'flea', name: 'Water flea', niche: 'Pond · eats algae' },
   { kind: 'fish', name: 'Fish', niche: 'Pond · hunts water fleas' },
+  { kind: 'snail', name: 'Ramshorn snail', niche: 'Pond · grazes algae & detritus' },
+  { kind: 'shrimp', name: 'Cherry shrimp', niche: 'Pond · picks biofilm & detritus' },
 ]
 
 function statusFor(world: World) {
@@ -335,7 +337,7 @@ export function App() {
     else if (newChamber) setNotice('The workers opened a new resting chamber. Its tunnel is now part of their living nest.')
     else if (antBirth) setNotice('A pale worker emerges from its pupa. Larval food funded its body; its cuticle will mature in the nest.')
     else if (caught) setNotice(`A ${caught.predatorKind} caught a ${caught.preyKind === 'flea' ? 'water flea' : caught.preyKind}. Part of its meal returns to organic matter.`)
-    else if (born) setNotice(born.kind === 'grazer' ? 'A new grazer has joined the world.' : born.kind === 'woodlouse' ? 'A mother releases a tiny woodlouse from her brood pouch.' : born.kind === 'springtail' ? 'Fungal food supports a new springtail.' : born.kind === 'beetle' ? 'A well-fed beetle funds a new generation.' : born.kind === 'fish' || born.kind === 'flea' ? 'A new aquatic generation begins.' : 'A propagule settles near its parent.')
+    else if (born) setNotice(born.kind === 'grazer' ? 'A new grazer has joined the world.' : born.kind === 'woodlouse' ? 'A mother releases a tiny woodlouse from her brood pouch.' : born.kind === 'springtail' ? 'Fungal food supports a new springtail.' : born.kind === 'beetle' ? 'A well-fed beetle funds a new generation.' : born.kind === 'snail' ? 'A tiny ramshorn snail hatches from a jelly egg clutch on the pond bed.' : born.kind === 'shrimp' ? 'A shrimplet the size of a grain of rice leaves its mother: a tiny copy of the adult.' : born.kind === 'fish' || born.kind === 'flea' ? 'A new aquatic generation begins.' : 'A propagule settles near its parent.')
     else if (mating) setNotice('Two woodlice paired. The female is carrying a funded brood.')
     else if (died) setNotice(died.reason === 'decline' ? 'A plant died; its remains slowly return to the soil.' : died.reason === 'age' ? `A ${died.kind} reached the end of its life; its remains begin to decay.` : died.reason === 'desiccation' ? 'A woodlouse dried out. Its remains can decompose when moisture returns.' : `A ${died.kind} ran out of energy; its remains begin to decay.`)
   }, [events])
@@ -425,7 +427,7 @@ export function App() {
     const issue = placementIssue(world, tool, x, z)
     if (issue) { setNotice(issue); return }
     setWorld((current) => introduceLife(current, tool, x, z))
-    setNotice(tool === 'grazer' ? 'A forager arrives, ready to explore.' : tool === 'woodlouse' ? 'A woodlouse arrives to forage in fallen leaves.' : tool === 'beetle' ? 'A ground beetle arrives. Nearby prey will keep their distance.' : tool === 'springtail' ? 'A springtail arrives. It needs living fungi and moist ground.' : tool === 'fish' ? 'A fish arrives. It needs oxygen and water fleas to hunt.' : tool === 'flea' ? 'A water flea arrives. Algae supply its meals.' : 'A propagule settles here. Moisture and suitable conditions let it develop.')
+    setNotice(tool === 'grazer' ? 'A forager arrives, ready to explore.' : tool === 'woodlouse' ? 'A woodlouse arrives to forage in fallen leaves.' : tool === 'beetle' ? 'A ground beetle arrives. Nearby prey will keep their distance.' : tool === 'springtail' ? 'A springtail arrives. It needs living fungi and moist ground.' : tool === 'fish' ? 'A fish arrives. It needs oxygen and water fleas to hunt.' : tool === 'flea' ? 'A water flea arrives. Algae supply its meals.' : tool === 'snail' ? 'A ramshorn snail glides onto the pond bed to graze algae and detritus.' : tool === 'shrimp' ? 'A cherry shrimp settles on the pond bed and starts picking at the biofilm.' : 'A propagule settles here. Moisture and suitable conditions let it develop.')
   }
 
   function remove(kind: 'plant' | 'creature', id: number) {
@@ -597,8 +599,8 @@ export function App() {
         /> : focusedCreature ? (
           <div className="focus-view">
             <div className="panel-kicker">#{focusedCreature.id + 1} · {focusedCreature.stage ?? 'adult'} · {Math.floor((focusedCreature.age ?? 0) / 24)} model days old</div>
-            <h2>{focusedKind === 'fish' ? 'Little fish' : focusedKind === 'flea' ? 'Water flea' : focusedKind === 'springtail' ? 'Little springtail' : focusedKind === 'woodlouse' ? 'Little woodlouse' : focusedKind === 'beetle' ? 'Ground beetle' : 'Little forager'}</h2>
-            <p>{resting ? `${focusedKind === 'woodlouse' || focusedKind === 'springtail' ? 'Resting through the brighter hours.' : 'Resting through the dark hours.'} It still spends energy; severe hunger or danger can interrupt rest.` : focusedKind === 'fish' ? 'Hunts water fleas in the pond. Oxygen and a continuing prey population both matter.' : focusedKind === 'flea' ? 'Grazes the pond’s algae and is food for fish. Low oxygen or a dry pond can end its life.' : focusedKind === 'beetle'
+            <h2>{focusedKind === 'fish' ? 'Little fish' : focusedKind === 'snail' ? 'Ramshorn snail' : focusedKind === 'shrimp' ? 'Cherry shrimp' : focusedKind === 'flea' ? 'Water flea' : focusedKind === 'springtail' ? 'Little springtail' : focusedKind === 'woodlouse' ? 'Little woodlouse' : focusedKind === 'beetle' ? 'Ground beetle' : 'Little forager'}</h2>
+            <p>{resting ? `${focusedKind === 'woodlouse' || focusedKind === 'springtail' ? 'Resting through the brighter hours.' : 'Resting through the dark hours.'} It still spends energy; severe hunger or danger can interrupt rest.` : focusedKind === 'fish' ? 'Hunts water fleas in the pond. Oxygen and a continuing prey population both matter.' : focusedKind === 'flea' ? 'Grazes the pond’s algae and is food for fish. Low oxygen or a dry pond can end its life.' : focusedKind === 'snail' || focusedKind === 'shrimp' ? 'Picks over the pond bed for algae film and settled detritus, returning nutrients the algae reuse. Low oxygen or a dry pond can end its life.' : focusedKind === 'beetle'
               ? focusedCreatureFeeding ? 'Just caught a meal. Prey material supplies energy and a little returns to the litter.' : beetleIsHunting(world, focusedCreature) ? 'Searching nearby for grazers and woodlice. A catch must be close enough to touch.' : 'Resting after feeding, conserving energy until it needs another meal.'
               : fleeing ? 'Keeping away from a nearby beetle. Escape takes energy and time away from feeding.'
               : focusedKind === 'springtail' ? focusedCreatureFeeding ? 'Grazing living fungi and returning some material to litter and nutrients.' : 'Seeking fungi in moist ground. It cannot live on leaves or mineral nutrients alone.'

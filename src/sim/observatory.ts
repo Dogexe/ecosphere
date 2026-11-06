@@ -18,6 +18,8 @@ export type ObservationSample = {
   springtail: number
   flea: number
   fish: number
+  snail: number
+  shrimp: number
   antWorkers: number
   /** Jar air; room air (20.9% / 420 ppm) while the world is open. */
   jarOxygen: number
@@ -41,6 +43,8 @@ export const metrics: readonly Metric[] = [
   { key: 'springtail', label: 'Springtails', unit: '', group: 'animals' },
   { key: 'flea', label: 'Water fleas', unit: '', group: 'animals' },
   { key: 'fish', label: 'Fish', unit: '', group: 'animals' },
+  { key: 'snail', label: 'Ramshorn snails', unit: '', group: 'animals' },
+  { key: 'shrimp', label: 'Cherry shrimp', unit: '', group: 'animals' },
   { key: 'antWorkers', label: 'Ant workers', unit: '', group: 'animals' },
   { key: 'jarOxygen', label: 'Jar oxygen', unit: '%', group: 'air' },
   { key: 'jarCO2', label: 'Jar CO2', unit: 'ppm', group: 'air' },

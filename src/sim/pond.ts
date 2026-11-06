@@ -5,16 +5,20 @@ export interface Climate { temperatureC: number; rainfall: number; photoperiod?:
 export interface Pond { water: number; nutrients: number; organic: number; oxygen: number; algae: number }
 export const defaultClimate = (): Climate => ({ temperatureC: 22, rainfall: 0 })
 export const defaultPond = (): Pond => ({ water: 60, nutrients: 5, organic: 4, oxygen: 48, algae: 1 })
-export const maturity = { grazer: 36, woodlouse: 60, beetle: 72, springtail: 24, flea: 12, fish: 96 } as const
-export const lifespan = { grazer: 960, woodlouse: 17520, beetle: 1920, springtail: 4320, flea: 480, fish: 2880 } as const
+export const maturity = { grazer: 36, woodlouse: 60, beetle: 72, springtail: 24, flea: 12, fish: 96, snail: 48, shrimp: 72 } as const
+// Ramshorn snails live about a year (https://en.wikipedia.org/wiki/Ramshorn_snail);
+// cherry shrimp 1-2 years (https://en.wikipedia.org/wiki/Cherry_shrimp), here 18 months.
+export const lifespan = { grazer: 960, woodlouse: 17520, beetle: 1920, springtail: 4320, flea: 480, fish: 2880, snail: 8760, shrimp: 13140 } as const
 export const rateAt = (temperature: number) => Math.max(0.25, Math.min(2.4, 2 ** ((temperature - 22) / 10)))
 export { pondCenter, pondShape, setPondShape } from './pondShape.ts'
 import { pondCenter, pondShape, pushToShore } from './pondShape.ts'
-export const isAquatic = (kind: string) => kind === 'flea' || kind === 'fish' || kind === 'lily' || kind === 'reed'
+export const isAquatic = (kind: string) => kind === 'flea' || kind === 'fish' || kind === 'snail' || kind === 'shrimp' || kind === 'lily' || kind === 'reed'
+/** Animals that keep to the pond bed and glass, grazing biofilm and detritus instead of swimming in open water. */
+export const isBenthic = (kind: string) => kind === 'snail' || kind === 'shrimp'
 const poured = () => pondShape().kind === 'mask'
 export const isPondPosition = (x: number, z: number) => Number.isFinite(x) && Number.isFinite(z) && (poured() ? pondShape().signedDistance(x, z) <= 1e-9 : Math.hypot(x - pondCenter.x, z - pondCenter.z) <= pondCenter.radius + 1e-9)
 // Conservative adult physics hulls, independent of meshes, growth and hit targets.
-export const swimmingClearance = (kind: string) => kind === 'fish' ? 0.24 : kind === 'flea' ? 0.07 : 0
+export const swimmingClearance = (kind: string) => kind === 'fish' ? 0.24 : kind === 'shrimp' ? 0.4 : kind === 'snail' ? 0.22 : kind === 'flea' ? 0.07 : 0
 export const isSwimmingPosition = (kind: string, x: number, z: number) => Number.isFinite(x) && Number.isFinite(z) && (poured() ? pondShape().signedDistance(x, z) + swimmingClearance(kind) <= 1e-9 : Math.hypot(x - pondCenter.x, z - pondCenter.z) + swimmingClearance(kind) <= pondCenter.radius + 1e-9)
 
 /** The middle of the open water and how far a swimmer can wander from it. */
@@ -89,6 +93,7 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
   }
   let countsFlea = survivors.filter((animal) => animal.kind === 'flea').length
   let countsFish = survivors.filter((animal) => animal.kind === 'fish').length
+  const benthic = { snail: survivors.filter((animal) => animal.kind === 'snail').length, shrimp: survivors.filter((animal) => animal.kind === 'shrimp').length }
   const consumed = new Set<number>()
   const young: Creature[] = []
   for (const creature of survivors) {
@@ -112,6 +117,27 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
         events.push({ type: 'death', id: creature.id, kind: 'flea', reason: 'energy' })
       }
     }
+  }
+  // Ramshorn snails and cherry shrimp: the pond's clean-up crew. They pick over the bed for
+  // biofilm (algae) and settled detritus, the snail gliding slowly, the shrimp in short walks.
+  for (const grazer of survivors.filter((animal) => isBenthic(animal.kind))) {
+    if (scheduledRest({ tick, climate }, grazer)) continue
+    const shrimp = grazer.kind === 'shrimp'
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+    const heading = grazer.heading + (seed / 4294967296 - 0.5) * (shrimp ? 1.2 : 0.5)
+    Object.assign(grazer, swim(grazer, grazer.x + Math.sin(heading) * 0.4, grazer.z + Math.cos(heading) * 0.4, shrimp ? 0.03 : 0.008))
+    grazer.energy -= shrimp ? 0.02 : 0.01
+    const hunger = (100 - grazer.energy) / 16
+    const algae = Math.min(pond.algae, 0.02 * wet * pond.algae / (pond.algae + 1), hunger)
+    const detritus = Math.min(pond.organic, 0.012 * wet * pond.organic / (pond.organic + 2), hunger - algae)
+    pond.algae -= algae
+    pond.organic -= detritus
+    const eaten = algae + detritus
+    // Most of what they eat comes back as droppings and dissolved nutrients for the algae.
+    pond.organic += eaten * 0.3
+    pond.nutrients += eaten * 0.25
+    grazer.energy = Math.min(100, grazer.energy + eaten * 16)
+    if (eaten > 0) events.push({ type: 'feeding', id: grazer.id, kind: grazer.kind, source: algae >= detritus ? 'algae' : 'litter', amount: eaten })
   }
   for (const fish of survivors.filter((animal) => animal.kind === 'fish')) {
     if (scheduledRest({ tick, climate }, fish)) continue
@@ -146,6 +172,11 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
       if (countsFlea >= 6 || pond.algae < 0.2) continue
       pond.algae -= 0.04
       countsFlea += 1
+    } else if (isBenthic(parent.kind)) {
+      // Snails are hermaphrodites and shrimp need a mate, but either way it takes two adults.
+      const kind = parent.kind as 'snail' | 'shrimp'
+      if (benthic[kind] >= (kind === 'snail' ? 4 : 4) || survivors.filter((animal) => animal.kind === kind && animal.stage !== 'juvenile').length < 2 || pond.algae + pond.organic < 1) continue
+      benthic[kind] += 1
     } else {
       if (countsFish >= 2 || (parent.materialReserve ?? 0) < 0.24) continue
       parent.materialReserve = (parent.materialReserve ?? 0) - 0.24

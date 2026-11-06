@@ -113,6 +113,7 @@ export function catchUp(world: World, history: readonly ObservationSample[], hou
 const names: Record<Lifeform, [string, string]> = {
   clover: ['clover', 'clover'], fern: ['fern', 'ferns'], bloom: ['flower', 'flowers'], moss: ['moss tuft', 'moss tufts'], grass: ['grass blade', 'grass'], tree: ['sapling', 'saplings'], lily: ['water lily', 'water lilies'], reed: ['reed', 'reeds'],
   grazer: ['forager', 'foragers'], woodlouse: ['woodlouse', 'woodlice'], beetle: ['beetle', 'beetles'], springtail: ['springtail', 'springtails'], flea: ['water flea', 'water fleas'], fish: ['fish', 'fish'],
+  snail: ['ramshorn snail', 'ramshorn snails'], shrimp: ['cherry shrimp', 'cherry shrimp'],
 }
 
 export function tallyWords(tally: Tally) {

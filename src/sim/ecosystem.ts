@@ -12,7 +12,7 @@ import type { SavedSubstrate } from './substrate.ts'
 import type { Seal } from './seal'
 export { isLand } from './land.ts'
 export type PlantKind = 'clover' | 'fern' | 'bloom' | 'moss' | 'grass' | 'tree' | 'lily' | 'reed'
-export type CreatureKind = 'grazer' | 'woodlouse' | 'beetle' | 'springtail' | 'flea' | 'fish'
+export type CreatureKind = 'grazer' | 'woodlouse' | 'beetle' | 'springtail' | 'flea' | 'fish' | 'snail' | 'shrimp'
 export type Lifeform = PlantKind | CreatureKind
 
 export interface SoilPatch {
@@ -90,7 +90,7 @@ export type SimulationEvent =
 export type StepResult = { world: World; events: SimulationEvent[] }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
-export const creatureLimits = { grazer: 7, woodlouse: 4, beetle: 2, springtail: 6, flea: 6, fish: 2 } as const
+export const creatureLimits = { grazer: 7, woodlouse: 4, beetle: 2, springtail: 6, flea: 6, fish: 2, snail: 4, shrimp: 4 } as const
 /** Fraction of soil litter that bacteria mineralise per model hour at full moisture and 22 C. */
 export const bacterialDecay = 0.0008
 /**
@@ -98,11 +98,11 @@ export const bacterialDecay = 0.0008
  * land plants' roots: extra hourly loss above 85% soil water.
  */
 export const rotLoss = (plant: Plant, patch: SoilPatch) => isAquatic(plant.kind) ? 0 : 0.03 * clamp((patch.water - 85) / 15, 0, 1)
-const bodyMaterial = { grazer: 0.42, woodlouse: 0.22, beetle: 0.34, springtail: 0.08, flea: 0.04, fish: 0.24 }
+const bodyMaterial = { grazer: 0.42, woodlouse: 0.22, beetle: 0.34, springtail: 0.08, flea: 0.04, fish: 0.24, snail: 0.12, shrimp: 0.1 }
 const plantCapacity: Record<PlantKind, number> = { clover: 8.8, fern: 7.6, bloom: 8.8, moss: 4.5, grass: 6.5, tree: 18, lily: 5.2, reed: 7.2 }
 
 export function isCreatureKind(kind: string): kind is CreatureKind {
-  return kind === 'grazer' || kind === 'woodlouse' || kind === 'beetle' || kind === 'springtail' || kind === 'flea' || kind === 'fish'
+  return kind === 'grazer' || kind === 'woodlouse' || kind === 'beetle' || kind === 'springtail' || kind === 'flea' || kind === 'fish' || kind === 'snail' || kind === 'shrimp'
 }
 
 export function creatureKind(creature: Creature): CreatureKind {
@@ -110,7 +110,7 @@ export function creatureKind(creature: Creature): CreatureKind {
 }
 
 export function creatureCounts(creatures: Creature[]): Record<CreatureKind, number> {
-  const counts = { grazer: 0, woodlouse: 0, beetle: 0, springtail: 0, flea: 0, fish: 0 }
+  const counts = { grazer: 0, woodlouse: 0, beetle: 0, springtail: 0, flea: 0, fish: 0, snail: 0, shrimp: 0 }
   for (const creature of creatures) counts[creatureKind(creature)] += 1
   return counts
 }
@@ -119,9 +119,9 @@ export function placementIssue(world: World, kind: Lifeform, x: number, z: numbe
   setPondShape(world.substrate)
   if (world.sealed) return 'This world is sealed. Open the seal to add life.'
   if (isAquatic(kind) ? !isPondPosition(x, z) || (world.pond ?? defaultPond()).water < 8 : !isLand(x, z)) return isAquatic(kind) ? 'Choose water inside the pond. Refill a dry pond first.' : 'Choose dry ground inside the rim.'
-  if ((kind === 'fish' || kind === 'flea') && !isSwimmingPosition(kind, x, z)) return 'Choose deeper inside the pond so the whole animal clears the bank.'
+  if ((kind === 'fish' || kind === 'flea' || kind === 'snail' || kind === 'shrimp') && !isSwimmingPosition(kind, x, z)) return 'Choose deeper inside the pond so the whole animal clears the bank.'
   if (isCreatureKind(kind)) {
-    if (creatureCounts(world.creatures)[kind] >= creatureLimits[kind]) return `This small world has room for ${creatureLimits[kind]} ${kind === 'woodlouse' ? 'woodlice' : kind === 'beetle' ? 'beetles' : kind === 'springtail' ? 'springtails' : kind === 'flea' ? 'water fleas' : kind === 'fish' ? 'fish' : 'grazers'}.`
+    if (creatureCounts(world.creatures)[kind] >= creatureLimits[kind]) return `This small world has room for ${creatureLimits[kind]} ${kind === 'woodlouse' ? 'woodlice' : kind === 'beetle' ? 'beetles' : kind === 'springtail' ? 'springtails' : kind === 'flea' ? 'water fleas' : kind === 'fish' ? 'fish' : kind === 'snail' ? 'ramshorn snails' : kind === 'shrimp' ? 'cherry shrimp' : 'grazers'}.`
     if (world.creatures.some((creature) => Math.hypot(x - creature.x, z - creature.z) < (isAquatic(kind) ? 0.18 : 0.4))) return 'Give this creature a little more room.'
   } else {
     if (world.plants.length >= 32) return 'The terrarium has room for 32 plants.'

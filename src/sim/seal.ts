@@ -68,7 +68,7 @@ export function heldWater(world: World): number {
 /** Water inside the jar: held water plus vapour. Constant while sealed. */
 export const jarWater = (world: World) => heldWater(world) + (world.sealed?.vapor ?? 0)
 
-const creatureBody: Record<string, number> = { grazer: 0.42, woodlouse: 0.22, beetle: 0.34, springtail: 0.08, flea: 0.04, fish: 0.24 }
+const creatureBody: Record<string, number> = { grazer: 0.42, woodlouse: 0.22, beetle: 0.34, springtail: 0.08, flea: 0.04, fish: 0.24, snail: 0.12, shrimp: 0.1 }
 
 /** Matter held in soil, pond, living things, remains and an ant colony, split into minerals and carbon. */
 export function jarMatter(world: World): { minerals: number; carbon: number } {

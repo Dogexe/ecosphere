@@ -246,7 +246,7 @@ const crawlSegments = 32
  * the sheet cancels it to face the camera.
  * `base` is the local height of the feet, matching the 3D model it replaces.
  */
-export function PaperAnimal({ animal, base, heading, moving, speed, health, juvenile, feeding, resting = false, pooping = false, courting = false, bend = 'ground' }: {
+export function PaperAnimal({ animal, base, heading, moving, speed, health, juvenile, feeding, resting = false, pooping = false, courting = false, bend = 'ground', underwater = false }: {
   animal: string; base: number; heading?: RefObject<number>; moving: RefObject<boolean>; speed: number; health: number; juvenile: boolean; feeding: boolean
   /** Scheduled rest from the simulation (climate.ts scheduledRest): still, antennae down, slow breaths, a paper "z". */
   resting?: boolean
@@ -259,6 +259,8 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
    * joints and only as far as each joint turns; 'none' for swimmers.
    */
   bend?: 'ground' | 'none'
+  /** Seen through pond water: colours dim and shift toward the water's green, as in concept image 12. */
+  underwater?: boolean
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   useEffect(() => {
@@ -279,11 +281,14 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
   /** The sheet's smoothed world yaw (turn style). */
   const sheetYaw = useRef<number | null>(null)
   const blob = useRef<Mesh>(null)
+  // Health in tenths: the sim nudges energy every tick, and each new tint rebuilds the sheets.
+  const healthStep = Math.round(MathUtils.clamp(health, 0, 1) * 10) / 10
   const tint = useMemo(() => {
-    const colour = new Color('#ffffff').lerp(new Color('#c9c6b2'), 1 - health)
+    const colour = new Color('#ffffff').lerp(new Color('#c9c6b2'), 1 - healthStep)
     if (juvenile) colour.lerp(new Color('#f3eedc'), 0.5)
+    if (underwater) colour.multiply(new Color('#b9cbb4'))
     return colour
-  }, [health, juvenile])
+  }, [healthStep, juvenile, underwater])
 
   const solid = paperStyle.solid.has(animal)
   const pieces = useMemo(() => {
@@ -325,6 +330,10 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     }
     return list
   }, [loaded, base, tint, bend, solid, animal])
+  // Each rebuild makes its own materials and bent/shell geometries; free the old ones.
+  useEffect(() => () => {
+    for (const entry of pieces) { entry.material.dispose(); if (entry.geometry !== plane) entry.geometry.dispose() }
+  }, [pieces])
 
   const rowing = pieces.some(({ piece }) => piece.motion === 'oar')
   // Where the tail and head sit, and how tall the body is, for the pellet and the sleep "z".

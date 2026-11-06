@@ -28,7 +28,7 @@ if (query.get('style') === 'old') paperStyle.turn = false
  * ?animal=<paper animal> shows another cut-out; ?animal=all lines every
  * one up at its real adult size (scale.ts realAdultLengthMm).
  */
-const paperKinds: Record<string, CreatureKind> = { woodlouse: 'woodlouse', caterpillar: 'grazer', springtail: 'springtail', 'tiger-beetle': 'beetle', 'water-flea': 'flea' }
+const paperKinds: Record<string, CreatureKind> = { woodlouse: 'woodlouse', caterpillar: 'grazer', springtail: 'springtail', 'tiger-beetle': 'beetle', 'water-flea': 'flea', snail: 'snail', shrimp: 'shrimp' }
 const lineup = query.get('animal') === 'all' ? Object.keys(paperKinds) : [query.get('animal') ?? 'woodlouse']
 const paperRealScale = (animal: string) => {
   const kind = paperKinds[animal] ?? 'woodlouse'

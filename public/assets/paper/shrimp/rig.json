@@ -1,0 +1,7 @@
+{
+  "canvas": [814, 451],
+  "length": { "from": 15, "to": 700, "units": 1 },
+  "ground": 412,
+  "parts": [ { "file": "body.png", "motion": "body", "pivot": [420, 330] } ],
+  "joints": { "at": [205, 262, 318, 375, 440], "limit": 6 }
+}

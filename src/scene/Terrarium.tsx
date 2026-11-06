@@ -35,7 +35,7 @@ import { plantGeometry, propaguleGeometry } from './plantGeometry'
 import { creatureIsFeeding, creatureKind, habitatFit, nearestSoil } from '../sim/ecosystem'
 import type { Creature, Plant, SimulationEvent, SoilPatch, World } from '../sim/ecosystem'
 import type { SavedSubstrate } from '../sim/substrate'
-import { defaultPond, isAquatic } from '../sim/pond'
+import { defaultPond, isAquatic, isPondPosition } from '../sim/pond'
 import type { Pond } from '../sim/pond'
 import { plantFlowering, plantStage, woodlouseLife } from '../sim/life'
 import { scheduledRest } from '../sim/climate'
@@ -237,6 +237,8 @@ function FungalPatch({ patch }: { patch: SoilPatch }) {
       const angle = index * 2.4 + patch.id, radius = 0.15 + index * 0.1
       const x = Math.cos(angle) * radius, z = Math.sin(angle) * radius
       const grown = Math.min(1, 0.55 + patch.fungi * 0.08)
+      // Mushrooms fruit on damp ground, never under the pond's water.
+      if (groundShape.poured && isPondPosition(patch.x + x, patch.z + z)) return null
       return <group key={index} position={[x, groundShape.offset(patch.x + x, patch.z + z), z]}>
         {drawnLook
           ? <Suspense fallback={null}><DrawnMushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} /></Suspense>
@@ -403,6 +405,42 @@ function AquaticAnimal({ creature, events, selected, onSelect, speed }: Creature
       <group ref={tail} position={[0, 0, -0.2]}><mesh rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, 0.5]}><coneGeometry args={[0.1, 0.16, 3]} /><meshStandardMaterial color="#ad8e78" roughness={1} flatShading /></mesh></group>
       {[-1, 1].map((side) => <mesh key={side} position={[side * 0.07, 0.026, 0.12]}><sphereGeometry args={[0.015, 6, 4]} /><meshStandardMaterial color="#3b5652" /></mesh>)}
     </group>} /> : paperLook ? <PaperAnimal animal="water-flea" base={0} bend="none" moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={fed} /> : <OrganismAsset file="daphnia" shape={{ length: 0.14, base: 0, centered: true, measure: 'max' }} moving={motion} feeding={fed} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={null} unavailable={(retry) => modelUnavailable('Water flea', retry)} />}
+  </group>
+}
+
+/**
+ * Ramshorn snail and cherry shrimp: they keep to the pond bed, so the body
+ * follows the poured bed's height under the water instead of a swim depth.
+ */
+function BenthicAnimal({ creature, events, selected, onSelect, speed }: CreatureProps) {
+  const group = useRef<Group>(null)
+  const yaw = useRef(creature.heading)
+  const motion = useRef(false)
+  const size = animalModelScale(creature)
+  const bedY = (x: number, z: number) => environmentScale.soilSurfaceY + groundShape.offset(x, z)
+  const start = useRef<[number, number, number]>([creature.x, bedY(creature.x, creature.z), creature.z])
+  const initialScale = useRef(size)
+  const shrimp = creature.kind === 'shrimp'
+  const fed = events.some((event) => event.type === 'feeding' && event.id === creature.id)
+  useFrame((_, delta) => {
+    if (!group.current) return
+    const g = group.current
+    motion.current = speed > 0 && Math.hypot(g.position.x - creature.x, g.position.z - creature.z) > 0.004
+    // The snail glides; the shrimp walks in quicker spurts.
+    const factor = 1 - Math.exp(-delta * (shrimp ? 6 : 2.5))
+    g.position.x = MathUtils.lerp(g.position.x, creature.x, factor)
+    g.position.z = MathUtils.lerp(g.position.z, creature.z, factor)
+    g.position.y = bedY(g.position.x, g.position.z)
+    g.rotation.y += Math.atan2(Math.sin(creature.heading - g.rotation.y), Math.cos(creature.heading - g.rotation.y)) * factor
+    yaw.current = g.rotation.y
+    g.scale.setScalar(MathUtils.lerp(g.scale.x, size, factor))
+  })
+  const health = MathUtils.clamp(creature.energy / 50, 0, 1)
+  return <group ref={group} position={start.current} rotation={[0, creature.heading, 0]} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
+    <AnimalInteraction scale={size} y={0} selected={selected} />
+    {paperLook ? <PaperAnimal animal={creature.kind!} base={0} heading={yaw} moving={motion} speed={speed} health={health} juvenile={creature.stage === 'juvenile'} feeding={fed} underwater />
+      : shrimp ? <mesh position={[0, 0.08, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[0.12, 0.5, 0.14]}><capsuleGeometry args={[0.5, 1, 4, 8]} /><meshStandardMaterial color="#d9614c" roughness={0.6} /></mesh>
+      : <group><mesh position={[-0.05, 0.25, 0]} rotation={[0, Math.PI / 2, 0]}><torusGeometry args={[0.16, 0.09, 8, 20]} /><meshStandardMaterial color="#c25a32" roughness={0.7} /></mesh><mesh position={[0.12, 0.04, 0]} scale={[0.3, 0.05, 0.08]}><sphereGeometry args={[1, 10, 6]} /><meshStandardMaterial color="#8e3a2a" roughness={0.8} /></mesh></group>}
   </group>
 }
 
@@ -679,7 +717,7 @@ function Fauna({ world, events, worldRevision, selectedCreature, placing, onPlac
   }
   return <>{world.creatures.map((creature) => {
     const kind = creatureKind(creature)
-    const Model = kind === 'fish' || kind === 'flea' ? AquaticAnimal : kind === 'woodlouse' ? Woodlouse : kind === 'beetle' ? Beetle : kind === 'springtail' ? Springtail : Grazer
+    const Model = kind === 'fish' || kind === 'flea' ? AquaticAnimal : kind === 'snail' || kind === 'shrimp' ? BenthicAnimal : kind === 'woodlouse' ? Woodlouse : kind === 'beetle' ? Beetle : kind === 'springtail' ? Springtail : Grazer
     return <Model key={`${worldRevision}:${creature.id}`} creature={creature} world={world} events={events} selected={selectedCreature === creature.id} speed={speed} onSelect={(ray) => pickAnimal(ray, creature)} />
   })}</>
 }
@@ -695,7 +733,7 @@ function RemainsField({ world }: { world: World }) {
     remains.forEach((item, index) => {
       const ratio = Math.max(0, item.material / item.initial)
       const size = Math.min(0.45, 0.12 + Math.cbrt(item.initial) * 0.18) * Math.sqrt(ratio)
-      const animal = ['grazer', 'woodlouse', 'beetle', 'springtail', 'flea', 'fish', 'ant'].includes(item.kind)
+      const animal = ['grazer', 'woodlouse', 'beetle', 'springtail', 'flea', 'fish', 'snail', 'shrimp', 'ant'].includes(item.kind)
       for (let part = 0; part < 3; part += 1) {
         const px = item.x + Math.sin(item.id * 2.4) * part * size * 0.6, pz = item.z + Math.cos(item.id * 2.4) * part * size * 0.6
         pose.position.set(px, 0.06 + part * 0.004 + groundShape.offset(px, pz), pz)

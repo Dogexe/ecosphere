@@ -23,6 +23,14 @@ const garden: [PlantKind, number, number][] = [
   ['lily', -2.15, 2.05],
 ]
 
+/** The pond's clean-up crew the owner picked (2026-11-06): ramshorn snails (design r1) and cherry shrimp (design B). */
+const pondCrew: ['snail' | 'shrimp', number, number][] = [
+  ['shrimp', -0.75, 1.55],
+  ['shrimp', -1.35, 2.05],
+  ['snail', -1.2, 1.35],
+  ['snail', -0.6, 2.15],
+]
+
 export function withStarterGarden(world: World): World {
   let planted = world
   for (const [kind, x, z] of garden) {
@@ -32,5 +40,6 @@ export function withStarterGarden(world: World): World {
     const plant = next.plants[next.plants.length - 1]
     planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * (plant.kind === 'tree' ? 0.55 : 0.85), age: 90, development: 90 }] }
   }
+  for (const [kind, x, z] of pondCrew) planted = introduceLife(planted, kind, x, z)
   return planted
 }
