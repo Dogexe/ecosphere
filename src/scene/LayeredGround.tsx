@@ -4,7 +4,7 @@ import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, M
 import type { Texture } from 'three'
 import { cellX, index, inside, substrateSize, topAt, topLayer, wetness } from '../sim/substrate'
 import type { Substrate } from '../sim/substrate'
-import { paintify, polyHaven } from './semiReal'
+import { polyHaven } from './semiReal'
 
 /*
  * Draws a poured substrate: the top surface and the strata seen through the
@@ -92,7 +92,7 @@ export function useLayeredGeometry() {
     surface.setAttribute('pebble', new BufferAttribute(new Float32Array(M * M), 1))
     // UVs in world units so the grain keeps its size: about 4 tiles across the jar.
     const uv = surface.getAttribute('uv') as BufferAttribute, position = surface.getAttribute('position') as BufferAttribute
-    for (let v = 0; v < uv.count; v += 1) uv.setXY(v, position.getX(v) / 1.9, position.getZ(v) / 1.9)
+    for (let v = 0; v < uv.count; v += 1) uv.setXY(v, position.getX(v) / 2.1, position.getZ(v) / 2.1)
     const ring = 160, bands = 5
     const walls = new BufferGeometry()
     walls.setAttribute('position', new BufferAttribute(new Float32Array(ring * bands * 6 * 3), 3).setUsage(DynamicDrawUsage))
@@ -152,7 +152,7 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
   const wallUv = geometry.walls.getAttribute('uv') as BufferAttribute
   const wallPebbles = geometry.walls.getAttribute('pebble') as BufferAttribute
   let n = 0, pebble = 0
-  const put = (x: number, y: number, z: number, colour: Color, u: number, flat = false) => { wall.setXYZ(n, x, y, z); wallColours.setXYZ(n, colour.r, colour.g, colour.b); if (flat) wallUv.setXY(n, x / 1.9, z / 1.9); else wallUv.setXY(n, u * 26, y / 0.9); wallPebbles.setX(n, pebble); n += 1 }
+  const put = (x: number, y: number, z: number, colour: Color, u: number, flat = false) => { wall.setXYZ(n, x, y, z); wallColours.setXYZ(n, colour.r, colour.g, colour.b); if (flat) wallUv.setXY(n, x / 2.1, z / 2.1); else wallUv.setXY(n, u * 11, y / 2.1); wallPebbles.setX(n, pebble); n += 1 }
   const topColour = (k: number, into: Color) => { const layer = topLayer(state, k); return !layer ? into.set('#eef2f0') : layer === 'soil' ? into.copy(layerColours.soil).lerp(layerColours.wetSoil, wetness(state, k)) : into.copy(layerColours[layer]) }
   const capA = new Color(), capB = new Color()
   const edge = (angle: number) => {
@@ -195,32 +195,57 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
 }
 
 /**
- * The layer material: a painted soil grain everywhere, swapped for a pebble
- * scan where gravel is on top or in the gravel band of the wall. Vertex
- * colours tint both (wet soil darker, charcoal near black).
+ * The layer materials: real soil, gravel and charcoal-grit scans (Poly Haven,
+ * CC0) so the jar reads as photographed, like the owner's target picture
+ * (concept round 3, image 12). The vertex colours only say which layer and
+ * how wet: wet soil darkens the scan, charcoal (grey) swaps to the black grit,
+ * and the `pebble` attribute swaps to gravel. Each 2 m scan tile is mapped to
+ * about 4 cm of jar, so a 2-5 cm clod in the scan becomes a 0.5-1 mm crumb.
  */
+const soilRef = new Color('#8a6244'), gravelRef = new Color('#d3cbbd')
 export function useLayerMaterials() {
-  const [scan, pebbleScan] = useTexture([`${polyHaven}forest_ground_04/forest_ground_04_diff_1k.jpg`, `${polyHaven}clean_pebbles/clean_pebbles_diff_1k.jpg`]) as Texture[]
+  const set = useTexture({
+    soil: `${polyHaven}farm_soil/farm_soil_diff_1k.jpg`, soilNormal: `${polyHaven}farm_soil/farm_soil_nor_gl_1k.jpg`,
+    pebble: `${polyHaven}clean_pebbles/clean_pebbles_diff_1k.jpg`, grit: `${polyHaven}gravel_stones/gravel_stones_diff_1k.jpg`,
+  }) as Record<string, Texture>
   return useMemo(() => {
-    scan.colorSpace = SRGBColorSpace
-    const grain = paintify(scan, 'saturate(0) brightness(1.45) contrast(1.6)', 0)
-    grain.wrapS = grain.wrapT = RepeatWrapping
-    pebbleScan.colorSpace = SRGBColorSpace
-    const pebble = paintify(pebbleScan, 'saturate(0.45) brightness(1.15) contrast(1.15)', 0)
-    pebble.wrapS = pebble.wrapT = RepeatWrapping
+    for (const [key, texture] of Object.entries(set)) {
+      texture.wrapS = texture.wrapT = RepeatWrapping
+      texture.anisotropy = 8
+      if (key !== 'soilNormal') texture.colorSpace = SRGBColorSpace
+      texture.needsUpdate = true
+    }
     const make = (roughness: number, double: boolean) => {
-      const material = new MeshStandardMaterial({ vertexColors: true, map: grain, roughness, side: double ? DoubleSide : undefined })
+      const material = new MeshStandardMaterial({ vertexColors: true, map: set.soil, normalMap: set.soilNormal, roughness, side: double ? DoubleSide : undefined })
+      material.normalScale.set(1.1, 1.1)
       material.userData.realistic = true
       material.onBeforeCompile = (shader) => {
-        shader.uniforms.pebbleMap = { value: pebble }
+        shader.uniforms.pebbleMap = { value: set.pebble }
+        shader.uniforms.gritMap = { value: set.grit }
+        shader.uniforms.soilRef = { value: soilRef }
+        shader.uniforms.gravelRef = { value: gravelRef }
         shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nvarying float vPebble;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;')
-        shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nvarying float vPebble;').replace('#include <map_fragment>', 'diffuseColor *= mix(texture2D(map, vMapUv), texture2D(pebbleMap, vMapUv * 0.35), vPebble);')
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nvarying float vPebble;')
+          .replace('#include <map_fragment>', `
+            vec3 soilScan = texture2D(map, vMapUv).rgb;
+            vec3 pebbleScan = texture2D(pebbleMap, vMapUv * 0.6).rgb;
+            vec3 gritScan = texture2D(gritMap, vMapUv * 0.8).rgb;
+            // Wetness darkens the soil scan; grey vertex colour marks the charcoal layer.
+            vec3 ratio = clamp(vColor.rgb / soilRef, 0.0, 1.6);
+            float warm = (vColor.r - vColor.b) / max(vColor.r, 1e-3);
+            float charcoal = (1.0 - vPebble) * (1.0 - smoothstep(0.3, 0.6, warm));
+            vec3 soil = soilScan * mix(vec3(1.0), ratio, 0.75) * 1.15;
+            vec3 grit = gritScan * 0.7;
+            vec3 gravel = pebbleScan * clamp(vColor.rgb / gravelRef, 0.0, 1.4);
+            diffuseColor.rgb *= mix(mix(soil, grit, charcoal), gravel, vPebble);`)
+          .replace('#include <color_fragment>', '')
       }
       return material
     }
     const puddles = new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.06, metalness: 0, ior: 1.333, specularIntensity: 1, depthWrite: false })
     return { surface: make(0.95, false), walls: make(0.9, true), puddles }
-  }, [scan, pebbleScan])
+  }, [set])
 }
 
 /** Static drawing of a built substrate, raised by `floor`. */

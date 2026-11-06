@@ -247,7 +247,7 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     for (let n = 0; n < wallSamples; n += 1) { const a = n * 2, b = a + 1, c = a + 2, d = a + 3; order.push(a, c, b, b, c, d) }
     side.setIndex(order)
     const sideMaterial = Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.08, metalness: 0, side: DoubleSide, depthWrite: false }), { userData: { realistic: true } })
-    return { side, sideMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.04, normalMap: ripples, normalScale: new Vector2(0.06, 0.06), depthWrite: false }), { userData: { realistic: true } }) }
+    return { side, sideMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.04, normalMap: ripples, normalScale: new Vector2(0.025, 0.025), depthWrite: false }), { userData: { realistic: true } }) }
   }, [M])
   // Around the jar wall: the bed height at the glass and whether pond water reaches it there.
   const rim = useMemo(() => {
@@ -307,9 +307,9 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
       sidePosition.setXYZ(n * 2, cos * wallRadius, floor + Math.min(bedY, top) - 0.02, sin * wallRadius)
       sidePosition.setXYZ(n * 2 + 1, cos * wallRadius, floor + top, sin * wallRadius)
       colour.copy(look.tint).lerp(deep, 0.6)
-      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.85, 0.42 + look.cloud * 0.4) : 0)
+      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.9, 0.55 + look.cloud * 0.35) : 0)
       colour.copy(look.tint)
-      sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.75, 0.16 + look.cloud * 0.5) : 0)
+      sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.8, 0.28 + look.cloud * 0.45) : 0)
     }
     sidePosition.needsUpdate = true; sideColour.needsUpdate = true
     parts.side.computeVertexNormals(); parts.side.computeBoundingSphere()
