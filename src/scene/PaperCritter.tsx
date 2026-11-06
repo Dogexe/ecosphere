@@ -151,8 +151,8 @@ try {
   const solidParam = new URLSearchParams(window.location.search).get('solid')
   if (solidParam !== null) { paperStyle.solid.clear(); for (const name of solidParam.split(',')) if (name && name !== 'none') paperStyle.solid.add(name) }
 } catch { /* no window in tests */ }
-/** Animals whose painting reads badly edge-on may turn further toward the lens (a ramshorn shell is a thin disc). */
-const turnLimit: Record<string, number> = { snail: 1.45, shrimp: 1.2 }
+/** Radians a sheet may stay turned away from the lens: less for paintings that read badly edge-on (a ramshorn shell is a thin disc). */
+const turnLimit: Record<string, number> = { snail: 0.3, shrimp: 0.6 }
 const solidHalfWidth: Record<string, number> = { woodlouse: 0.25, 'tiger-beetle': 0.17, caterpillar: 0.07, springtail: 0.1 }
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))

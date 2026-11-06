@@ -245,7 +245,7 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     for (let n = 0; n < wallSamples; n += 1) { const a = n * 2, b = a + 1, c = a + 2, d = a + 3; order.push(a, c, b, b, c, d) }
     side.setIndex(order)
     const sideMaterial = Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.08, metalness: 0, side: DoubleSide, depthWrite: false }), { userData: { realistic: true } })
-    return { side, sideMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, clearcoat: 0.2, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.025, 0.025), depthWrite: false }), { userData: { realistic: true } }) }
+    return { side, sideMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: 0.3, clearcoat: 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.025, 0.025), depthWrite: false }), { userData: { realistic: true } }) }
   }, [M])
   // Around the jar wall: the bed height at the glass and whether pond water reaches it there.
   const rim = useMemo(() => {
