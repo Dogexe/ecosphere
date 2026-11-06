@@ -102,7 +102,8 @@ export function sprigTexture(seed: number) {
 
 type MossProps = { x: number; z: number; radius: number; count: number; ground: Ground; flat?: boolean; spots?: Vector3[]; scale?: number; avoid?: { x: number; z: number; radius: number }[]; keepOut?: (x: number, z: number) => boolean }
 
-const paintedMoss = typeof location !== 'undefined' && new URLSearchParams(location.search).get('moss') === 'painted'
+// Painted sprig cushions are the default since 2026-11-07 (closer to the lime moss in concept image 12); ?moss=scan keeps the scanned shoots.
+const paintedMoss = typeof location === 'undefined' || new URLSearchParams(location.search).get('moss') !== 'scan'
 
 /**
  * Moss on the soil. By default it is built from real scanned moss shoots
@@ -234,7 +235,7 @@ function PaintedMossSprigs({ x, z, radius, count, ground, flat = false, spots, s
       const spot = spots?.[Math.floor(rand() * spots.length)]
       const px = spot ? spot.x : x + Math.cos(angle) * distance, pz = spot ? spot.z : z + Math.sin(angle) * distance
       const edge = spot || flat ? 0.5 : distance / radius
-      const dome = spot || flat ? 0 : Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.16
+      const dome = spot || flat ? 0 : Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.3
       const hidden = avoid.some((circle) => Math.hypot(px - circle.x, pz - circle.z) < circle.radius) || (!spot && !!keepOut?.(px, pz))
       const size = hidden ? 0 : (0.2 + rand() * 0.14) * (1 - edge * 0.35) * scale
       dummy.position.set(px, spot ? spot.y - 0.03 : ground(px, pz) + dome - 0.02, pz)
@@ -249,7 +250,7 @@ function PaintedMossSprigs({ x, z, radius, count, ground, flat = false, spots, s
     mesh.current.instanceMatrix.needsUpdate = true
     if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true
   }, [x, z, radius, count, ground, flat, spots, scale, avoid, keepOut])
-  return <instancedMesh ref={mesh} args={[geometry, undefined, count]} frustumCulled={false} raycast={noRaycast} castShadow receiveShadow>
+  return <instancedMesh ref={mesh} args={[geometry, undefined, count]} frustumCulled={false} raycast={noRaycast} receiveShadow>
     <meshStandardMaterial map={texture} alphaTest={0.4} side={DoubleSide} roughness={1} />
   </instancedMesh>
 }
