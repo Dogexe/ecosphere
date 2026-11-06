@@ -235,7 +235,7 @@ export function useLayerMaterials() {
             vec3 ratio = clamp(vColor.rgb / soilRef, 0.0, 1.6);
             float warm = (vColor.r - vColor.b) / max(vColor.r, 1e-3);
             float charcoal = (1.0 - vPebble) * (1.0 - smoothstep(0.3, 0.6, warm));
-            vec3 soil = soilScan * mix(vec3(1.0), ratio, 0.75) * 1.15;
+            vec3 soil = soilScan * mix(vec3(1.0), ratio, 0.75) * 0.95;
             vec3 grit = gritScan * 0.7;
             vec3 gravel = pebbleScan * clamp(vColor.rgb / gravelRef, 0.0, 1.4);
             diffuseColor.rgb *= mix(mix(soil, grit, charcoal), gravel, vPebble);`)

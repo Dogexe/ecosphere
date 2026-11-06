@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
-import { CanvasTexture, Color, DoubleSide, InstancedMesh, Matrix3, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, RepeatWrapping, SRGBColorSpace, Texture, Vector2, Vector3 } from 'three'
+import { BufferAttribute, CanvasTexture, Color, DoubleSide, InstancedMesh, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, RepeatWrapping, SRGBColorSpace, Texture, Vector2, Vector3 } from 'three'
 import type { BufferGeometry } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { makeNoise } from '../lab/proceduralTextures'
@@ -74,8 +74,115 @@ export function sprigTexture(seed: number) {
   return texture
 }
 
+type MossProps = { x: number; z: number; radius: number; count: number; ground: Ground; flat?: boolean; spots?: Vector3[]; scale?: number; avoid?: { x: number; z: number; radius: number }[]; keepOut?: (x: number, z: number) => boolean }
+
+const paintedMoss = typeof location !== 'undefined' && new URLSearchParams(location.search).get('moss') === 'painted'
+
+/**
+ * Moss on the soil. By default it is built from real scanned moss shoots
+ * (owner, 2026-11-06: realistic moss or the image 09 cushions are both fine);
+ * ?moss=painted brings back the painted sprig cards.
+ */
+export function MossSprigs(props: MossProps) {
+  return paintedMoss ? <PaintedMossSprigs {...props} /> : <ScanMoss {...props} />
+}
+
+/** Turn the black backdrop of the moss scan's colour map into a cut-out, so shoots and their shadows have real outlines. */
+function cutOut(texture: Texture) {
+  const image = texture.image as CanvasImageSource & { width: number; height: number }
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width; canvas.height = image.height
+  const context = canvas.getContext('2d')!
+  context.drawImage(image, 0, 0)
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
+  const data = pixels.data
+  for (let index = 0; index < data.length; index += 4) {
+    const bright = Math.max(data[index], data[index + 1], data[index + 2])
+    data[index + 3] = Math.max(0, Math.min(255, (bright - 16) * 10))
+  }
+  context.putImageData(pixels, 0, 0)
+  const cut = new CanvasTexture(canvas)
+  cut.colorSpace = SRGBColorSpace
+  cut.flipY = texture.flipY
+  cut.anisotropy = 4
+  return cut
+}
+
+/** The shoots of Poly Haven "Moss 01" (CC0, Rob Tuytel), each seated on its base and one unit tall. */
+function useMossShoots() {
+  const { nodes } = useGLTF(`${polyHaven}moss_01/moss_01_1k.gltf`)
+  return useMemo(() => {
+    const shoots: BufferGeometry[] = []
+    let source: MeshStandardMaterial | undefined
+    for (const node of Object.values(nodes)) {
+      const mesh = node as Mesh
+      if (!mesh.isMesh || mesh.name.includes('tall')) continue
+      source = mesh.material as MeshStandardMaterial
+      const geometry = (mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone())
+      for (const name of Object.keys(geometry.attributes)) if (!['position', 'normal', 'uv'].includes(name)) geometry.deleteAttribute(name)
+      geometry.computeBoundingBox()
+      const box = geometry.boundingBox!, centre = box.getCenter(new Vector3()), height = box.max.y - box.min.y
+      geometry.translate(-centre.x, -box.min.y, -centre.z)
+      geometry.scale(1 / height, 1 / height, 1 / height)
+      shoots.push(geometry)
+    }
+    const material = new MeshStandardMaterial({ map: cutOut(source!.map!), normalMap: source!.normalMap, alphaTest: 0.5, side: DoubleSide, roughness: 0.75, vertexColors: true })
+    material.normalScale = new Vector2(1.2, 1.2)
+    return { shoots, material }
+  }, [nodes])
+}
+
+/**
+ * A moss cushion of scanned shoots merged into one mesh: dense and tall in the
+ * middle, leaning out and shorter at the edge, dark at the base and lit at the
+ * tips, like the cushions in concept image 09 and the clumps in image 12.
+ */
+function ScanMoss({ x, z, radius, count, ground, flat = false, spots, scale = 1, avoid = nowhere, keepOut }: MossProps) {
+  const { shoots, material } = useMossShoots()
+  const geometry = useMemo(() => {
+    const noise = makeNoise(x * 53 + z)
+    let seed = 5 + Math.round(Math.abs(x * 311 + z * 173))
+    const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+    const pieces: BufferGeometry[] = []
+    const matrix = new Matrix4(), turn = new Quaternion(), tilt = new Quaternion(), place = new Vector3(), size = new Vector3(), axis = new Vector3(), up = new Vector3(0, 1, 0)
+    const total = Math.round(count * 1.7)
+    for (let index = 0; index < total; index += 1) {
+      const angle = rand() * Math.PI * 2
+      const reach = flat ? 1 : 0.7 + noise(Math.cos(angle) * 2 + x, Math.sin(angle) * 2 + z) * 0.6
+      const distance = Math.sqrt(rand()) * radius * reach
+      const spot = spots?.[Math.floor(rand() * spots.length)]
+      const px = spot ? spot.x + (rand() - 0.5) * 0.12 : x + Math.cos(angle) * distance, pz = spot ? spot.z + (rand() - 0.5) * 0.12 : z + Math.sin(angle) * distance
+      if (avoid.some((circle) => Math.hypot(px - circle.x, pz - circle.z) < circle.radius) || (!spot && keepOut?.(px, pz))) continue
+      const edge = spot || flat ? 0.5 : distance / radius
+      const dome = spot || flat ? 0 : Math.sqrt(Math.max(0, 1 - edge ** 2)) * radius * 0.12
+      const tall = (0.3 + rand() * 0.2) * (1 - edge * 0.45) * scale
+      place.set(px, (spot ? spot.y - 0.04 : ground(px, pz) + dome - 0.05), pz)
+      turn.setFromAxisAngle(up, rand() * Math.PI * 2)
+      const out = spot ? rand() * Math.PI * 2 : Math.atan2(pz - z, px - x)
+      axis.set(Math.sin(out), 0, -Math.cos(out))
+      tilt.setFromAxisAngle(axis, -(edge * 0.7 + rand() * 0.25))
+      size.set(tall * (0.9 + rand() * 0.3), tall, tall * (0.9 + rand() * 0.3))
+      matrix.compose(place, tilt.multiply(turn), size)
+      const shoot = shoots[Math.floor(rand() * shoots.length)].clone().applyMatrix4(matrix)
+      const local = shoot.getAttribute('position')
+      const colours = new Float32Array(local.count * 3)
+      const light = 0.85 + noise(px * 3, pz * 3) * 0.35 + rand() * 0.12, warm = 0.9 + rand() * 0.2
+      for (let vertex = 0; vertex < local.count; vertex += 1) {
+        const rise = Math.min(1, Math.max(0, (local.getY(vertex) - place.y) / tall))
+        const shade = light * (0.35 + 0.65 * rise)
+        colours.set([shade * warm, shade, shade * 0.8], vertex * 3)
+      }
+      shoot.setAttribute('color', new BufferAttribute(colours, 3))
+      pieces.push(shoot)
+    }
+    return pieces.length ? mergeGeometries(pieces) : null
+  }, [shoots, x, z, radius, count, ground, flat, spots, scale, avoid, keepOut])
+  if (!geometry) return null
+  return <mesh geometry={geometry} material={material} frustumCulled={false} raycast={noRaycast} castShadow receiveShadow />
+}
+
 /** Dense shrubs of painted sprig cards (two crossed planes each), like a tiny forest. `avoid` keeps sprigs out of circles such as the pond. */
-export function MossSprigs({ x, z, radius, count, ground, flat = false, spots, scale = 1, avoid = nowhere, keepOut }: { x: number; z: number; radius: number; count: number; ground: Ground; flat?: boolean; spots?: Vector3[]; scale?: number; avoid?: { x: number; z: number; radius: number }[]; keepOut?: (x: number, z: number) => boolean }) {
+function PaintedMossSprigs({ x, z, radius, count, ground, flat = false, spots, scale = 1, avoid = nowhere, keepOut }: MossProps) {
   const mesh = useRef<InstancedMesh>(null)
   const geometry = useMemo(() => {
     const a = new PlaneGeometry(1, 1).translate(0, 0.5, 0)

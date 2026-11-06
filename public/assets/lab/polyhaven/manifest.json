@@ -2,7 +2,7 @@
   "source": "https://polyhaven.com",
   "api": "https://api.polyhaven.com",
   "fetched": "2026-11-03",
-  "total_bytes": 29142771,
+  "total_bytes": 30063874,
   "assets": [
     {
       "id": "rock_moss_set_01",
@@ -305,6 +305,27 @@
         "textures/namaqualand_stones_01_diff_1k.jpg",
         "textures/namaqualand_stones_01_nor_gl_1k.jpg"
       ],
+      "fetched": "2026-11-06"
+    },
+    {
+      "id": "moss_01",
+      "type": "model",
+      "name": "Moss 01",
+      "purpose": "real moss shoots built into cushions on the soil",
+      "license": "CC0",
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "source": "https://polyhaven.com/a/moss_01",
+      "resolution": "1k",
+      "files": [
+        "moss_01_1k.gltf",
+        "moss_01.bin",
+        "textures/moss_01_diff_1k.jpg",
+        "textures/moss_01_nor_gl_1k.jpg",
+        "textures/moss_01_arm_1k.jpg"
+      ],
+      "bytes": 921103,
       "fetched": "2026-11-06"
     }
   ]

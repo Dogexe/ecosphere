@@ -25,7 +25,8 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
     ? new Vector3(-7 * Math.cos((sky.hour - 6) * Math.PI / 12), 2 + sky.solar * 7, 4)
     : new Vector3(4, 7, -4)
   const brightness = sky.cycling ? sky.solar : 1
-  const fill = dramatic ? 0.3 : 1, keyBoost = dramatic ? 1.35 : 1
+  // In the room the fill drops further so the window behind the jar is the light you notice (concept image 12).
+  const fill = room ? 0.6 : dramatic ? 0.3 : 1, keyBoost = room ? 1.6 : dramatic ? 1.35 : 1
   useFrame((_, delta) => {
     const blend = 1 - Math.exp(-delta * 5)
     if (ambient.current) ambient.current.intensity = MathUtils.lerp(ambient.current.intensity, (sky.cycling ? 0.55 + brightness * 0.7 : 1.25) * fill, blend)

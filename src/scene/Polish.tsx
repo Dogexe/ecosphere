@@ -1,4 +1,4 @@
-import { Bloom, EffectComposer, N8AO, TiltShift2, ToneMapping, Vignette } from '@react-three/postprocessing'
+import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, TiltShift2, ToneMapping, Vignette } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 
 /**
@@ -12,7 +12,9 @@ import { ToneMappingMode } from 'postprocessing'
  * - soft bloom lets sunlit water and bright leaves glow a little;
  * - a tilt-shift band keeps the jar sharp and softens the near and far room,
  *   so it reads as a small diorama;
- * - a vignette pulls the eye to the jar.
+ * - a vignette pulls the eye to the jar;
+ * - a last grade adds contrast and colour, so the scene reads rich and
+ *   back-lit like concept image 12 instead of flat and milky.
  *
  * Phones get a lighter set (half-resolution AO at its cheapest quality, no
  * tilt-shift). ?polish=0 turns all of it off for comparison.
@@ -26,5 +28,7 @@ export function Polish({ light }: { light: boolean }) {
     <>{!light && <TiltShift2 blur={0.12} taper={0.6} start={[0.5, 0.0]} end={[0.5, 1.0]} />}</>
     <Vignette offset={0.32} darkness={0.55} />
     <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+    <BrightnessContrast brightness={-0.02} contrast={0.16} />
+    <HueSaturation saturation={0.14} />
   </EffectComposer>
 }

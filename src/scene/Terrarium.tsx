@@ -798,7 +798,7 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
     if (layout.current !== layoutKey) {
       const restoring = layout.current === '' && surfacePose.ready && surfacePose.width === size.width && surfacePose.height === size.height
       layout.current = layoutKey
-      const overview = frontView ? Math.min(26, Math.max(21, 18 / (size.width / size.height))) : Math.min(21, Math.max(14.5, 13.5 / (size.width / size.height)))
+      const overview = frontView ? Math.min(26, Math.max(15.5, 14 / (size.width / size.height))) : Math.min(21, Math.max(14.5, 13.5 / (size.width / size.height)))
       focus.current.previous = overview
       if (!creature && !plant && !ant && !restoring) { focus.current.distance = overview; focus.current.remaining = 1.4 }
     }
@@ -813,7 +813,7 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
     const tracking = subject && (!remains || autoPlant.current) || creature || trackingPlant || focus.current.remaining > 0
     const dx = tracking ? ((subject?.x ?? creature?.x ?? plantFrame?.x ?? 0) - target.x) * factor : 0
     const dz = tracking ? ((subject?.z ?? creature?.z ?? plantFrame?.z ?? 0) - target.z) * factor : 0
-    const targetY = subject?.y ?? (creature ? isAquatic(creature.kind) ? animalWaterY(creature.kind) : animalGroundY(creature) : plantFrame?.y ?? (frontView ? -0.2 : -0.4))
+    const targetY = subject?.y ?? (creature ? isAquatic(creature.kind) ? animalWaterY(creature.kind) : animalGroundY(creature) : plantFrame?.y ?? (frontView ? 0.1 : -0.4))
     const dy = tracking ? (targetY - target.y) * factor : 0
     target.x += dx; target.y += dy; target.z += dz
     camera.position.x += dx; camera.position.y += dy; camera.position.z += dz
@@ -850,8 +850,8 @@ function RenderProbe({ onSample }: { onSample: (sample: RenderSample) => void })
 
 /** ?debug: exposes the scene and renderer as window.__three for profiling scripts. */
 function DebugHandle() {
-  const { scene, gl } = useThree()
-  useEffect(() => { if (location.search.includes('debug')) (window as unknown as { __three: unknown }).__three = { scene, gl } }, [scene, gl])
+  const { scene, gl, camera } = useThree()
+  useEffect(() => { if (location.search.includes('debug')) (window as unknown as { __three: unknown }).__three = { scene, gl, camera } }, [scene, gl, camera])
   return null
 }
 
@@ -859,7 +859,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
   const [profile, setProfile] = useState<RenderSample | null>(null)
   const broodCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
   const antCenters = useMemo(() => new Map<number, Vector3>(), [worldRevision])
-  const surfacePose = useRef<SurfacePose>({ position: frontView ? new Vector3(2.4, 3.9, 16.4) : new Vector3(8.5, 6.55, 10), target: frontView ? new Vector3(0, -0.2, 0) : new Vector3(0, -0.4, 0), ready: false, width: 0, height: 0 }).current
+  const surfacePose = useRef<SurfacePose>({ position: frontView ? new Vector3(1.2, 2.8, 15.2) : new Vector3(8.5, 6.55, 10), target: frontView ? new Vector3(0, 0.1, 0) : new Vector3(0, -0.4, 0), ready: false, width: 0, height: 0 }).current
   const viewWorld = underwater ? { ...world, plants: world.plants.filter((plant) => isAquatic(plant.kind)), creatures: world.creatures.filter((creature) => isAquatic(creature.kind)), remains: (world.remains ?? []).filter((remains) => isAquatic(remains.kind)) } : world
   const profiling = new URLSearchParams(window.location.search).get('profile') === '1'
   const followedAnt = world.colony ? [world.colony.queen, ...world.colony.workers].find((ant) => ant?.id === followAnt) ?? undefined : undefined
@@ -879,7 +879,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
     <Canvas
       shadows
       dpr={[1, coarsePointer ? 1.25 : 1.7]}
-      camera={{ position: frontView ? [2.4, 3.9, 16.4] : [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
+      camera={{ position: frontView ? [1.2, 2.8, 15.2] : [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onPointerMissed={() => { if (!placing) onClearSelection() }}
       style={{ cursor: placing ? 'crosshair' : 'grab' }}

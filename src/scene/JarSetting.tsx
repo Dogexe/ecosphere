@@ -49,8 +49,8 @@ const gravelBottom = charcoalBottom - jarLayers.gravel
  */
 const wall = R + 0.12
 const belly = 0.32
-const bellyTop = top + 2.6
-const neck = top + 4.0
+const bellyTop = top + 2.0
+const neck = top + 3.2
 const neckRadius = R * 0.86
 const glassTop = neck + 0.35
 /** The glass radius at height y. */
@@ -66,7 +66,7 @@ const glassEdge = new ShaderMaterial({
   vertexShader: `varying vec3 vNormal; varying vec3 vView;
     void main() { vec4 world = modelMatrix * vec4(position, 1.0); vNormal = normalize(mat3(modelMatrix) * normal); vView = normalize(cameraPosition - world.xyz); gl_Position = projectionMatrix * viewMatrix * world; }`,
   fragmentShader: `uniform vec3 tint; varying vec3 vNormal; varying vec3 vView;
-    void main() { float facing = abs(dot(normalize(vNormal), normalize(vView))); float edge = pow(1.0 - facing, 4.0); gl_FragColor = vec4(tint * edge * 0.42, 1.0); }`,
+    void main() { float facing = abs(dot(normalize(vNormal), normalize(vView))); float edge = pow(1.0 - facing, 4.0); gl_FragColor = vec4(tint * edge * 0.3, 1.0); }`,
 })
 function jarGeometry(bottom: number) {
   const points: Vector2[] = []
@@ -139,7 +139,7 @@ function Glass({ bottom = gravelBottom, sealed = false }: { bottom?: number; sea
   const lid = neckRadius + 0.16
   return <group>
     <mesh geometry={geometry} raycast={noRaycast} renderOrder={2}>
-      <meshPhysicalMaterial color="#ffffff" transparent opacity={0.08} roughness={0.02} metalness={0} clearcoat={1} clearcoatRoughness={0.02} envMapIntensity={1.4} side={DoubleSide} depthWrite={false} />
+      <meshPhysicalMaterial color="#ffffff" transparent opacity={0.035} roughness={0.02} metalness={0} clearcoat={1} clearcoatRoughness={0.02} envMapIntensity={0.7} side={DoubleSide} depthWrite={false} />
     </mesh>
     {/* Glass is seen by its edges: where you look along the curved wall it turns pale and reflective. */}
     <mesh geometry={geometry} raycast={noRaycast} renderOrder={3} material={glassEdge} />

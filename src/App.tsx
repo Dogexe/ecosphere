@@ -9,6 +9,7 @@ import type { ObservationSample } from './sim/observatory'
 import { WorldStart } from './WorldStart'
 import defaultJar from './sim/defaultJar.json'
 import { adoptPouredJar } from './sim/pouredPond'
+import { withStarterGarden } from './sim/starterGarden'
 import { maskShape } from './sim/pondShape'
 import { setPondShape } from './sim/pond'
 import { JarBuilder } from './JarBuilder'
@@ -109,12 +110,18 @@ function intoPouredJar(world: World): World {
   try { return adoptPouredJar(world, defaultJar as SavedSubstrate) } catch { return world }
 }
 
+/** A brand new player's jar: the default poured jar, planted toward concept image 12 in the paper look. */
+function starterJar(): World {
+  const world = intoPouredJar(beginDaylitWorld(createWorld()))
+  return paperLook && world.substrate ? withStarterGarden(world) : world
+}
+
 export function App() {
   const query = new URLSearchParams(window.location.search)
   const stress = query.get('profile') === '1' && query.get('stress') === '1'
   // The last session comes back paused, with its Observatory history (never in the stress profile).
   const [resumed] = useState(() => stress ? null : readAutosave(browserStore()))
-  const [session, setSession] = useState<StepResult>(() => ({ world: stress ? createStressWorld(query.get('dry') === '1') : intoPouredJar(resumed?.world ?? beginDaylitWorld(createWorld())), events: [] }))
+  const [session, setSession] = useState<StepResult>(() => ({ world: stress ? createStressWorld(query.get('dry') === '1') : resumed ? intoPouredJar(resumed.world) : starterJar(), events: [] }))
   const { world, events } = session
   // The sim and the scene read the pond shape of the world on screen.
   setPondShape(world.substrate)
