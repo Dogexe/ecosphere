@@ -1,0 +1,20 @@
+{
+  "anatomy": {
+    "pass": false,
+    "reason": "Both views show two slender tentacles with basal eyes, but the shell centres appear raised rather than sunken, especially in the three-quarter view."
+  },
+  "style": {
+    "pass": false,
+    "reason": "Dark outlines and marker texture are present, but extensive gradients and glossy highlights exceed the requested flat two-to-three-tone treatment."
+  },
+  "no_slop": {
+    "pass": true,
+    "reason": "There is no cute face, smile, decoration, text, extra appendage or obvious rendering artefact."
+  },
+  "layout": {
+    "pass": true,
+    "reason": "The light background supports a left side view and right three-quarter view at consistent shell height and with matching colours."
+  },
+  "fix": "Recess both coil centres, make the three-quarter shell read as a narrow planispiral disc, and replace glossy gradients with two or three flat marker-textured tones.",
+  "overall": "A coherent design that needs clearer planispiral shell anatomy and flatter colouring to meet the brief."
+}

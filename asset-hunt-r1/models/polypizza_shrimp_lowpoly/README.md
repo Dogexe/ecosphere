@@ -1,0 +1,1 @@
+"shrimp" by angelo raffaele Catalano (Google Poly archive) | source https://poly.pizza/m/fZwM-PXohV6 | licence CC-BY 3.0 (credit "shrimp by angelo raffaele Catalano, CC-BY 3.0, via Poly Pizza") | file shrimp.glb, 0.54 MB, 6,968 triangles, untextured (white) | real-world size n/a | Note: generic low-poly whole-body shrimp; fallback blockout only, anatomy not species-accurate.

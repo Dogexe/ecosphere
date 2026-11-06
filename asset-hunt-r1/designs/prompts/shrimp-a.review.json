@@ -1,0 +1,20 @@
+{
+  "anatomy": {
+    "pass": false,
+    "reason": "Neither view clearly resolves two stalked eyes, five walking-leg pairs with tiny claws on the first two, forked antennules, and a distinct five-blade tail fan."
+  },
+  "style": {
+    "pass": true,
+    "reason": "Dark ink contours and restrained red marker texture give both views a convincing hand-drawn finish."
+  },
+  "no_slop": {
+    "pass": true,
+    "reason": "There are no cute expressions, decorative effects, text, watermarks, or obvious rendering artefacts."
+  },
+  "layout": {
+    "pass": true,
+    "reason": "The light background presents a left side view and right three-quarter view with consistent markings and plausible matching scale."
+  },
+  "fix": "Regenerate with explicitly organized appendage pairs, readable tiny picking claws and forked antennules, and five clearly separated tail-fan blades in both views.",
+  "overall": "The illustration style and layout work, but the anatomical readability falls short of the brief."
+}

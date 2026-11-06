@@ -1,0 +1,1 @@
+Namaqualand Stones 01 (namaqualand_stones_01) | source https://polyhaven.com/a/namaqualand_stones_01 | licence CC0 1.0 | author Greg Zaal (Photography), Jenelle van Heerden (modeling) | real-world bounding size 1022 x 112 x 84 mm (whole asset) | glTF 1k

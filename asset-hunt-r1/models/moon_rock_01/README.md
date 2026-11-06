@@ -1,0 +1,1 @@
+Moon Rock 01 (moon_rock_01) | source https://polyhaven.com/a/moon_rock_01 | licence CC0 1.0 | author Greg Zaal (Photography), Rico Cilliers (Photography), Jenelle van Heerden (Processing), Dario Barresi (Processing) | real-world bounding size 212 x 112 x 75 mm (whole asset) | glTF 1k

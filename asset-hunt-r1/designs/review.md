@@ -1,0 +1,27 @@
+# Creature designs, asset hunt round 1: Codex review
+
+- **Generator:** Codex built-in `image_gen` tool, via `codex exec` (CLI 0.160.0), with round-3 `07-fittonia-healthy.png` attached as the style reference only. The Codex imagegen skill names gpt-image-2 as its default model; the tool does not report which model it actually used.
+- **Reviewer:** Codex, read-only, one call per image with a JSON schema (`prompts/review-schema.json`). Raw verdicts: `prompts/*.review.json`.
+- **Prompts:** `prompts/style.txt` + `prompts/snail.txt` / `prompts/shrimp.txt`, plus a one-line variant note; the full text sent is in `prompts/*.prompt.txt`.
+- **Budget:** 2 variants per creature as briefed, plus ONE revision each (`-r1`) built from the reviewer's fix instruction. I made no further retries, to save the limited Codex quota.
+- Each sheet shows LEFT a strict side view and RIGHT a 3/4 view of the same animal on a plain light background (1536x1024). In this branch the sheets are stored as JPEG q85.
+
+Criteria: 1 anatomy (brief's anatomy correct and countable) · 2 style (ink outline, flat 2-3 tones, marker grain) · 3 no AI-slop · 4 layout
+
+| Image | 1 | 2 | 3 | 4 | Score | Reviewer: what to fix |
+|---|---|---|---|---|---|---|
+| snail-a.jpg | ❌ | ❌ | ✅ | ✅ | **2/4** | **1** Both views show two thin tentacles with basal eyes, but the shell reads as roughly three whorls rather than four and lacks a clearly sunken coil centre.; **2** Dark ink outlines are confident, but dense mottling and extensive tonal shading exceed the requested flat two-to-three-tone colour and light marker texture. Fix: Draw approximately four steadily expanding whorls with visibly recessed centres, preserve the narrow disc profile, and simplify the colouring to three flat tones with sparse marker texture. |
+| snail-b.jpg | ❌ | ❌ | ✅ | ✅ | **2/4** | **1** Both views show two slender tentacles with basal eyes, but the shell centres appear raised rather than sunken, especially in the three-quarter view.; **2** Dark outlines and marker texture are present, but extensive gradients and glossy highlights exceed the requested flat two-to-three-tone treatment. Fix: Recess both coil centres, make the three-quarter shell read as a narrow planispiral disc, and replace glossy gradients with two or three flat marker-textured tones. |
+| snail-r1.jpg | ❌ | ✅ | ✅ | ✅ | **3/4** | **1** The upright planispiral shell and two long tentacles read clearly, but the right view places one conspicuous eye far behind the tentacle bases. Fix: Place both small eyes immediately at the inner bases of the two tentacles in each view, removing the rearward eye-like dot and its stalk-like connecting lines. |
+| shrimp-a.jpg | ❌ | ✅ | ✅ | ✅ | **3/4** | **1** Neither view clearly resolves two stalked eyes, five walking-leg pairs with tiny claws on the first two, forked antennules, and a distinct five-blade tail fan. Fix: Regenerate with explicitly organized appendage pairs, readable tiny picking claws and forked antennules, and five clearly separated tail-fan blades in both views. |
+| shrimp-b.jpg | ❌ | ✅ | ✅ | ✅ | **3/4** | **1** Neither view clearly resolves five tail-fan blades, five walking-leg pairs and five swimmeret pairs; the long antennae also appear shorter than the body. Fix: Regenerate with five distinct tail-fan blades, clearly organized five pairs each of walking legs and swimmerets, tiny chelae on the first two walking-leg pairs, and antennae longer than the body. |
+| shrimp-r1.jpg | ❌ | ✅ | ✅ | ❌ | **2/4** | **1** Both views show more than five apparent walking-leg positions, while the tail fans lack a clearly pointed central telson and readable paired uropod structure.; **4** The background and left profile work, but the right shrimp reads mostly as another lateral view and appears smaller. Fix: Regenerate with five clearly organized walking-leg pairs, anatomically structured five-part tail fans with pointed telsons, and a genuinely three-quarter right view at matching scale. |
+
+## My reading (art direction)
+- **Snail:** all three get the important thing right: a flat, planispiral ramshorn disc standing upright, with two thread tentacles. The first two use heavy mottling or glossy gradients (style fail). **snail-r1 is the best**: flat three-tone colour and a recessed coil. Its only remaining fault is a stray eye-like dot behind the tentacle bases in the 3/4 view, which is easy to correct by hand or in one more pass. The foot is drawn a little large in every version; the game model should shrink it to about the shell's width.
+- **Shrimp:** the style passes in every version, and the cherry colour and translucency read well (shrimp-b is the most translucent and closest to a real Neocaridina). Anatomy is still the weak point. The walking legs read as 6-7 pairs rather than 5. The tail fan comes out as 3-4 leaf blades instead of telson + 2 paired uropods. In shrimp-r1 the 3/4 view is really a second side view. Treat these as colour and style targets. For anatomy, use the Smithsonian Macrobrachium scan in `models/si_macrobrachium_prawn/`, which has the real 5+5 appendage plan and tail fan.
+- **No AI-slop issues anywhere:** no faces, smiles, sparkles or text.
+
+## Recommended picks
+- Snail: **snail-r1** (fix the extra eye dot), with **snail-a** as the colour alternative.
+- Shrimp: **shrimp-b** for colour and translucency, and **shrimp-r1** for appendage layout; anatomy must come from the 3D reference.

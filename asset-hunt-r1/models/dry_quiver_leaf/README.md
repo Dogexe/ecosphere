@@ -1,0 +1,1 @@
+Dry Quiver Leaf (dry_quiver_leaf) | source https://polyhaven.com/a/dry_quiver_leaf | licence CC0 1.0 | author Greg Zaal (photography), Rico Cilliers (modeling) | real-world bounding size 397 x 192 x 425 mm (whole asset) | glTF 1k

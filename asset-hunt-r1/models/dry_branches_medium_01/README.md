@@ -1,0 +1,1 @@
+Dry Branches Medium 01 (dry_branches_medium_01) | source https://polyhaven.com/a/dry_branches_medium_01 | licence CC0 1.0 | author Rico Cilliers (All) | real-world bounding size 1059 x 1299 x 341 mm (whole asset) | glTF 1k

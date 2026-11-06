@@ -1,0 +1,1 @@
+Stone 01 (stone_01) | source https://polyhaven.com/a/stone_01 | licence CC0 1.0 | author Dario Barresi (Photography), Rico Cilliers (photography, processing) | real-world bounding size 147 x 89 x 72 mm (whole asset) | glTF 1k

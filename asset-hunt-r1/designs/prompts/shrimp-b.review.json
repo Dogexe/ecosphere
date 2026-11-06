@@ -1,0 +1,20 @@
+{
+  "anatomy": {
+    "pass": false,
+    "reason": "Neither view clearly resolves five tail-fan blades, five walking-leg pairs and five swimmeret pairs; the long antennae also appear shorter than the body."
+  },
+  "style": {
+    "pass": true,
+    "reason": "Dark ink contours, restrained red tones and light marker-like texture match the requested illustration style."
+  },
+  "no_slop": {
+    "pass": true,
+    "reason": "There are no cute expressions, decorative effects, text or obvious melted appendages."
+  },
+  "layout": {
+    "pass": true,
+    "reason": "A left side view and right three-quarter view show matching markings and consistent apparent scale against a plain light background."
+  },
+  "fix": "Regenerate with five distinct tail-fan blades, clearly organized five pairs each of walking legs and swimmerets, tiny chelae on the first two walking-leg pairs, and antennae longer than the body.",
+  "overall": "The visual direction works, but the anatomy needs a more explicit, countable construction before approval."
+}

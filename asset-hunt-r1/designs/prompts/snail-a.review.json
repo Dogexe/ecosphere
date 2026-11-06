@@ -1,0 +1,20 @@
+{
+  "anatomy": {
+    "pass": false,
+    "reason": "Both views show two thin tentacles with basal eyes, but the shell reads as roughly three whorls rather than four and lacks a clearly sunken coil centre."
+  },
+  "style": {
+    "pass": false,
+    "reason": "Dark ink outlines are confident, but dense mottling and extensive tonal shading exceed the requested flat two-to-three-tone colour and light marker texture."
+  },
+  "no_slop": {
+    "pass": true,
+    "reason": "There are no cute facial features, decorative effects, text, extra tentacles or obvious rendering artefacts."
+  },
+  "layout": {
+    "pass": true,
+    "reason": "A side view on the left and three-quarter view on the right depict a consistent individual at comparable scale against a plain light background."
+  },
+  "fix": "Draw approximately four steadily expanding whorls with visibly recessed centres, preserve the narrow disc profile, and simplify the colouring to three flat tones with sparse marker texture.",
+  "overall": "Recognisable ramshorn snail, but the shell structure and overly worked colouring need revision."
+}

@@ -1,0 +1,20 @@
+{
+  "anatomy": {
+    "pass": false,
+    "reason": "The upright planispiral shell and two long tentacles read clearly, but the right view places one conspicuous eye far behind the tentacle bases."
+  },
+  "style": {
+    "pass": true,
+    "reason": "Confident dark outlines, restrained red-brown tones and light marker texture match the requested illustration style."
+  },
+  "no_slop": {
+    "pass": true,
+    "reason": "There is no cute expression, smile, decorative effect, text or obvious rendering artefact."
+  },
+  "layout": {
+    "pass": true,
+    "reason": "A side view on the left and three-quarter view on the right show a consistent individual at matching scale against a plain light background."
+  },
+  "fix": "Place both small eyes immediately at the inner bases of the two tentacles in each view, removing the rearward eye-like dot and its stalk-like connecting lines.",
+  "overall": "Strong stylistic and compositional fit, but the eye placement needs correction before anatomical approval."
+}

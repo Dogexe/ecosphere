@@ -1,0 +1,20 @@
+{
+  "anatomy": {
+    "pass": false,
+    "reason": "Both views show more than five apparent walking-leg positions, while the tail fans lack a clearly pointed central telson and readable paired uropod structure."
+  },
+  "style": {
+    "pass": true,
+    "reason": "Dark ink contours, limited red tones and light marker texture closely match the requested illustration style."
+  },
+  "no_slop": {
+    "pass": true,
+    "reason": "There are no cute facial features, decorative effects, text, watermarks or obvious rendering artefacts."
+  },
+  "layout": {
+    "pass": false,
+    "reason": "The background and left profile work, but the right shrimp reads mostly as another lateral view and appears smaller."
+  },
+  "fix": "Regenerate with five clearly organized walking-leg pairs, anatomically structured five-part tail fans with pointed telsons, and a genuinely three-quarter right view at matching scale.",
+  "overall": "The illustration style succeeds, but anatomy and view consistency need correction before approval."
+}

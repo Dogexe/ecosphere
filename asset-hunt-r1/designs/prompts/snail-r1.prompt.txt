@@ -1,0 +1,18 @@
+ECOSPHERE creature design sheet. Use your built-in image generation tool (image_gen) to create ONE image, landscape 3:2 (1536x1024), then save the resulting PNG file to the exact output path given at the end (copy it from wherever the tool writes it). Do not write any other files.
+
+STYLE (match the drawn creatures in the attached reference image, ignore everything else in it): a confident, slightly wobbly dark brown-black ink outline of gently varying weight around every shape; flat colour in only 2-3 tones (base, one shadow tone, one highlight tone) with a light hand-coloured marker / coloured-pencil grain; a few inked lines for segments and details only; simple readable silhouette. Anatomically correct, like a careful naturalist field-guide drawing done with ink and markers. NO photo-real texture, NO soft plastic or clay 3D shading, NO airbrush gradients, NO cute face, NO smile, NO eyebrows or pupils with highlights, NO sparkles, NO glow, NO bokeh. Eyes only where the real animal has them, small, simple and dark.
+
+LAYOUT: a plain, flat, very light warm off-white background with no texture, no scenery, no ground, no props. Two views of the SAME individual side by side with generous space between them: LEFT = a clean, strict side (lateral) view; RIGHT = a three-quarter view from the front-side and slightly above. Each view has only a faint soft grey contact shadow underneath. Both views at the same scale. Absolutely NO text, letters, numbers, labels, arrows, scale bars, logos, watermark or frames.
+
+SUBJECT: ramshorn snail, Planorbella duryi (family Planorbidae), adult, shell about 2 cm across.
+ANATOMY (must be correct):
+- The shell is PLANISPIRAL: coiled flat in ONE plane like a rolled ribbon or a cinnamon roll / coiled rope, NOT a raised cone or spire like a garden snail. In the side view you look at the flat face of the coil: a disc showing about 4 whorls that grow steadily wider toward the aperture, with the coil centre slightly sunken (umbilicate) on both sides. The shell is much taller than it is thick; seen edge-on it is a narrow rounded disc.
+- Shell colour: translucent red-brown to reddish-amber, with faint fine growth lines across the whorls.
+- The animal is carried with the shell upright, the disc standing vertical above the foot, aperture at the front-lower side.
+- Soft body: dark red-brown, slightly translucent, a broad flat crawling foot underneath, a short rounded head.
+- Exactly TWO long, thin, thread-like tentacles (no second shorter pair, no stalked eyes); the small dark eyes sit at the BASE of the tentacles on the inner side, NOT on the tips.
+- No face, no mouth drawn as a smile.
+
+REVISION (an earlier attempt failed review; fix these points above all): Draw exactly four steadily expanding whorls, with the coil centre visibly RECESSED (a sunken dimple, like a dished coin) on the flat face; in the three-quarter view the shell must read as a NARROW flat disc, clearly thinner than it is tall, not a fat globe. Colour: only three FLAT tones of red-brown (base, one shadow, one highlight) with sparse marker grain; NO glossy highlights, NO gradients, NO mottled patches. Smaller foot relative to the shell.
+
+OUTPUT PATH: /e/project/ECO/artifacts/asset-hunt-r1/designs/snail-r1.png

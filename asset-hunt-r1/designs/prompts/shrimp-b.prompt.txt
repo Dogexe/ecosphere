@@ -1,0 +1,18 @@
+ECOSPHERE creature design sheet. Use your built-in image generation tool (image_gen) to create ONE image, landscape 3:2 (1536x1024), then save the resulting PNG file to the exact output path given at the end (copy it from wherever the tool writes it). Do not write any other files.
+
+STYLE (match the drawn creatures in the attached reference image, ignore everything else in it): a confident, slightly wobbly dark brown-black ink outline of gently varying weight around every shape; flat colour in only 2-3 tones (base, one shadow tone, one highlight tone) with a light hand-coloured marker / coloured-pencil grain; a few inked lines for segments and details only; simple readable silhouette. Anatomically correct, like a careful naturalist field-guide drawing done with ink and markers. NO photo-real texture, NO soft plastic or clay 3D shading, NO airbrush gradients, NO cute face, NO smile, NO eyebrows or pupils with highlights, NO sparkles, NO glow, NO bokeh. Eyes only where the real animal has them, small, simple and dark.
+
+LAYOUT: a plain, flat, very light warm off-white background with no texture, no scenery, no ground, no props. Two views of the SAME individual side by side with generous space between them: LEFT = a clean, strict side (lateral) view; RIGHT = a three-quarter view from the front-side and slightly above. Each view has only a faint soft grey contact shadow underneath. Both views at the same scale. Absolutely NO text, letters, numbers, labels, arrows, scale bars, logos, watermark or frames.
+
+SUBJECT: cherry shrimp, Neocaridina davidi (red cherry colour form), adult female about 2.5 cm long.
+ANATOMY (must be correct):
+- Body: a smooth carapace (cephalothorax) with a short, pointed, toothed rostrum projecting forward between the eyes; behind it a curved abdomen of 6 segments with a gentle hump at the third segment, bending down toward the tail.
+- TAIL FAN: a central pointed telson flanked by ONE PAIR of paddle-shaped uropods on each side (total of 5 blades: telson plus 2 uropods left and 2 right, each uropod split into an inner and outer blade). Not three leaf blades.
+- Head: two small black stalked eyes; ONE pair of long thin antennae (longer than the body, sweeping back) plus a pair of short forked antennules at the front; small flat antennal scales.
+- Legs: 5 pairs of thin walking legs (pereiopods) under the carapace; the first two pairs are tiny and end in very small fan-tipped claws (chelae) used for picking food, NOT large crayfish pincers. 5 pairs of small feathery swimmerets (pleopods) under the abdomen.
+- Colour: translucent cherry red with denser red patches, partly see-through body showing a slightly lighter red interior; slender and delicate.
+- No face, no smile.
+
+VARIANT: Variant B: more translucent body with red patches and a pale red stripe along the back, slightly arched pose with swimmerets visible, antennae forward and to the side.
+
+OUTPUT PATH: /e/project/ECO/artifacts/asset-hunt-r1/designs/shrimp-b.png

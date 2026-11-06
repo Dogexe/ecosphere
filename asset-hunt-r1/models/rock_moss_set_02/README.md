@@ -1,0 +1,1 @@
+Rock Moss Set 02 (rock_moss_set_02) | source https://polyhaven.com/a/rock_moss_set_02 | licence CC0 1.0 | author Kless Gyzen (All) | real-world bounding size 8278 x 3410 x 1368 mm (whole asset) | glTF 1k

@@ -1,0 +1,5 @@
+{"type":"object","additionalProperties":false,"required":["anatomy","style","no_slop","layout","fix","overall"],
+"properties":{
+"anatomy":{"$ref":"#/$defs/c"},"style":{"$ref":"#/$defs/c"},"no_slop":{"$ref":"#/$defs/c"},"layout":{"$ref":"#/$defs/c"},
+"fix":{"type":"string"},"overall":{"type":"string"}},
+"$defs":{"c":{"type":"object","additionalProperties":false,"required":["pass","reason"],"properties":{"pass":{"type":"boolean"},"reason":{"type":"string"}}}}}

@@ -1,0 +1,1 @@
+Namaqualand Rocks 01 (namaqualand_rocks_01) | source https://polyhaven.com/a/namaqualand_rocks_01 | licence CC0 1.0 | author Greg Zaal (Photography), Jenelle van Heerden (modeling) | real-world bounding size 1448 x 217 x 153 mm (whole asset) | glTF 1k
