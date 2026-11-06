@@ -1,7 +1,5 @@
 import { Suspense, useLayoutEffect, useMemo } from 'react'
-import { useTexture } from '@react-three/drei'
-import { AdditiveBlending, Color, CylinderGeometry, DoubleSide, LatheGeometry, ShaderMaterial, MathUtils, RepeatWrapping, SRGBColorSpace, Vector2, Vector3 } from 'three'
-import type { Texture } from 'three'
+import { AdditiveBlending, Color, CylinderGeometry, DoubleSide, LatheGeometry, ShaderMaterial, MathUtils, Vector2, Vector3 } from 'three'
 import { charcoalTexture, soilSideTexture } from '../lab/proceduralTextures'
 import { pondCenter } from '../sim/pond'
 import { nearestSoil } from '../sim/ecosystem'
@@ -18,7 +16,7 @@ import { GlassDroplets } from './GlassDroplets'
 import { LayeredGround, smoothGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
-import { Fern, MossSprigs, MossyStone, paintify, polyHaven, ScannedProp } from './semiReal'
+import { Fern, MossSprigs, MossyStone, paintify, polyHaven, ScannedProp, useTextureSet } from './semiReal'
 import type { Ground } from './semiReal'
 
 /*
@@ -84,15 +82,9 @@ const noRaycast = () => undefined
 
 /** `realistic`: soil and stone keep the scan's own detail and full relief (watercolour look paints the rest). */
 function useScan(id: string, repeat: [number, number], realistic = false) {
-  const set = useTexture({ map: `${polyHaven}${id}/${id}_diff_1k.jpg`, normalMap: `${polyHaven}${id}/${id}_nor_gl_1k.jpg`, roughnessMap: `${polyHaven}${id}/${id}_rough_1k.jpg` }) as Record<string, Texture>
+  const set = useTextureSet({ map: `${polyHaven}${id}/${id}_diff_1k.jpg`, normalMap: `${polyHaven}${id}/${id}_nor_gl_1k.jpg`, roughnessMap: `${polyHaven}${id}/${id}_rough_1k.jpg` }, ['map'])
   return useMemo(() => {
-    for (const [key, texture] of Object.entries(set)) {
-      texture.wrapS = texture.wrapT = RepeatWrapping
-      texture.repeat.set(...repeat)
-      texture.anisotropy = 8
-      if (key === 'map') texture.colorSpace = SRGBColorSpace
-      texture.needsUpdate = true
-    }
+    for (const texture of Object.values(set)) texture.repeat.set(...repeat)
     return realistic ? { ...set, normalScale: new Vector2(1, 1), userData: { realistic: true } } : { ...set, map: paintify(set.map, '', 1), normalScale: new Vector2(0.6, 0.6) }
   }, [set, repeat, realistic])
 }

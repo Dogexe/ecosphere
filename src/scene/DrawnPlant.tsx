@@ -277,7 +277,7 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
 }
 
 /** Merges the pieces that share a painting, so the plant draws in a few calls. */
-function merge(pieces: Piece[], health: number) {
+function merge(pieces: Piece[]) {
   const groups = new Map<string, { texture: Texture | null; bend: boolean; geometries: BufferGeometry[] }>()
   for (const piece of pieces) {
     const key = `${piece.texture?.uuid ?? 'stem'}|${piece.bend}`
@@ -286,7 +286,7 @@ function merge(pieces: Piece[], health: number) {
     group.geometries.push(piece.geometry.index ? piece.geometry.toNonIndexed() : piece.geometry)
     groups.set(key, group)
   }
-  return [...groups.values()].map((group) => ({ geometry: mergeGeometries(group.geometries)!, material: paperMaterial(group.texture, health, group.bend) }))
+  return [...groups.values()].map((group) => ({ geometry: mergeGeometries(group.geometries)!, texture: group.texture, bend: group.bend }))
 }
 
 /** Keeps the shared sway clock running. */
@@ -337,11 +337,15 @@ export function DrawnPlant({ kind, health, seed, flowering = false }: { kind: Pl
 function PaperPlant({ kind, health, seed, flowering }: { kind: PlantKind; health: number; seed: number; flowering: boolean }) {
   const names = files[kind] ?? []
   const loaded = useTexture(names.map((name) => url(kind, name))) as Texture[]
-  const meshes = useMemo(() => {
+  // The cut-out shape only changes with the plant itself; health just swaps the (cached) tint, so a
+  // plant hovering at a health step no longer re-merges its geometry every sim tick.
+  const pieces = useMemo(() => {
     const textures = Object.fromEntries(names.map((name, index) => [name, prepare(loaded[index])]))
-    return merge(build(kind, textures, seed, flowering), health)
-  }, [kind, loaded, seed, flowering, healthStep(health)]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
+    return merge(build(kind, textures, seed, flowering))
+  }, [kind, loaded, seed, flowering]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => pieces.forEach((piece) => piece.geometry.dispose()), [pieces])
+  const step = healthStep(health)
+  const meshes = useMemo(() => pieces.map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, step, piece.bend) })), [pieces, step])
   return <>
     <Clock />
     {meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} raycast={() => undefined} />)}
@@ -364,15 +368,17 @@ const mushroomFiles = ['side-1', 'side-2', 'side-3', 'cap-1', 'cap-2'].map((name
 /** A drawn mushroom: the side painting on two crossed cards, the cap painting laid in it as seen from above. */
 export function DrawnMushroom({ height, lean = 0, variant = 0 }: { height: number; lean?: number; variant?: number }) {
   const textures = useTexture(mushroomFiles) as Texture[]
+  // Built at unit height and scaled, so a growing mushroom keeps one geometry.
   const meshes = useMemo(() => {
     textures.forEach(prepare)
     const side = textures[variant % 3], cap = textures[3 + variant % 2]
-    const width = height * aspect(side)
-    const pieces: Piece[] = [0, Math.PI / 2].map((cross) => ({ geometry: place(upright(side, height), { yaw: cross }), texture: side, bend: false }))
-    pieces.push({ geometry: place(flat(cap, width * 0.84, 0.08), { y: height * 0.8 }), texture: cap, bend: false })
-    return merge(pieces, 1)
-  }, [textures, height, variant])
-  return <group rotation={[lean * 0.6, variant * 1.7, lean]}>
+    const width = aspect(side)
+    const pieces: Piece[] = [0, Math.PI / 2].map((cross) => ({ geometry: place(upright(side, 1), { yaw: cross }), texture: side, bend: false }))
+    pieces.push({ geometry: place(flat(cap, width * 0.84, 0.08), { y: 0.8 }), texture: cap, bend: false })
+    return merge(pieces).map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, 1, piece.bend) }))
+  }, [textures, variant])
+  useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
+  return <group rotation={[lean * 0.6, variant * 1.7, lean]} scale={height}>
     {meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} raycast={() => undefined} />)}
   </group>
 }

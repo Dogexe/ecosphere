@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { useGLTF } from '@react-three/drei'
+import { useGLTF, useTexture } from '@react-three/drei'
 import { BufferAttribute, CanvasTexture, Color, DoubleSide, InstancedMesh, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, RepeatWrapping, SRGBColorSpace, Texture, Vector2, Vector3 } from 'three'
 import type { BufferGeometry } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -14,6 +14,32 @@ import { makeNoise } from '../lab/proceduralTextures'
 import { lighter } from './scanLod'
 
 export const polyHaven = `${import.meta.env.BASE_URL}assets/lab/polyhaven/`
+
+/**
+ * Tiling scan textures by key. drei's keyed useTexture returns a new object on
+ * every render, and memos keyed on it re-flagged every texture for upload (and
+ * rebuilt materials) whenever the jar re-rendered: about four 1k uploads a frame.
+ * This keys on the loaded textures themselves and only flags an upload when a
+ * setting really changes.
+ */
+export function useTextureSet<K extends string>(urls: Record<K, string>, colour: NoInfer<K>[]): Record<K, Texture> {
+  const keys = Object.keys(urls) as K[]
+  const list = useTexture(keys.map((key) => urls[key])) as Texture[]
+  return useMemo(() => {
+    const set = {} as Record<K, Texture>
+    keys.forEach((key, n) => {
+      const texture = list[n], srgb = colour.includes(key)
+      if (texture.wrapS !== RepeatWrapping || texture.wrapT !== RepeatWrapping || texture.anisotropy !== 8 || (srgb && texture.colorSpace !== SRGBColorSpace)) {
+        texture.wrapS = texture.wrapT = RepeatWrapping
+        texture.anisotropy = 8
+        if (srgb) texture.colorSpace = SRGBColorSpace
+        texture.needsUpdate = true
+      }
+      set[key] = texture
+    })
+    return set
+  }, [list.map((texture) => texture.uuid).join()]) // eslint-disable-line react-hooks/exhaustive-deps
+}
 export type Ground = (x: number, z: number) => number
 const noRaycast = () => undefined
 const nowhere: { x: number; z: number; radius: number }[] = []

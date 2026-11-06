@@ -1,12 +1,11 @@
 import { Suspense, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useTexture } from '@react-three/drei'
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, FrontSide, LatheGeometry, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, PlaneGeometry, RepeatWrapping, SRGBColorSpace, Vector2 } from 'three'
-import type { Group, Texture } from 'three'
+import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, FrontSide, LatheGeometry, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, PlaneGeometry, RepeatWrapping, Vector2 } from 'three'
+import type { Group } from 'three'
 import type { Pond } from '../sim/pond'
 import { pondCenter } from '../sim/pond'
 import { environmentScale } from './scale'
-import { paintify, polyHaven } from './semiReal'
+import { paintify, polyHaven, useTextureSet } from './semiReal'
 
 /*
  * The pond: a 6 cm bowl about 2 cm deep with a shallow shelf at the edge.
@@ -122,10 +121,9 @@ function causticTexture() {
 const pebbleRepeat: [number, number] = [0.6, 0.6] // one scan tile over most of the bowl: pebbles about 3-6 mm across, like aquarium gravel
 
 function PebbleBed({ geometry }: { geometry: LatheGeometry }) {
-  const set = useTexture({ map: `${polyHaven}clean_pebbles/clean_pebbles_diff_1k.jpg`, normalMap: `${polyHaven}clean_pebbles/clean_pebbles_nor_gl_1k.jpg` }) as Record<string, Texture>
+  const set = useTextureSet({ map: `${polyHaven}clean_pebbles/clean_pebbles_diff_1k.jpg`, normalMap: `${polyHaven}clean_pebbles/clean_pebbles_nor_gl_1k.jpg` }, ['map'])
   const material = useMemo(() => {
-    for (const texture of Object.values(set)) { texture.wrapS = texture.wrapT = RepeatWrapping; texture.repeat.set(...pebbleRepeat) }
-    set.map.colorSpace = SRGBColorSpace
+    for (const texture of Object.values(set)) texture.repeat.set(...pebbleRepeat)
     // Silt settles over the pebbles; a muddy tint keeps them from reading as a fish-tank floor.
     return { map: paintify(set.map, 'brightness(0.85) saturate(0.75)', 0), normalMap: set.normalMap, normalScale: new Vector2(0.9, 0.9), color: new Color('#c9b89a'), roughness: 0.9, userData: { realistic: true } }
   }, [set])

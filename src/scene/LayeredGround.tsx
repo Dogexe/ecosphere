@@ -1,10 +1,8 @@
 import { useLayoutEffect, useMemo } from 'react'
-import { useTexture } from '@react-three/drei'
-import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, RepeatWrapping, SRGBColorSpace } from 'three'
-import type { Texture } from 'three'
+import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry } from 'three'
 import { cellX, index, inside, substrateSize, topAt, topLayer, wetness } from '../sim/substrate'
 import type { Substrate } from '../sim/substrate'
-import { polyHaven } from './semiReal'
+import { polyHaven, useTextureSet } from './semiReal'
 
 /*
  * Draws a poured substrate: the top surface and the strata seen through the
@@ -204,17 +202,11 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
  */
 const soilRef = new Color('#8a6244'), gravelRef = new Color('#d3cbbd')
 export function useLayerMaterials() {
-  const set = useTexture({
+  const set = useTextureSet({
     soil: `${polyHaven}farm_soil/farm_soil_diff_1k.jpg`, soilNormal: `${polyHaven}farm_soil/farm_soil_nor_gl_1k.jpg`,
     pebble: `${polyHaven}clean_pebbles/clean_pebbles_diff_1k.jpg`, grit: `${polyHaven}gravel_stones/gravel_stones_diff_1k.jpg`,
-  }) as Record<string, Texture>
+  }, ['soil', 'pebble', 'grit'])
   return useMemo(() => {
-    for (const [key, texture] of Object.entries(set)) {
-      texture.wrapS = texture.wrapT = RepeatWrapping
-      texture.anisotropy = 8
-      if (key !== 'soilNormal') texture.colorSpace = SRGBColorSpace
-      texture.needsUpdate = true
-    }
     const make = (roughness: number, double: boolean) => {
       const material = new MeshStandardMaterial({ vertexColors: true, map: set.soil, normalMap: set.soilNormal, roughness, side: double ? DoubleSide : undefined })
       material.normalScale.set(1.1, 1.1)
