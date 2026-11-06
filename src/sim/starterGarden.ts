@@ -14,6 +14,10 @@ const garden: [PlantKind, number, number][] = [
   ['bloom', -0.95, -1.15],
   ['grass', 2.35, -0.55],
   ['grass', 1.75, 0.55],
+  ['clover', -2.0, -1.6],
+  ['fern', 1.6, -2.3],
+  ['clover', 2.6, -1.3],
+  ['bloom', 0.0, -0.3],
   ['lily', -1.45, 1.25],
   ['lily', -0.45, 2.2],
   ['lily', -2.15, 2.05],
@@ -26,7 +30,7 @@ export function withStarterGarden(world: World): World {
     if (next === planted) continue
     // Already established when the player first looks in, not seedlings.
     const plant = next.plants[next.plants.length - 1]
-    planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * 0.6, age: 90, development: 90 }] }
+    planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * 0.85, age: 90, development: 90 }] }
   }
   return planted
 }

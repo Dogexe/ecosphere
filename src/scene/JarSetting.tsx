@@ -48,10 +48,10 @@ const gravelBottom = charcoalBottom - jarLayers.gravel
  * rounds in to the neck.
  */
 const wall = R + 0.12
-const belly = 0.32
+const belly = 0.22
 const bellyTop = top + 2.0
 const neck = top + 3.2
-const neckRadius = R * 0.86
+const neckRadius = R * 0.93
 const glassTop = neck + 0.35
 /** The glass radius at height y. */
 export function glassRadiusAt(y: number) {

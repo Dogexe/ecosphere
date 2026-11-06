@@ -24,14 +24,15 @@ const pour = (material, target, amount, points, done = () => false) => {
 const depth = (layer) => layerDepths(state)[layer]
 // Shallower than the old 30/5/52 mm so the jar reads fat and squat like the
 // owner's target picture (concept round 3, image 12, 2026-11-06): about 19 mm
-// of gravel, 4 mm of charcoal and 36 mm of soil.
-pour('gravel', 1.0, 3, spiral, () => depth('gravel') >= 1.0)
+// of gravel, 4 mm of charcoal and 36 mm of soil; thinned again the same day to
+// about 16 mm gravel and 29 mm soil, so less brown wall shows through the glass.
+pour('gravel', 0.85, 3, spiral, () => depth('gravel') >= 0.85)
 pour('charcoal', 0.2, 1, spiral, () => depth('charcoal') >= 0.2)
-pour('soil', 1.9, 3, spiral, () => depth('soil') >= 1.9)
+pour('soil', 1.55, 3, spiral, () => depth('soil') >= 1.55)
 // Extra soil towards the back, away from the pond, for a slope to plant on.
 const away = (x, z) => Math.hypot(x - pondCenter.x, z - pondCenter.z) > pondCenter.radius + 0.6
 const back = spiral.filter(([x, z]) => z < -0.4 && x > -0.2 && away(x, z))
-pour('soil', 2.15, 3, back, () => depth('soil') >= 2.15)
+pour('soil', 1.85, 3, back, () => depth('soil') >= 1.85)
 // The pond now runs out to the front glass (the owner wants to watch underwater
 // life from the side), so no soil is banked along the front.
 for (let pass = 0; pass < 200; pass += 1) settle(state, 6)
