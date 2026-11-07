@@ -249,7 +249,7 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
   const cushionSet = useMemo(() => cushions.flatMap((cushion, index) => {
     if (!dry(cushion.x, cushion.z) || avoid.some((circle) => Math.hypot(cushion.x - circle.x, cushion.z - circle.z) < circle.radius)) return []
     const radius = cushion.radius * cushion.scale * (0.6 + (index * 0.618 % 1) * 0.7)
-    return [{ x: cushion.x, y: ground(cushion.x, cushion.z), z: cushion.z, radius, height: radius * (index % 3 ? 0.6 : 0.95) }]
+    return [{ x: cushion.x, y: ground(cushion.x, cushion.z), z: cushion.z, radius, height: radius * (index % 3 ? 0.38 : 0.6) }]
   }), [ground, keepOut]) // eslint-disable-line react-hooks/exhaustive-deps
   return <>
     {dry(2.55, -1.35) && <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />}

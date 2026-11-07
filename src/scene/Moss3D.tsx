@@ -44,9 +44,9 @@ const assets = () => shared ??= {
 const hash = (n: number) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s) }
 
 /** All the jar's moss cushions as two draws: the shoots and the dark domes under them. */
-export function MossCushions3D({ cushions, shootSize = 0.42 }: { cushions: Cushion[]; shootSize?: number }) {
+export function MossCushions3D({ cushions, shootSize = 0.27 }: { cushions: Cushion[]; shootSize?: number }) {
   const { shoot, dome, material, domeMaterial } = assets()
-  const perCushion = (cushion: Cushion) => Math.round(Math.min(60, 12 + cushion.radius * cushion.radius * 90))
+  const perCushion = (cushion: Cushion) => Math.round(Math.min(140, 30 + cushion.radius * cushion.radius * 220))
   const total = useMemo(() => cushions.reduce((sum, cushion) => sum + perCushion(cushion), 0), [cushions])
   const shoots = useRef<InstancedMesh>(null)
   const domes = useRef<InstancedMesh>(null)
