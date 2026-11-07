@@ -258,11 +258,11 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     // Fittonia (nerve plant), as in concept image 12 (owner, 2026-11-07: plants must match the cover):
     // a low mound of soft stems, each ending in opposite pairs of broad pink-veined leaves that
     // splay out and up toward the light, the lower pairs larger and flatter.
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 4; index += 1) {
       const angle = turn + index * golden, reach = spread * (0.1 + rand() * 0.2), top = height * (0.28 + rand() * 0.3)
       const tip = new Vector3(Math.cos(angle) * reach, top, Math.sin(angle) * reach)
       add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.3, top * 0.45, tip.z * 0.3), tip], 0.016), null)
-      for (const [level, size, tilt] of [[1, 0.5, 0.65], [0.55, 0.6, 1.0], [0.15, 0.62, 1.3]] as const) {
+      for (const [level, size, tilt] of (index % 2 ? [[1, 0.55, 0.7], [0.2, 0.66, 1.3]] : [[1, 0.55, 0.7], [0.5, 0.62, 1.05]]) as [number, number, number][]) {
         const at = new Vector3(tip.x * (0.35 + 0.65 * level), top * level, tip.z * (0.35 + 0.65 * level))
         for (const side of [0, Math.PI]) {
           const out = angle + side + (level < 1 ? Math.PI / 2 : 0) + (rand() - 0.5) * 0.5

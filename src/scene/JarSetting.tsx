@@ -1,5 +1,5 @@
 import { Suspense, useLayoutEffect, useMemo } from 'react'
-import { AdditiveBlending, Color, CylinderGeometry, DoubleSide, LatheGeometry, ShaderMaterial, MathUtils, Vector2, Vector3 } from 'three'
+import { AdditiveBlending, CanvasTexture, Color, CylinderGeometry, DoubleSide, LatheGeometry, MeshBasicMaterial, ShaderMaterial, MathUtils, Vector2, Vector3 } from 'three'
 import { charcoalTexture, soilSideTexture } from '../lab/proceduralTextures'
 import { pondCenter } from '../sim/pond'
 import { nearestSoil } from '../sim/ecosystem'
@@ -153,10 +153,31 @@ export function JarSubstrate() {
 }
 
 /** Clear glass: a thin physical shell with sharp reflections, so the jar contents stay crisp. Sealed jars wear a screw lid. */
+const contactShadow = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 128
+  const context = canvas.getContext('2d')!
+  const gradient = context.createRadialGradient(64, 64, 30, 64, 64, 64)
+  gradient.addColorStop(0, 'rgba(15,10,6,0.55)'); gradient.addColorStop(0.8, 'rgba(15,10,6,0.35)'); gradient.addColorStop(1, 'rgba(15,10,6,0)')
+  context.fillStyle = gradient; context.fillRect(0, 0, 128, 128)
+  return new MeshBasicMaterial({ map: new CanvasTexture(canvas), transparent: true, depthWrite: false })
+})()
 function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: number; sealed?: boolean; mist?: number }) {
-  const geometry = useMemo(() => jarGeometry(bottom - 0.05), [bottom])
+  const geometry = useMemo(() => jarGeometry(bottom - 0.35), [bottom])
   const lid = neckRadius + 0.16
   return <group>
+    {/* A thick glass base the jar stands on (image 12): a green-tinted slab whose edge catches the light. */}
+    <mesh position={[0, bottom - 0.2, 0]} raycast={noRaycast} renderOrder={2}>
+      <cylinderGeometry args={[wall - 0.04, wall - 0.12, 0.3, 96]} />
+      <meshPhysicalMaterial color="#cfe0d6" transparent opacity={0.38} roughness={0.08} metalness={0} clearcoat={1} clearcoatRoughness={0.05} depthWrite={false} />
+    </mesh>
+    {/* Contact shadow where the jar stands on the sill, so it sits rather than floats. */}
+    <mesh position={[0, bottom - 0.348, 0.15]} rotation={[-Math.PI / 2, 0, 0]} raycast={noRaycast} material={contactShadow}>
+      <circleGeometry args={[wall + 0.7, 64]} />
+    </mesh>
+    <mesh position={[0, bottom - 0.2, 0]} raycast={noRaycast} renderOrder={3} material={glassEdge}>
+      <cylinderGeometry args={[wall - 0.04, wall - 0.12, 0.3, 96, 1, true]} />
+    </mesh>
     <mesh geometry={geometry} raycast={noRaycast} renderOrder={2}>
       <meshStandardMaterial color="#ffffff" transparent opacity={0.045} roughness={0.02} metalness={0} envMapIntensity={0.8} depthWrite={false} />
     </mesh>
@@ -193,7 +214,7 @@ function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: n
 
 function Sill({ bottom = gravelBottom }: { bottom?: number }) {
   const oak = useScan('oak_veneer_01', sillRepeat, true)
-  return <mesh position={[0, bottom - 0.55, 1.5]} raycast={noRaycast}>
+  return <mesh position={[0, bottom - 0.85, 1.5]} raycast={noRaycast}>
     <boxGeometry args={[30, 1, 14]} />
     {/* Dark walnut, like the sill in concept image 12. */}
     <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color="#57412f" envMapIntensity={0.35} />
