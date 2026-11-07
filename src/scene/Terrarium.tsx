@@ -12,9 +12,7 @@ import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
 import { drawnAnimals, naturalLook, PaperAnimal, paperLook } from './PaperCritter'
 import { PondCrew3D } from './PondCrew3D'
-import { CutawayFace, cutawayBox } from './NestCutaway'
-import { cutUniform } from './LayeredGround'
-import { jarLevels } from './JarSetting'
+import { cutUniform, nestWindow } from './LayeredGround'
 import { Watercolor } from './watercolor'
 import { Polish, polishLook } from './Polish'
 
@@ -31,7 +29,7 @@ import { Daylight } from './Daylight'
 import { PondAtmosphere, PondControls } from './PondView'
 import { AntColonyScene } from './AntColony'
 import { NestControls } from './NestView'
-import { antPosition, seedMaterialAvailable } from '../sim/colony'
+import { antPosition, nestChamberRadius, seedMaterialAvailable } from '../sim/colony'
 import type { AntColony } from '../sim/colony'
 import type { Remains } from '../sim/life'
 import { AntRemainsScene } from './AntRemains'
@@ -884,12 +882,30 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
  * lifted onto the poured ground at the entrance; CutawayFace is the soil face with the nest's holes.
  */
 function NestSection({ colony, ...props }: { colony: AntColony; speed: number; events: SimulationEvent[]; selected: number | null; revision: number; remains: Remains[]; selectedBrood: number | null; onSelectBrood: (id: number) => void; onSelect: (id: number) => void; onColony: () => void; onChamber: (id: number) => void; onRemains: (id: number) => void; antCenters: Map<number, Vector3>; broodCenters: Map<number, Vector3> }) {
+  // Like a real ant farm, the nest is shown dug against the glass: the graph is moved straight out
+  // (about 1 cm, presentation only) until its outermost chamber meets the wall, and the soil wall
+  // opens where the tunnels and chambers lie behind it.
   const offset = groundShape.offset(colony.entrance.x, colony.entrance.z)
-  const ground = (x: number, z: number) => environmentScale.soilSurfaceY + groundShape.offset(x, z)
-  useFrame(() => { cutUniform.set(cutawayBox.xMin, cutawayBox.xMax, cutawayBox.zFace, cutawayBox.active ? 1 : 0) })
-  useEffect(() => () => { cutawayBox.active = false; cutUniform.w = 0 }, [])
-  return <group position={[0, offset, 0]}>
-    <CutawayFace colony={colony} ground={ground} floor={jarLevels.floor} gravelTop={jarLevels.gravelTop} offset={offset} />
+  const shift = useMemo(() => {
+    const cx = colony.nodes.reduce((sum, node) => sum + node.x, 0) / colony.nodes.length, cz = colony.nodes.reduce((sum, node) => sum + node.z, 0) / colony.nodes.length
+    const length = Math.hypot(cx, cz) || 1, dx = cx / length, dz = cz / length
+    const reach = Math.max(...colony.nodes.map((node) => node.x * dx + node.z * dz + nestChamberRadius(node) * 0.6))
+    const push = Math.max(0, 3.78 - reach)
+    return { x: dx * push, z: dz * push }
+  }, [colony.nodes])
+  useLayoutEffect(() => {
+    const radius = (node: { role: string }) => nestChamberRadius(node as never)
+    nestWindow.nodes.forEach((slot, i) => { const node = colony.nodes[i]; if (node) slot.set(node.x + shift.x, node.y + offset, node.z + shift.z, radius(node) * 0.9); else slot.set(0, -99, 0, 0) })
+    nestWindow.edgesA.forEach((slot, i) => {
+      const edge = colony.edges[i], other = nestWindow.edgesB[i]
+      if (!edge) { slot.set(0, -99, 0, 0); other.set(0, -99, 0, 0); return }
+      const a = colony.nodes.find((node) => node.id === edge[0])!, b = colony.nodes.find((node) => node.id === edge[1])!
+      slot.set(a.x + shift.x, a.y + offset, a.z + shift.z, 0.075); other.set(b.x + shift.x, b.y + offset, b.z + shift.z, 0)
+    })
+    cutUniform.w = 1
+    return () => { cutUniform.w = 0 }
+  }, [colony.nodes, colony.edges, shift, offset])
+  return <group position={[shift.x, offset, shift.z]}>
     <AntColonyScene colony={colony} underground chamber={null} selectedRemains={null} {...props} />
   </group>
 }

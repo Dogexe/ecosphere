@@ -228,6 +228,16 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
 const soilRef = new Color('#8a6244'), gravelRef = new Color('#d3cbbd')
 /** x min, x max, z of the cut face, active flag; filled each frame from cutawayBox. */
 export const cutUniform = new Vector4(0, 0, 0, 0)
+/**
+ * Natural look's ant-farm view (owner's reference, 2026-11-07): the nest's tunnels and chambers, as
+ * seen from the glass, open as windows in the soil wall so the nest behind shows through. World-space
+ * nodes (x, y, z, radius) and tunnel ends; radius 0 marks an unused slot.
+ */
+export const nestWindow = {
+  nodes: Array.from({ length: 12 }, () => new Vector4(0, -99, 0, 0)),
+  edgesA: Array.from({ length: 20 }, () => new Vector4(0, -99, 0, 0)),
+  edgesB: Array.from({ length: 20 }, () => new Vector4(0, -99, 0, 0)),
+}
 export function useLayerMaterials() {
   const set = useTextureSet({
     soil: `${polyHaven}farm_soil/farm_soil_diff_1k.jpg`, soilNormal: `${polyHaven}farm_soil/farm_soil_nor_gl_1k.jpg`,
@@ -242,14 +252,29 @@ export function useLayerMaterials() {
       material.onBeforeCompile = (shader) => {
         shader.uniforms.pebbleMap = { value: set.pebble }
         shader.uniforms.cutBox = { value: cutUniform }
+        shader.uniforms.nestNodes = { value: nestWindow.nodes }
+        shader.uniforms.nestA = { value: nestWindow.edgesA }
+        shader.uniforms.nestB = { value: nestWindow.edgesB }
         shader.uniforms.gritMap = { value: set.grit }
         shader.uniforms.soilRef = { value: soilRef }
         shader.uniforms.gravelRef = { value: gravelRef }
         shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nattribute float flatness;\nvarying float vPebble;\nvarying float vFlat;\nvarying vec3 vCutWorld;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;\nvFlat = flatness;\nvCutWorld = (modelMatrix * vec4(position, 1.0)).xyz;')
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nuniform vec4 cutBox;\nvarying vec3 vCutWorld;\nvarying float vPebble;\nvarying float vFlat;')
+          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nuniform vec4 cutBox;\nuniform vec4 nestNodes[12];\nuniform vec4 nestA[20];\nuniform vec4 nestB[20];\nvarying vec3 vCutWorld;\nvarying float vPebble;\nvarying float vFlat;')
           // Natural look's nest cutaway: no soil in front of the cut face.
-          .replace('void main() {', 'void main() {\n  if (cutBox.w > 0.5 && vCutWorld.x > cutBox.x && vCutWorld.x < cutBox.y && vCutWorld.z > cutBox.z) discard;')
+          .replace('void main() {', `void main() {
+  ${pebbleScale < 0.2 ? `
+  // Nest windows (walls only): measure in the glass's own unrolled coordinates (arc length, height).
+  if (cutBox.w > 0.5) {
+    float angle = atan(vCutWorld.z, vCutWorld.x), radius = length(vCutWorld.xz);
+    float field = 1e3;
+    for (int i = 0; i < 12; i++) { vec4 n = nestNodes[i]; if (n.w <= 0.0) continue; float da = atan(sin(angle - atan(n.z, n.x)), cos(angle - atan(n.z, n.x))); field = min(field, length(vec2(da * radius / 1.12, vCutWorld.y - n.y)) - n.w); }
+    for (int i = 0; i < 20; i++) { vec4 a = nestA[i]; if (a.w <= 0.0) continue; vec4 b = nestB[i];
+      vec2 pa = vec2(atan(sin(angle - atan(a.z, a.x)), cos(angle - atan(a.z, a.x))) * radius, vCutWorld.y - a.y);
+      vec2 ab = vec2(atan(sin(atan(b.z, b.x) - atan(a.z, a.x)), cos(atan(b.z, b.x) - atan(a.z, a.x))) * radius, b.y - a.y);
+      float t = clamp(dot(pa, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0); field = min(field, length(pa - ab * t) - a.w); }
+    if (field < 0.0) discard;
+  }` : ''}`)
           // On steep banks the top-down UVs stretch the scan's bumps into streaks; keep the plain normal there.
           .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(nonPerturbedNormal, normal, vFlat));')
           .replace('#include <map_fragment>', `
