@@ -13,8 +13,7 @@ import type { PondShape } from '../sim/pondShape'
 import type { Pond } from '../sim/pond'
 import { ShapedPond } from './PondWater'
 import { GlassDroplets } from './GlassDroplets'
-import { DrawnCurledLeaf } from './DrawnPlant'
-import { MossCushions3D } from './Moss3D'
+import { DrawnCurledLeaf, DrawnMossCushion } from './DrawnPlant'
 import { LayeredGround, smoothGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
@@ -251,7 +250,8 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {dry(-2.55, -1.9) && <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />}
     {dry(0.6, 3.05) && <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />}
     {/* Drawn moss cushions (image 12, Codex image_gen 2026-11-07) replace the sprig scatter Codex flagged every round. */}
-    <MossCushions3D cushions={cushionSet} />
+    {/* Moss cushions made the woodlouse's way: the painted cushion wrapped on a 3D dome from its outline. */}
+    {cushionSet.map((cushion, index) => <group key={index} position={[cushion.x, cushion.y - 0.05, cushion.z]} scale={[1, cushion.height / (cushion.radius * 0.95) * 0.9, 1]}><DrawnMossCushion width={cushion.radius * 2.3} variant={index} turn={(index % 3 - 1) * 0.25} /></group>)}
     <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={150} ground={ground} spots={shore ?? bank} scale={0.9} />
     {dry(-2.6, 1.9) && <Fern x={-2.6} z={1.9} ground={ground} />}
     {/* Drawn curled dry leaves on the front bank, the shelter a woodlouse uses in concept image 12. */}

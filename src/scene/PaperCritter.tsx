@@ -21,10 +21,11 @@ export const paperLook = (() => {
   try { return new URLSearchParams(window.location.search).get('look') === 'paper' } catch { return false }
 })()
 /**
- * Animals in the paper look are 3D models by default (owner, 2026-11-07: "make the animals 3D");
- * the watercolor pass paints them like the drawn plants. `?animals=drawn` brings back the paper sheets.
+ * Animals in the paper look are "paper 3D" (owner, 2026-11-07: follow the woodlouse's method:
+ * the GPT painting wrapped onto a rounded body, legs and feelers standing out). `?animals=3d`
+ * shows the older imported 3D models and procedural pond crew instead, for comparison.
  */
-export const drawnAnimals = paperLook && (() => { try { return new URLSearchParams(window.location.search).get('animals') === 'drawn' } catch { return false } })()
+export const drawnAnimals = paperLook && (() => { try { return new URLSearchParams(window.location.search).get('animals') !== '3d' } catch { return true } })()
 // The semi-real jar draws every animal at its real adult size.
 animalScaleMode.real = paperLook
 
@@ -142,7 +143,7 @@ const shade = { far: '#8a8a80', near: '#ffffff' }
  * camera looks down so it never goes edge-on. `turn: false` is the old full
  * billboard (lab ?style=old, for comparison).
  */
-export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55, solid: new Set<string>(['woodlouse']) }
+export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55, solid: new Set<string>(['woodlouse', 'tiger-beetle', 'caterpillar', 'springtail', 'water-flea', 'shrimp', 'snail']) }
 
 /**
  * "Paper 3D" (paperStyle.solid): the painted body is wrapped onto a rounded
@@ -158,7 +159,8 @@ try {
 } catch { /* no window in tests */ }
 /** Radians a sheet may stay turned away from the lens: less for paintings that read badly edge-on (a ramshorn shell is a thin disc). */
 const turnLimit: Record<string, number> = { snail: 0.3, shrimp: 0.6 }
-const solidHalfWidth: Record<string, number> = { woodlouse: 0.25, 'tiger-beetle': 0.17, caterpillar: 0.07, springtail: 0.1 }
+// Owner, 2026-11-07: every animal uses this written method (painting wrapped on a 3D body), like the woodlouse.
+const solidHalfWidth: Record<string, number> = { woodlouse: 0.25, 'tiger-beetle': 0.17, caterpillar: 0.07, springtail: 0.1, 'water-flea': 0.16, shrimp: 0.09, snail: 0.12 }
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))
 

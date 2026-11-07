@@ -2,10 +2,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
-import { InstancedMesh, Object3D, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Matrix4, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
+import { CanvasTexture, InstancedMesh, Object3D, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Matrix4, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
 import type { Group, Material, Texture } from 'three'
 import { Quaternion } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { shellGeometry } from './paperShell'
 import type { PlantKind } from '../sim/ecosystem'
 import { plantDimensions } from './scale'
 import { sprigTexture } from './semiReal'
@@ -481,10 +482,22 @@ const cushionFiles = [1, 2, 3, 4, 5, 6].map((n) => url('moss-cushion', `cushion-
 export function DrawnMossCushion({ width, variant = 0, turn = 0 }: { width: number; variant?: number; turn?: number }) {
   const textures = useTexture(cushionFiles) as Texture[]
   const meshes = useMemo(() => {
-    const texture = prepare(textures[variant % textures.length])
+    // The woodlouse's written method (paperShell.ts): the painting's own outline gives the cushion's
+    // height along its width, each cross-section is a rounded dome, and the painting is projected on it.
+    const source = textures[variant % textures.length].image as HTMLImageElement
+    const canvas = document.createElement('canvas')
+    canvas.width = source.width; canvas.height = source.height
+    canvas.getContext('2d', { willReadFrequently: true })!.drawImage(source, 0, 0)
+    const texture = new CanvasTexture(canvas)
+    texture.colorSpace = SRGBColorSpace; texture.anisotropy = 4
     const height = width / aspect(texture)
-    const pieces: Piece[] = [{ geometry: puffed(texture, height, width * 0.3, 0.05), texture, bend: false }]
-    return merge(pieces).map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, 1, piece.bend) }))
+    const shell = shellGeometry(texture, width, 0.36)
+    const geometry = shell.geometry.toNonIndexed()
+    geometry.scale(width, height, 1)
+    geometry.computeBoundingBox()
+    geometry.translate(0, -geometry.boundingBox!.min.y, 0)
+    shell.geometry.dispose()
+    return [{ geometry: soften(geometry, 0.3), material: paperMaterial(texture, 1, false) }]
   }, [textures, width, variant])
   useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
   return <group rotation={[0, turn, 0]}>{meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} receiveShadow raycast={() => undefined} />)}</group>
