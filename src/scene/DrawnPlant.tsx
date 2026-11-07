@@ -7,6 +7,7 @@ import type { Group, Material, Texture } from 'three'
 import { Quaternion } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { shellGeometry } from './paperShell'
+import { naturalLook } from './PaperCritter'
 import type { PlantKind } from '../sim/ecosystem'
 import { plantDimensions } from './scale'
 import { sprigTexture } from './semiReal'
@@ -72,12 +73,13 @@ function paperMaterial(map: Texture | null, health: number, bend: boolean) {
   if (material) return material
   const standard = new MeshStandardMaterial({ map, alphaTest: map ? 0.5 : 0, side: DoubleSide, roughness: 0.9, metalness: 0, color: map ? '#ffffff' : stemGreen })
   standard.color.lerp(dry, (1 - healthStep(health)) * 0.7)
-  ;(standard as unknown as { defines: Record<string, string> }).defines = { SEMI_REAL: '' }
+  // The natural look (2026-11-07) keeps the painted leaves as thin 3D leaves but drops the ink outline.
+  ;(standard as unknown as { defines: Record<string, string> }).defines = naturalLook ? { SEMI_REAL: '', NATURAL: '' } : { SEMI_REAL: '' }
   standard.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader
       .replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;')
       .replace('#include <map_fragment>', `#include <map_fragment>
-        #ifdef USE_MAP
+        #if defined(USE_MAP) && !defined(NATURAL)
         {
           // Ink line round the drawing (concept art, 2026-11-06): where a nearby texel is
           // outside the cut-out, darken to ink. The width wobbles along the edge like a pen line.

@@ -92,3 +92,8 @@ https://creativecommons.org/licenses/by/4.0/
 Changes for ECOSPHERE: mesh decimation, reduced skeleton and transferred weights,
 muted untextured materials, body-anchored source appendage animation and static idle.
 Source author does not endorse ECOSPHERE. Source gait reused as a simplified feeding cue.
+
+Natural look (2026-11-07):
+- "Clover" by Quaternius, CC0, via Poly Pizza (https://poly.pizza/m/u5SOgBFiut).
+- "Mushroom" by jeremy, CC BY 3.0, via Poly Pizza (https://poly.pizza/m/2DAaKHD48ZP).
+- "Log with Fungus" by sirkitree, CC BY 3.0, via Poly Pizza (https://poly.pizza/m/32czhZtc7oY).

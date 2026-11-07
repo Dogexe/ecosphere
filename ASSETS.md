@@ -127,3 +127,11 @@ Mushrooms (Mycena-like bonnets), floating pads (frogbit-like, lily kind), hairgr
 ## 3D pond crew and moss (2026-11-07)
 
 Owner asked for bushy things and animals in 3D. Paper-look animals now use the existing 3D organism GLBs (woodlouse, springtail, tiger beetle, leaf grazer, daphnia); `?animals=drawn` restores the paper sheets. No CC0/CC-BY ramshorn snail or cherry shrimp model was found (web/CGTrader search 2026-11-07: paid or unlicensed only), so `src/scene/PondCrew3D.tsx` builds both procedurally from their anatomy (planispiral shell, foot, tentacles; carapace, six abdominal segments, five-blade tail fan, antennae, five leg pairs). Moss cushions (`src/scene/Moss3D.tsx`) and grass tufts are procedural 3D geometry; the drawn cushion art stays in the repo but is no longer placed in the default jar.
+
+## Natural look assets (2026-11-07)
+
+Owner's new direction (Stylized 3D Naturalism / Soft Organic Low-poly). From Poly Pizza, unmodified GLBs in `public/assets/organisms/` (sources and credits in `artifacts/natural-assets/CREDITS.md`):
+- `natural-clover.glb`: "Clover" by Quaternius, CC0 (https://poly.pizza/m/u5SOgBFiut).
+- `natural-mushroom.glb`: "Mushroom" by jeremy, CC BY 3.0 (https://poly.pizza/m/2DAaKHD48ZP). Credit required.
+- `natural-hollow-log.glb`: "Log with Fungus" by sirkitree, CC BY 3.0 (https://poly.pizza/m/32czhZtc7oY). Credit required; decor only, not a sim object.
+The broadleaf (Fittonia), violets and fern reuse the painted leaves as thin 3D leaves without ink outlines; moss is procedural instanced 3D.

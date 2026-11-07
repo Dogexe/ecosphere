@@ -10,7 +10,7 @@ import { Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, MathUtils, O
 import { Vector3 } from 'three'
 import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
-import { drawnAnimals, PaperAnimal, paperLook } from './PaperCritter'
+import { drawnAnimals, naturalLook, PaperAnimal, paperLook } from './PaperCritter'
 import { PondCrew3D } from './PondCrew3D'
 import { Watercolor } from './watercolor'
 import { Polish, polishLook } from './Polish'
@@ -241,7 +241,10 @@ function FungalPatch({ patch }: { patch: SoilPatch }) {
       // Mushrooms fruit on damp ground, never under the pond's water.
       if (groundShape.poured && isPondPosition(patch.x + x, patch.z + z)) return null
       return <group key={index} position={[x, groundShape.offset(patch.x + x, patch.z + z), z]}>
-        {drawnLook
+        {naturalLook
+          // Natural look: the low-poly Kenney mushroom with a warm orange cap, as in the owner's reference.
+          ? <OrganismAsset file="natural-mushroom" shape={{ length: (0.45 + (index * 37 % 5) * 0.1) * grown, base: 0, measure: 'max' }} health={1} fallback={null} />
+          : drawnLook
           ? <Suspense fallback={null}><DrawnMushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} /></Suspense>
           : <Mushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} cap={(0.2 + (index * 23 % 4) * 0.05) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} />}
       </group>

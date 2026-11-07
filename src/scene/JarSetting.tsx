@@ -16,6 +16,7 @@ import { GlassDroplets } from './GlassDroplets'
 import { DrawnCurledLeaf, DrawnMossCushion } from './DrawnPlant'
 import { MossCushions3D } from './Moss3D'
 import { naturalLook } from './PaperCritter'
+import { OrganismAsset } from './OrganismAsset'
 import { LayeredGround, smoothGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
@@ -261,7 +262,10 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {!naturalLook && dry(2.1, 2.25) && <group position={[2.1, ground(2.1, 2.25) - 0.03, 2.25]}><DrawnCurledLeaf length={2.0} turn={-0.25} /></group>}
     {!naturalLook && dry(1.7, -0.2) && <group position={[1.7, ground(1.7, -0.2) - 0.03, -0.2]}><DrawnCurledLeaf length={1.0} turn={0.4} /></group>}
     {dry(-1.2, -2.6) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />}
-    {dry(1.25, 0.35) && <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={ground} />}
+    {naturalLook
+      // A low-poly hollow log with fungus (sirkitree, CC BY 3.0, via Poly Pizza) lying among the plants, as in the owner's reference.
+      ? dry(-0.9, -0.55) && <group position={[-0.9, ground(-0.9, -0.55) - 0.08, -0.55]} rotation={[0, 0.35, 0]}><OrganismAsset file="natural-hollow-log" shape={{ length: 3.2, base: 0 }} health={1} fallback={null} /></group>
+      : dry(1.25, 0.35) && <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={ground} />}
   </>
 }
 
