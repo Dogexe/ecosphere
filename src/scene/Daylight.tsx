@@ -18,7 +18,7 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
   const key = useRef<DirectionalLight>(null)
   const sky = environmentAt(lightingWorld(world))
   // Warm sun against cool sky fill, the contrast that makes big-budget daylight read (2026-11-07).
-  const sun = new Color('#ffe8c2').lerp(new Color('#fff1d6'), world.light)
+  const sun = new Color('#fff0dc').lerp(new Color('#fbf6ec'), world.light)
   const night = sky.phase === 'night'
   const tint = !sky.cycling ? sun : new Color(night ? '#a5bbdf' : '#ff9d58').lerp(sun, MathUtils.smoothstep(sky.solar, 0.1, 0.6))
   // In the room the key light comes in through the window, so its source is in view.
@@ -28,7 +28,7 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
     : new Vector3(4, 7, -4)
   const brightness = sky.cycling ? sky.solar : 1
   // In the room the fill drops further so the window behind the jar is the light you notice (concept image 12).
-  const fill = room ? 0.45 : dramatic ? 0.3 : 1, keyBoost = room ? 1.6 : dramatic ? 1.35 : 1
+  const fill = room ? 0.6 : dramatic ? 0.3 : 1, keyBoost = room ? 1.15 : dramatic ? 1.35 : 1
   useFrame((_, delta) => {
     const blend = 1 - Math.exp(-delta * 5)
     if (ambient.current) ambient.current.intensity = MathUtils.lerp(ambient.current.intensity, (sky.cycling ? 0.55 + brightness * 0.7 : 1.25) * fill, blend)
