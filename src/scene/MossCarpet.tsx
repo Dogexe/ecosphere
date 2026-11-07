@@ -25,7 +25,7 @@ const common = /* glsl */ `
     return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
   float cover(vec3 world, vec3 n) {
     float patchMask = noise(world.xz * 0.8) * 0.7 + noise(world.xz * 2.1) * 0.3;
-    float c = smoothstep(0.2, 0.52, patchMask);   // gentle cushion edges, no cliffs
+    float c = smoothstep(0.36, 0.6, patchMask);   // gentle cushion edges, no cliffs
     c *= smoothstep(waterY, waterY + 0.12, world.y);          // none under or just above the water
     c *= smoothstep(0.7, 0.86, n.y);                           // none on steep banks
     c *= 1.0 - smoothstep(3.68, 3.8, length(world.xz));        // runs to the glass
@@ -34,7 +34,7 @@ const common = /* glsl */ `
   float thickness(vec3 world, vec3 n) {
     // Clumps about 5-10 mm across, rounded on top, with deep gaps between them.
     float lumps = noise(world.xz * 3.0) * 0.4 + smoothstep(0.25, 0.75, noise(world.xz * 9.0)) * 0.6;
-    return cover(world, n) * (0.05 + 0.24 * lumps);
+    return cover(world, n) * (0.06 + 0.32 * lumps);
   }
 `
 
@@ -45,7 +45,7 @@ function material(fur: number) {
       waterY: { value: environmentScale.pondSurfaceY + 0.02 },
       fur: { value: fur },
       shade: { value: new Color('#24440f') },
-      lit: { value: new Color('#a9d64a') },
+      lit: { value: new Color('#93bf34') },
     },
     vertexShader: `
       uniform float fur;
@@ -94,7 +94,7 @@ const smooth = (a: number, b: number, v: number) => { const t = Math.min(1, Math
 /** The mound thickness the shader computes, for seating moss sprigs on the crowns. */
 export const blanketLift = (x: number, y: number, z: number, ny: number) => {
   const lumps = mossNoise(x * 3, z * 3) * 0.4 + smooth(0.25, 0.75, mossNoise(x * 9, z * 9)) * 0.6
-  return mossCover(x, y, z, ny) * (0.05 + 0.24 * lumps)
+  return mossCover(x, y, z, ny) * (0.06 + 0.32 * lumps)
 }
 
 export function MossCarpet({ geometry, floor }: { geometry: BufferGeometry; floor: number }) {

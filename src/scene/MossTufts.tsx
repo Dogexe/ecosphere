@@ -26,7 +26,7 @@ export const mossNoise = (x: number, y: number) => {
 export function mossCover(x: number, y: number, z: number, ny: number) {
   const patchMask = mossNoise(x * 0.8, z * 0.8) * 0.7 + mossNoise(x * 2.1, z * 2.1) * 0.3
   const smooth = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t) }
-  return smooth(0.2, 0.52, patchMask) * smooth(environmentScale.pondSurfaceY + 0.02, environmentScale.pondSurfaceY + 0.14, y) * smooth(0.7, 0.86, ny) * (1 - smooth(3.68, 3.8, Math.hypot(x, z)))
+  return smooth(0.36, 0.6, patchMask) * smooth(environmentScale.pondSurfaceY + 0.02, environmentScale.pondSurfaceY + 0.14, y) * smooth(0.7, 0.86, ny) * (1 - smooth(3.68, 3.8, Math.hypot(x, z)))
 }
 
 /**
@@ -43,9 +43,10 @@ function tuftGeometry() {
     for (let k = 0; k < 3; k += 1) colours.push(c.r, c.g, c.b)
   }
   // A sprig in its own plane (x across, y along), arched: it rises then curls outward and down.
-  const along = (t: number) => new Vector3(0, Math.sin(t * 1.9) * 0.62, t * 0.75)
-  for (let sprig = 0; sprig < 4; sprig += 1) {
-    const yaw = sprig / 4 * Math.PI * 2 + 0.3, rotate = (v: Vector3) => v.applyAxisAngle(new Vector3(0, 1, 0), yaw)
+  const along = (t: number) => new Vector3(0, Math.sin(t * 2.1) * 0.45, t * 0.85)
+  // A starburst: six sprigs radiating outward (Codex moss loop: readable starburst tufts).
+  for (let sprig = 0; sprig < 6; sprig += 1) {
+    const yaw = sprig / 6 * Math.PI * 2 + 0.3, rotate = (v: Vector3) => v.applyAxisAngle(new Vector3(0, 1, 0), yaw)
     for (let k = 0; k < 4; k += 1) {
       const t0 = k / 4, t1 = (k + 1) / 4, p0 = along(t0), p1 = along(t1)
       // Stem segment (a thin sliver).
@@ -90,7 +91,7 @@ export function MossTufts({ surface, floor, lift, crownsOnly = false }: { surfac
         const cover = mossCover(jx, y + floor, jz, ny)
         if (cover < 0.2) continue
         // On the fur mounds only the crowns carry sprigs, so the mounds keep their soft rounded outline.
-        if (crownsOnly && (lift(jx, y + floor, jz, ny) < 0.12 || hash(v, 23 + k) > 0.6)) continue
+        if (crownsOnly && (lift(jx, y + floor, jz, ny) < 0.08 || hash(v, 23 + k) > 0.85)) continue
         dummy.position.set(jx, y + lift(jx, y + floor, jz, ny) - 0.015, jz)
         dummy.rotation.set((hash(v, 11 + k) - 0.5) * 0.4, hash(v, 13 + k) * Math.PI * 2, (hash(v, 17 + k) - 0.5) * 0.4)
         const s = (0.15 + hash(v, 19 + k) * 0.08) * (0.75 + cover * 0.25)
