@@ -143,7 +143,7 @@ const shade = { far: '#8a8a80', near: '#ffffff' }
  * camera looks down so it never goes edge-on. `turn: false` is the old full
  * billboard (lab ?style=old, for comparison).
  */
-export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55, solid: new Set<string>(['woodlouse', 'tiger-beetle', 'caterpillar', 'springtail', 'water-flea', 'shrimp', 'snail']) }
+export const paperStyle = { turn: true, maxTurn: 0.9, lean: 0.55, solid: new Set<string>(['woodlouse', 'tiger-beetle', 'caterpillar', 'springtail', 'water-flea']) }
 
 /**
  * "Paper 3D" (paperStyle.solid): the painted body is wrapped onto a rounded
@@ -159,7 +159,9 @@ try {
 } catch { /* no window in tests */ }
 /** Radians a sheet may stay turned away from the lens: less for paintings that read badly edge-on (a ramshorn shell is a thin disc). */
 const turnLimit: Record<string, number> = { snail: 0.3, shrimp: 0.6 }
-// Owner, 2026-11-07: every animal uses this written method (painting wrapped on a 3D body), like the woodlouse.
+// Owner, 2026-11-07: land animals and the water flea use this written method, like the woodlouse. The ramshorn
+// (a thin coiled disc) and the shrimp (legs fanning out head-on) read worse wrapped, so they stay sheets that
+// turn only as far as needed to show their side (turnLimit).
 const solidHalfWidth: Record<string, number> = { woodlouse: 0.25, 'tiger-beetle': 0.17, caterpillar: 0.07, springtail: 0.1, 'water-flea': 0.16, shrimp: 0.09, snail: 0.12 }
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))
@@ -308,7 +310,7 @@ export function PaperAnimal({ animal, base, heading, moving, speed, health, juve
     const list = placements(rig).map(({ part, pivot, offset, order }, index) => {
       const drawn = sheets.get(part.file)!
       const key = `${part.file}:${part.side}`
-      if (!materials.has(key)) materials.set(key, paperMaterial(drawn.texture, `#${new Color(part.motion === 'leg' && !solid ? shade[part.side] : '#ffffff').multiply(tint).getHexString()}`))
+      if (!materials.has(key)) materials.set(key, paperMaterial(drawn.texture, `#${new Color(part.motion === 'leg' ? shade[part.side] : '#ffffff').multiply(tint).getHexString()}`))
       const [x, y] = toLocal(rig, pivot, base)
       // Centre of the drawn pixels relative to this copy's pivot, in units.
       const centreX = (drawn.left + drawn.width / 2 + offset[0] - pivot[0]) * scale
