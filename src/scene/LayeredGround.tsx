@@ -260,7 +260,16 @@ export function useLayerMaterials() {
             float bit = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
             vec2 inCell = fract(vMapUv * 90.0) - 0.5;
             float speck = step(0.965, bit) * (1.0 - smoothstep(0.18, 0.32, length(inCell)));
-            soil = mix(soil, vec3(0.78, 0.75, 0.68), speck * 0.85);
+            soil = mix(soil, vec3(0.78, 0.75, 0.68), speck * ${pebbleScale < 0.2 ? '0.45' : '0.85'});
+            ${pebbleScale < 0.2 ? `
+            // Against the glass (image 12 round 7): soil pressed to the glass is clumpy, not a cut face.
+            // Large dark and light clods, and fine pale roots wandering down through it.
+            vec2 clodUv = vMapUv * vec2(3.0, 7.0);
+            float clod = sin(clodUv.x * 2.1 + sin(clodUv.y * 1.7)) * sin(clodUv.y * 2.6 + clodUv.x * 0.9);
+            soil *= 0.72 + 0.45 * smoothstep(-0.6, 0.8, clod);
+            float rootLine = abs(fract(vMapUv.x * 1.4 + 0.012 * sin(vMapUv.y * 47.0) + 0.03 * sin(vMapUv.y * 7.0 + vMapUv.x * 9.0)) - 0.5);
+            float root = (1.0 - smoothstep(0.002, 0.006, rootLine)) * step(0.55, fract(sin(floor(vMapUv.x * 1.4) * 17.3) * 431.7)) * smoothstep(0.2, 0.7, sin(vMapUv.y * 5.0 + vMapUv.x * 3.0));
+            soil = mix(soil, vec3(0.5, 0.4, 0.29), root * 0.5);` : ''}
             vec3 grit = gritScan * 0.7;
             vec3 gravel = pebbleScan * clamp(vColor.rgb / gravelRef, 0.0, 1.4) * 1.35;
             diffuseColor.rgb *= mix(mix(soil, grit, charcoal), gravel, vPebble);`)
