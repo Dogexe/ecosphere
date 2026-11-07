@@ -19,7 +19,7 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
   const key = useRef<DirectionalLight>(null)
   const sky = environmentAt(lightingWorld(world))
   // Warm sun against cool sky fill, the contrast that makes big-budget daylight read (2026-11-07).
-  const sun = new Color('#fff0dc').lerp(new Color('#fbf6ec'), world.light)
+  const sun = naturalLook ? new Color('#ffd9a8').lerp(new Color('#ffe6c2'), world.light) : new Color('#fff0dc').lerp(new Color('#fbf6ec'), world.light)
   const night = sky.phase === 'night'
   const tint = !sky.cycling ? sun : new Color(night ? '#a5bbdf' : '#ff9d58').lerp(sun, MathUtils.smoothstep(sky.solar, 0.1, 0.6))
   // In the room the key light comes in through the window, so its source is in view.

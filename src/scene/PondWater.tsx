@@ -6,6 +6,7 @@ import type { Pond } from '../sim/pond'
 import { pondCenter } from '../sim/pond'
 import { environmentScale } from './scale'
 import { paintify, polyHaven, useTextureSet } from './semiReal'
+import { naturalLook } from './PaperCritter'
 
 /*
  * The pond: a 6 cm bowl about 2 cm deep with a shallow shelf at the edge.
@@ -45,7 +46,8 @@ export function waterLook(pond: Pond) {
   const green = Math.min(1, pond.algae / 12)
   const brown = Math.min(0.7, pond.organic / 30)
   const stale = Math.max(0, Math.min(1, 0.6 - pond.oxygen / Math.max(1, pond.water)))
-  const tint = new Color('#3d6b62').lerp(new Color('#5f8a33'), green).lerp(new Color('#7a5a2c'), brown).lerp(new Color('#7c8378'), stale * 0.5)
+  // Natural look: clear teal water like the owner's reference; paper look keeps the deeper pond green.
+  const tint = new Color(naturalLook ? '#3f9a96' : '#3d6b62').lerp(new Color('#5f8a33'), green).lerp(new Color('#7a5a2c'), brown).lerp(new Color('#7c8378'), stale * 0.5)
   const cloud = Math.min(1, green * 0.75 + brown * 0.5 + stale * 0.4)
   return { tint, cloud, level: surface - Math.max(0, (60 - pond.water) / 60) * deep * 0.8 }
 }
