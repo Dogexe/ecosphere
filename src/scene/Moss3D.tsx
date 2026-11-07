@@ -1,7 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { BufferAttribute, Color, ConeGeometry, CylinderGeometry, InstancedMesh, MeshStandardMaterial, Object3D, SphereGeometry } from 'three'
+import { BufferAttribute, Color, InstancedMesh, MeshStandardMaterial, Object3D, IcosahedronGeometry, SphereGeometry } from 'three'
 import type { BufferGeometry } from 'three'
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 /*
  * 3D moss cushions (owner, 2026-11-07: "anything bushy should be 3D"). Like real cushion moss
@@ -13,21 +12,21 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 
 export type Cushion = { x: number; y: number; z: number; radius: number; height: number }
 
+/**
+ * One moss puff: a soft rounded lump (owner's reference, 2026-11-07, and Codex: "rounded, overlapping
+ * masses, restrained detail"). Many overlapping puffs make a cushion with a bumpy, clean silhouette.
+ * Darker underneath, lighter yellow-green on top, so the toon light reads as soft bands.
+ */
 function shootGeometry() {
-  const parts: BufferGeometry[] = []
-  parts.push(new CylinderGeometry(0.012, 0.016, 0.6, 4, 1, true).translate(0, 0.3, 0))
-  // A star of six narrow leaves at the top, tilted out and up, and a smaller ring below.
-  for (const [ring, y, tilt, length] of [[5, 0.6, 0.9, 0.32], [4, 0.42, 1.15, 0.26]] as const) {
-    for (let k = 0; k < ring; k += 1) {
-      const leaf = new ConeGeometry(0.035, length, 3, 1).translate(0, length / 2, 0).rotateZ(-tilt).rotateY(k / ring * Math.PI * 2 + y * 3).translate(0, y, 0)
-      parts.push(leaf)
-    }
-  }
-  const geometry = mergeGeometries(parts.map((part) => part.toNonIndexed()))!
-  // Colour by height: deep olive at the base, bright yellow-green at the tips.
+  const geometry = new IcosahedronGeometry(0.5, 2).translate(0, 0.35, 0)
   const position = geometry.getAttribute('position'), colours = new Float32Array(position.count * 3)
-  const base = new Color('#3c5a1c'), tip = new Color('#a9cf4a'), c = new Color()
-  for (let v = 0; v < position.count; v += 1) { c.copy(base).lerp(tip, Math.min(1, Math.max(0, position.getY(v) / 0.85)) ** 1.4); colours.set([c.r, c.g, c.b], v * 3) }
+  const base = new Color('#4d7322'), tip = new Color('#9cc244'), c = new Color()
+  for (let v = 0; v < position.count; v += 1) {
+    // A little lumpiness so neighbouring puffs never look identical.
+    const x = position.getX(v), y = position.getY(v), z = position.getZ(v), bump = 1 + 0.08 * Math.sin(x * 9 + z * 7) * Math.sin(y * 8)
+    position.setXYZ(v, x * bump, 0.35 + (y - 0.35) * bump, z * bump)
+    c.copy(base).lerp(tip, Math.min(1, Math.max(0, (y - 0.05) / 0.75))); colours.set([c.r, c.g, c.b], v * 3)
+  }
   geometry.setAttribute('color', new BufferAttribute(colours, 3))
   geometry.deleteAttribute('uv')
   geometry.computeVertexNormals()
@@ -47,7 +46,7 @@ const hash = (n: number) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453
 /** All the jar's moss cushions as two draws: the shoots and the dark domes under them. */
 export function MossCushions3D({ cushions, shootSize = 0.42 }: { cushions: Cushion[]; shootSize?: number }) {
   const { shoot, dome, material, domeMaterial } = assets()
-  const perCushion = (cushion: Cushion) => Math.round(Math.min(140, 30 + cushion.radius * cushion.radius * 240))
+  const perCushion = (cushion: Cushion) => Math.round(Math.min(60, 12 + cushion.radius * cushion.radius * 90))
   const total = useMemo(() => cushions.reduce((sum, cushion) => sum + perCushion(cushion), 0), [cushions])
   const shoots = useRef<InstancedMesh>(null)
   const domes = useRef<InstancedMesh>(null)
