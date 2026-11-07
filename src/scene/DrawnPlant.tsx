@@ -194,24 +194,32 @@ function puffed(texture: Texture, height: number, depth: number, peak = 0.3) {
   return soften(mergeGeometries([sheet(1), sheet(-1)])!, 0.35)
 }
 
-const bladeBase = new Color('#3d5a1f'), bladeTip = new Color('#a9c45a')
-/** One grass blade: a narrow tapered ribbon that leaves the base at `lean` and arches over by `arch`. */
-function blade(length: number, width: number, yaw: number, lean: number, arch: number) {
-  const rows = 8
-  const geometry = new PlaneGeometry(width, length, 1, rows).translate(0, length / 2, 0)
-  const position = geometry.getAttribute('position'), colours = new Float32Array(position.count * 3), c = new Color()
-  for (let v = 0; v < position.count; v += 1) {
-    const t = position.getY(v) / length, angle = lean + arch * t * t
-    // March along the arc so the blade keeps its length as it bends.
-    const along = t * length, r = Math.sin(angle) * along * 0.9, y = Math.cos(angle * 0.7) * along
-    const half = position.getX(v) * (1 - t * 0.92)
-    position.setXYZ(v, half, y, r)
-    c.copy(bladeBase).lerp(bladeTip, t)
-    colours.set([c.r, c.g, c.b], v * 3)
+const wrappedTextures = new Map<string, CanvasTexture>()
+/**
+ * The woodlouse's written method (paperShell.ts) for any painting: its outline gives the body's
+ * height along its width, each cross-section is a rounded dome, and the painting is projected on
+ * it. Upright, base at the origin, `height` tall, facing +z. `depth` is the half-thickness as a
+ * share of the width.
+ */
+function wrapped(texture: Texture, height: number, depth: number) {
+  let canvasTexture = wrappedTextures.get(texture.uuid)
+  if (!canvasTexture) {
+    const source = texture.image as HTMLImageElement
+    const canvas = document.createElement('canvas')
+    canvas.width = source.width; canvas.height = source.height
+    canvas.getContext('2d', { willReadFrequently: true })!.drawImage(source, 0, 0)
+    canvasTexture = new CanvasTexture(canvas)
+    canvasTexture.colorSpace = SRGBColorSpace; canvasTexture.anisotropy = 4
+    wrappedTextures.set(texture.uuid, canvasTexture)
   }
-  geometry.setAttribute('color', new BufferAttribute(colours, 3))
-  geometry.rotateY(yaw)
-  return soften(geometry, 0.4)
+  const width = height * aspect(texture)
+  const shell = shellGeometry(canvasTexture, width, depth)
+  const geometry = shell.geometry.toNonIndexed()
+  shell.geometry.dispose()
+  geometry.scale(width, height, 1)
+  geometry.computeBoundingBox()
+  geometry.translate(0, -geometry.boundingBox!.min.y, 0)
+  return { geometry: soften(geometry, 0.3), texture: canvasTexture as Texture }
 }
 
 /** A card lying flat, centred on the origin, its painting's top pointing along -z. */
@@ -269,10 +277,12 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
 
   if (kind === 'grass' || kind === 'reed') {
     // Three crossed copies of the tuft; reeds add a few single stalks around it.
-    // A real 3D tuft (owner, 2026-11-07: bushy things in 3D): 9-13 narrow blades arching out
-    // from one base in every direction, deep green at the base to yellow-green at the tips.
-    const blades = 9 + Math.floor(rand() * 5)
-    for (let index = 0; index < blades; index += 1) pieces.push({ geometry: blade(height * (0.6 + rand() * 0.45), height * 0.05, turn + index * golden, 0.15 + rand() * 0.5, 0.4 + rand() * 0.9), texture: null, bend: true, colours: true })
+    // Paper 3D tuft, the woodlouse's method (owner, 2026-11-07): the painted tuft wrapped on a body
+    // shaped by its outline, facing the jar front, with a second, smaller one behind it.
+    const tuft = textures[rand() < 0.5 ? 'tuft-1' : 'tuft-2'], other = textures[tuft === textures['tuft-1'] ? 'tuft-2' : 'tuft-1']
+    const near = wrapped(tuft, height, 0.3), far = wrapped(other, height * 0.85, 0.3)
+    front(place(near.geometry, { yaw: (rand() - 0.5) * 0.5 }), near.texture, true)
+    front(place(far.geometry, { x: (rand() - 0.5) * spread * 0.5, z: -spread * 0.2, yaw: (rand() - 0.5) * 0.5 }), far.texture, true)
     if (kind === 'reed') for (let index = 0; index < 3; index += 1) {
       const texture = textures[`stalk-${index + 1}`], angle = turn + index * golden, reach = spread * 0.3
       front(place(puffed(texture, height * (1 + rand() * 0.15), height * 0.04, 0.4), { x: Math.cos(angle) * reach, z: Math.sin(angle) * reach, yaw: (rand() - 0.5) * 0.6 }), texture, true)
@@ -484,20 +494,9 @@ export function DrawnMossCushion({ width, variant = 0, turn = 0 }: { width: numb
   const meshes = useMemo(() => {
     // The woodlouse's written method (paperShell.ts): the painting's own outline gives the cushion's
     // height along its width, each cross-section is a rounded dome, and the painting is projected on it.
-    const source = textures[variant % textures.length].image as HTMLImageElement
-    const canvas = document.createElement('canvas')
-    canvas.width = source.width; canvas.height = source.height
-    canvas.getContext('2d', { willReadFrequently: true })!.drawImage(source, 0, 0)
-    const texture = new CanvasTexture(canvas)
-    texture.colorSpace = SRGBColorSpace; texture.anisotropy = 4
-    const height = width / aspect(texture)
-    const shell = shellGeometry(texture, width, 0.36)
-    const geometry = shell.geometry.toNonIndexed()
-    geometry.scale(width, height, 1)
-    geometry.computeBoundingBox()
-    geometry.translate(0, -geometry.boundingBox!.min.y, 0)
-    shell.geometry.dispose()
-    return [{ geometry: soften(geometry, 0.3), material: paperMaterial(texture, 1, false) }]
+    const source = textures[variant % textures.length]
+    const { geometry, texture } = wrapped(source, width / aspect(source), 0.36)
+    return [{ geometry, material: paperMaterial(texture, 1, false) }]
   }, [textures, width, variant])
   useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
   return <group rotation={[0, turn, 0]}>{meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} receiveShadow raycast={() => undefined} />)}</group>
