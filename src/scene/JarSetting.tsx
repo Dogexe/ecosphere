@@ -14,6 +14,8 @@ import type { Pond } from '../sim/pond'
 import { ShapedPond } from './PondWater'
 import { GlassDroplets } from './GlassDroplets'
 import { DrawnCurledLeaf, DrawnMossCushion } from './DrawnPlant'
+import { MossCushions3D } from './Moss3D'
+import { naturalLook } from './PaperCritter'
 import { LayeredGround, smoothGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
@@ -197,8 +199,8 @@ function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: n
       {/* A brushed tin screw cap with a ribbed skirt, like a canning jar. */}
       <mesh position={[0, 0.12, 0]} castShadow raycast={noRaycast}>
         <cylinderGeometry args={[lid, lid, 0.24, 96, 1, false]} />
-        {/* Warm bronze-tinted tin, like the cap in concept image 12. */}
-        <meshStandardMaterial color="#a88f6a" metalness={0.6} roughness={0.36} />
+        {/* Natural look: a turned wooden lid as in the owner's reference; paper look: bronze tin. */}
+        <meshStandardMaterial color={naturalLook ? '#b5773f' : '#a88f6a'} metalness={naturalLook ? 0 : 0.6} roughness={naturalLook ? 0.7 : 0.36} />
       </mesh>
       <mesh position={[0, 0.24, 0]} castShadow raycast={noRaycast}>
         <cylinderGeometry args={[lid - 0.06, lid, 0.06, 96]} />
@@ -217,7 +219,7 @@ function Sill({ bottom = gravelBottom }: { bottom?: number }) {
   return <mesh position={[0, bottom - 0.85, 1.5]} raycast={noRaycast}>
     <boxGeometry args={[30, 1, 14]} />
     {/* Dark walnut, like the sill in concept image 12. */}
-    <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color="#57412f" envMapIntensity={0.35} />
+    <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color={naturalLook ? '#a8693a' : '#57412f'} envMapIntensity={0.35} />
   </mesh>
 }
 
@@ -251,12 +253,13 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {dry(0.6, 3.05) && <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />}
     {/* Drawn moss cushions (image 12, Codex image_gen 2026-11-07) replace the sprig scatter Codex flagged every round. */}
     {/* Moss cushions made the woodlouse's way: the painted cushion wrapped on a 3D dome from its outline. */}
-    {cushionSet.map((cushion, index) => <group key={index} position={[cushion.x, cushion.y - 0.05, cushion.z]} scale={[1, cushion.height / (cushion.radius * 0.95) * 0.9, 1]}><DrawnMossCushion width={cushion.radius * 2.3} variant={index} turn={(index % 3 - 1) * 0.25} /></group>)}
+    {naturalLook && <MossCushions3D cushions={cushionSet} />}
+    {!naturalLook && cushionSet.map((cushion, index) => <group key={index} position={[cushion.x, cushion.y - 0.05, cushion.z]} scale={[1, cushion.height / (cushion.radius * 0.95) * 0.9, 1]}><DrawnMossCushion width={cushion.radius * 2.3} variant={index} turn={(index % 3 - 1) * 0.25} /></group>)}
     <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={150} ground={ground} spots={shore ?? bank} scale={0.9} />
     {dry(-2.6, 1.9) && <Fern x={-2.6} z={1.9} ground={ground} />}
     {/* Drawn curled dry leaves on the front bank, the shelter a woodlouse uses in concept image 12. */}
-    {dry(2.1, 2.25) && <group position={[2.1, ground(2.1, 2.25) - 0.03, 2.25]}><DrawnCurledLeaf length={2.0} turn={-0.25} /></group>}
-    {dry(1.7, -0.2) && <group position={[1.7, ground(1.7, -0.2) - 0.03, -0.2]}><DrawnCurledLeaf length={1.0} turn={0.4} /></group>}
+    {!naturalLook && dry(2.1, 2.25) && <group position={[2.1, ground(2.1, 2.25) - 0.03, 2.25]}><DrawnCurledLeaf length={2.0} turn={-0.25} /></group>}
+    {!naturalLook && dry(1.7, -0.2) && <group position={[1.7, ground(1.7, -0.2) - 0.03, -0.2]}><DrawnCurledLeaf length={1.0} turn={0.4} /></group>}
     {dry(-1.2, -2.6) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />}
     {dry(1.25, 0.35) && <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={ground} />}
   </>

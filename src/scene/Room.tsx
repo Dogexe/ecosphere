@@ -6,6 +6,7 @@ import type { World } from '../sim/ecosystem'
 import { environmentAt } from '../sim/climate'
 import { markRealistic } from './watercolor'
 import { environmentScale } from './scale'
+import { naturalLook } from './PaperCritter'
 
 /*
  * The room around the jar (owner, 2026-11-04): the light has a source you can see.
@@ -40,7 +41,7 @@ export function windowLight(solar: number, hour: number) {
  * (2026-11-07, owner: "beautiful light like Crimson Desert": a visible warm sun against cool sky
  * fill). Additive light-shaft cards and a GodRays pass were both tried and read as artefacts here.
  */
-const paneDay = new Color('#9a9a92'), paneGold = new Color('#d79a5e'), sunDay = new Color('#ffffff'), sunGold = new Color('#ffb36b')
+const paneDay = new Color(naturalLook ? '#d8d2b0' : '#9a9a92'), paneGold = new Color('#d79a5e'), sunDay = new Color('#ffffff'), sunGold = new Color('#ffb36b')
 const sunGlow = (() => {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = 128
@@ -93,7 +94,8 @@ function useViews() {
       }
       context.globalAlpha = 1
       context.filter = 'none'
-      // Rain on the pane: beads with a bright lower edge, and a few running trails.
+      // Rain on the pane (paper look only; the natural look is a sunny day like the owner's reference).
+      if (naturalLook) return
       for (let index = 0; index < 260; index += 1) {
         const x = rand() * 512, y = rand() * 400, r = 0.8 + rand() * rand() * 3.2
         context.fillStyle = 'rgba(40,52,40,0.28)'; context.beginPath(); context.arc(x, y, r, 0, Math.PI * 2); context.fill()
@@ -125,7 +127,7 @@ export function Room({ world }: { world: World }) {
   const walls = useRef<MeshStandardMaterial[]>([])
   const sky = environmentAt(lightingWorld(world))
   const solar = sky.cycling ? sky.solar : 1
-  const wallDay = useMemo(() => new Color('#6e6352'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
+  const wallDay = useMemo(() => new Color(naturalLook ? '#9c7a52' : '#6e6352'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
   const background = useMemo(() => new Color(), [])
   const fog = useMemo(() => new Fog('#2a2c35', 18, 48), [])
   const daylight = useRef(solar)

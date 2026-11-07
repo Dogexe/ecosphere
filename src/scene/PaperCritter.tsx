@@ -17,15 +17,21 @@ import type { Shell } from './paperShell'
  * lens, and its parts are animated in code. Visual only: nothing here
  * reads or changes the simulation.
  */
-export const paperLook = (() => {
-  try { return new URLSearchParams(window.location.search).get('look') === 'paper' } catch { return false }
-})()
+/**
+ * Looks (owner, 2026-11-07): the default is now `natural`, Stylized 3D Naturalism / Soft Organic
+ * Low-poly (ART_DIRECTION.md), built on the jar scene the paper look introduced (jar, room, poured
+ * layers, front camera). `?look=paper` keeps the earlier drawn look, `?look=classic` the floating tray.
+ */
+const lookParam = (() => { try { return new URLSearchParams(window.location.search).get('look') } catch { return 'classic' } })()
+export const naturalLook = lookParam !== 'paper' && lookParam !== 'classic'
+/** The jar scene (both the natural and the paper look). */
+export const paperLook = lookParam !== 'classic'
 /**
  * Animals in the paper look are "paper 3D" (owner, 2026-11-07: follow the woodlouse's method:
  * the GPT painting wrapped onto a rounded body, legs and feelers standing out). `?animals=3d`
  * shows the older imported 3D models and procedural pond crew instead, for comparison.
  */
-export const drawnAnimals = paperLook && (() => { try { return new URLSearchParams(window.location.search).get('animals') !== '3d' } catch { return true } })()
+export const drawnAnimals = paperLook && !naturalLook && (() => { try { return new URLSearchParams(window.location.search).get('animals') !== '3d' } catch { return true } })()
 // The semi-real jar draws every animal at its real adult size.
 animalScaleMode.real = paperLook
 

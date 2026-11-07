@@ -12,7 +12,7 @@ import type { PlantKind } from '../sim/ecosystem'
 import { hasScanPlant, ScanPlant } from './ScanPlant'
 import { DrawnPlant, drawnLook, hasDrawnPlant } from './DrawnPlant'
 import { FloatingRosette, HairgrassTuft } from './paperNature'
-import { paperLook } from './PaperCritter'
+import { naturalLook, paperLook } from './PaperCritter'
 
 const models = new Map<OrganismFile, Promise<GLTF | null>>()
 export const modelUnavailable = (name: string, retry: () => void) => <Html center><button className="asset-retry" type="button" onClick={(event) => { event.stopPropagation(); retry() }}>{name} model unavailable · Retry</button></Html>
@@ -72,8 +72,8 @@ export function OrganismAsset({ file, shape, fallback, moving, feeding = false, 
 }
 
 export function PlantAsset({ kind, health, flowering, fallback, seed = 0 }: { kind: PlantKind; health: number; flowering: boolean; fallback: ReactNode; seed?: number }) {
-  if (paperLook && drawnLook && hasDrawnPlant(kind)) return <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} flowering={flowering} /></Suspense>
-  if (paperLook && hasScanPlant(kind)) return <ScanPlant kind={kind} seed={seed} health={health} fallback={fallback} />
+  if (paperLook && !naturalLook && drawnLook && hasDrawnPlant(kind)) return <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} flowering={flowering} /></Suspense>
+  if (paperLook && !naturalLook && hasScanPlant(kind)) return <ScanPlant kind={kind} seed={seed} health={health} fallback={fallback} />
   if (paperLook && kind === 'lily') return <FloatingRosette health={health} seed={seed} />
   if (paperLook && kind === 'reed') return <HairgrassTuft health={health} seed={seed} height={plantDimensions.reed.height} spread={plantDimensions.reed.spread} />
   if (kind !== 'clover' && kind !== 'grass' && kind !== 'bloom' && kind !== 'tree' && kind !== 'lily' && kind !== 'reed') return <>{fallback}</>
