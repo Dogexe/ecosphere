@@ -244,7 +244,7 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {dry(-2.55, -1.9) && <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />}
     {dry(0.6, 3.05) && <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />}
     {/* Drawn moss cushions (image 12, Codex image_gen 2026-11-07) replace the sprig scatter Codex flagged every round. */}
-    {cushions.map((cushion, index) => dry(cushion.x, cushion.z) && !avoid.some((circle) => Math.hypot(cushion.x - circle.x, cushion.z - circle.z) < circle.radius) && <group key={index} position={[cushion.x, ground(cushion.x, cushion.z) - 0.04, cushion.z]}><DrawnMossCushion width={cushion.radius * 2.4 * cushion.scale} variant={index} turn={(index % 3 - 1) * 0.25} /></group>)}
+    {cushions.map((cushion, index) => dry(cushion.x, cushion.z) && !avoid.some((circle) => Math.hypot(cushion.x - circle.x, cushion.z - circle.z) < circle.radius) && <group key={index} position={[cushion.x, ground(cushion.x, cushion.z) - 0.06, cushion.z]} scale={[1, index % 3 ? 0.5 + (index * 0.37 % 1) * 0.15 : 1, 1]}><DrawnMossCushion width={cushion.radius * 2.4 * cushion.scale * (0.6 + (index * 0.618 % 1) * 0.7)} variant={index} turn={(index % 3 - 1) * 0.25} /></group>)}
     <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={150} ground={ground} spots={shore ?? bank} scale={0.9} />
     {dry(-2.6, 1.9) && <Fern x={-2.6} z={1.9} ground={ground} />}
     {/* Drawn curled dry leaves on the front bank, the shelter a woodlouse uses in concept image 12. */}
