@@ -289,6 +289,7 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
   useLayoutEffect(() => { groundShape.offset = (x, z) => ground(x, z) - top; groundShape.poured = !!water; return () => { groundShape.offset = () => 0; groundShape.poured = false } }, [ground, water])
   const keepOut = useMemo(() => water && hasPond ? (x: number, z: number) => water.signedDistance(x, z) < 0.12 : undefined, [water, hasPond])
   const shore = useMemo(() => water && hasPond ? shoreSpots(water, ground) : undefined, [water, hasPond, ground])
+  const rim = useMemo(() => glassRimSpots(water && hasPond ? water : null, ground), [water, hasPond, ground])
   // A closed jar with standing water always beads a little on the glass, as in concept image 12; the sim's fog adds more.
   const mist = sealed && hasPond ? Math.max(fog, 0.45) : fog
   return <>
@@ -296,6 +297,7 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
     {water && hasPond && water.cells && pond && <ShapedPond ground={ground} cells={water.cells} level={water.level ?? 0} floor={floor} pond={pond} underwater={!!underwater} onPondClick={onPondClick ?? (() => undefined)} />}
     <Suspense fallback={null}>{state.decor.map((item, index) => <DecorPiece key={index} item={item} index={index} ground={ground} />)}</Suspense>
     {dressed && <Suspense fallback={null}><Dressing ground={ground} keepOut={keepOut} shore={shore} /></Suspense>}
+    {dressed && <Suspense fallback={null}><MossSprigs x={0} z={0} radius={1} count={rim.length * 3} ground={ground} spots={rim} scale={1.1} /></Suspense>}
     {dressed && water && hasPond && <Suspense fallback={null}><Pebbles water={water} ground={ground} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
     <Glass bottom={floor} sealed={sealed} mist={underwater ? 0 : mist} />
@@ -327,6 +329,21 @@ function Pebbles({ water, ground }: { water: PondShape; ground: Ground }) {
     return found
   }, [water])
   return <>{spots.map((spot, n) => <ScannedProp key={n} file={stones} node={spot.node} x={spot.x} z={spot.z} length={spot.size} turn={spot.turn} ground={ground} lift={0.01} />)}</>
+}
+
+/**
+ * Points along the land's edge against the glass, for moss spilling over the rim so the soil seen
+ * through the glass is not a cleanly cut wall (concept image 12; Codex reviews rounds 2-5).
+ */
+function glassRimSpots(water: PondShape | null, ground: Ground) {
+  const spots: Vector3[] = []
+  for (let n = 0; n < 900 && spots.length < 160; n += 1) {
+    const angle = (n * 0.618034 % 1) * Math.PI * 2, reach = 3.2 + ((n * 0.7548777) % 1) * 0.35
+    const x = Math.cos(angle) * reach, z = Math.sin(angle) * reach
+    if (water && water.signedDistance(x, z) < 0.2) continue
+    spots.push(new Vector3(x, ground(x, z) + 0.02, z))
+  }
+  return spots
 }
 
 /** Points along a poured pond's bank, for moss creeping to the water's edge. */
