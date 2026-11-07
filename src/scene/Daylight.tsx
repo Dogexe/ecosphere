@@ -21,12 +21,13 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
   const night = sky.phase === 'night'
   const tint = !sky.cycling ? sun : new Color(night ? '#a5bbdf' : '#e6bba4').lerp(sun, sky.solar)
   // In the room the key light comes in through the window, so its source is in view.
-  const position = room ? new Vector3(...windowLight(sky.cycling ? sky.solar : 1, sky.cycling ? sky.hour : 12)) : !sky.cycling ? new Vector3(-5, 9, 6) : sky.solar > 0
+  // Image 12 round 7 (Codex): the key reads as one broad light from the upper left of the window.
+  const position = room ? new Vector3(...windowLight(sky.cycling ? sky.solar : 1, sky.cycling ? sky.hour : 12)).add(new Vector3(-5, 5, 0)) : !sky.cycling ? new Vector3(-5, 9, 6) : sky.solar > 0
     ? new Vector3(-7 * Math.cos((sky.hour - 6) * Math.PI / 12), 2 + sky.solar * 7, 4)
     : new Vector3(4, 7, -4)
   const brightness = sky.cycling ? sky.solar : 1
   // In the room the fill drops further so the window behind the jar is the light you notice (concept image 12).
-  const fill = room ? 0.6 : dramatic ? 0.3 : 1, keyBoost = room ? 1.6 : dramatic ? 1.35 : 1
+  const fill = room ? 0.45 : dramatic ? 0.3 : 1, keyBoost = room ? 1.6 : dramatic ? 1.35 : 1
   useFrame((_, delta) => {
     const blend = 1 - Math.exp(-delta * 5)
     if (ambient.current) ambient.current.intensity = MathUtils.lerp(ambient.current.intensity, (sky.cycling ? 0.55 + brightness * 0.7 : 1.25) * fill, blend)
@@ -42,7 +43,7 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
     <hemisphereLight ref={hemisphere} args={['#edf6e9', '#a38368', 1]} />
     <directionalLight ref={key} position={[-5, 9, 6]} intensity={1} color={tint} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-5} shadow-camera-right={5} shadow-camera-top={5} shadow-camera-bottom={-5} shadow-bias={-0.0002} />
     {/* In the room, light from the window bounces off the walls and comes back at the jar's front, soft and warm. */}
-    {room && <directionalLight position={[2, 4, 12]} intensity={0.45 + brightness * 0.5} color="#ffe6c8" />}
+    {room && <directionalLight position={[2, 4, 12]} intensity={0.3 + brightness * 0.35} color="#ffe6c8" />}
     {dramatic && !room && <pointLight position={[4.5, 3.2, -4.5]} intensity={28} distance={14} decay={1.6} color="#ffb46b" />}
   </>
 }
