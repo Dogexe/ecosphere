@@ -12,7 +12,7 @@ Supersedes the paper look and the concept-image-12 target. References: `artifact
 - **Vegetation:** rich and layered: moss, ferns, grasses, flowering plants, shrubs, trees.
 - **World:** genuine 3D with free orbit/zoom/pan; Surface, Underwater and Underground (evolving 3D ant tunnels, roots, soil layers) with seamless cutaway and X-ray modes.
 - **UI:** minimal cream-and-forest-green rounded panels, clean type, contextual inspection and field notes, Surface/Underground/Underwater/X-ray navigation, unobtrusive environment and speed controls, collapsible; the terrarium stays the centrepiece.
-- **Assets (mandatory):** asset-first, modification-first: search high-quality, commercially usable low-poly models first and adapt them with Blender/Python for consistent proportions, materials and animation. Procedural geometry for dynamic things (terrain, ant tunnels, growth). No inferior primitive substitutes when a suitable asset can be legally adapted.
+- **Assets (mandatory):** asset-first, modification-first: search high-quality low-poly models first (personal game, owner confirmed 2026-11-07: non-commercial licences such as CC BY-NC are fine; record each licence and credit) and adapt them with Blender/Python for consistent proportions, materials and animation. Procedural geometry for dynamic things (terrain, ant tunnels, growth). No inferior primitive substitutes when a suitable asset can be legally adapted.
 - **Performance:** desktop browsers and iPad Safari with Three.js: optimized geometry, instancing, efficient materials, restrained transparency, light lighting, LOD. Polished handcrafted indie quality through efficient real-time rendering, not cinematic effects.
 
 "Beautiful from afar. Fascinating up close. Alive at every scale."
