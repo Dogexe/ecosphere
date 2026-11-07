@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo } from 'react'
-import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry } from 'three'
+import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, Vector4 } from 'three'
 import { cellX, index, inside, substrateSize, topAt, topLayer, wetness } from '../sim/substrate'
 import type { Substrate } from '../sim/substrate'
 import { polyHaven, useTextureSet } from './semiReal'
@@ -226,6 +226,8 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
  * about 4 cm of jar, so a 2-5 cm clod in the scan becomes a 0.5-1 mm crumb.
  */
 const soilRef = new Color('#8a6244'), gravelRef = new Color('#d3cbbd')
+/** x min, x max, z of the cut face, active flag; filled each frame from cutawayBox. */
+export const cutUniform = new Vector4(0, 0, 0, 0)
 export function useLayerMaterials() {
   const set = useTextureSet({
     soil: `${polyHaven}farm_soil/farm_soil_diff_1k.jpg`, soilNormal: `${polyHaven}farm_soil/farm_soil_nor_gl_1k.jpg`,
@@ -239,12 +241,15 @@ export function useLayerMaterials() {
       material.customProgramCacheKey = () => `layer-${pebbleScale}-${naturalLook}`
       material.onBeforeCompile = (shader) => {
         shader.uniforms.pebbleMap = { value: set.pebble }
+        shader.uniforms.cutBox = { value: cutUniform }
         shader.uniforms.gritMap = { value: set.grit }
         shader.uniforms.soilRef = { value: soilRef }
         shader.uniforms.gravelRef = { value: gravelRef }
-        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nattribute float flatness;\nvarying float vPebble;\nvarying float vFlat;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;\nvFlat = flatness;')
+        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nattribute float flatness;\nvarying float vPebble;\nvarying float vFlat;\nvarying vec3 vCutWorld;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;\nvFlat = flatness;\nvCutWorld = (modelMatrix * vec4(position, 1.0)).xyz;')
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nvarying float vPebble;\nvarying float vFlat;')
+          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nuniform vec4 cutBox;\nvarying vec3 vCutWorld;\nvarying float vPebble;\nvarying float vFlat;')
+          // Natural look's nest cutaway: no soil in front of the cut face.
+          .replace('void main() {', 'void main() {\n  if (cutBox.w > 0.5 && vCutWorld.x > cutBox.x && vCutWorld.x < cutBox.y && vCutWorld.z > cutBox.z) discard;')
           // On steep banks the top-down UVs stretch the scan's bumps into streaks; keep the plain normal there.
           .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(nonPerturbedNormal, normal, vFlat));')
           .replace('#include <map_fragment>', `

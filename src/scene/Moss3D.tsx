@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { BufferAttribute, Color, ConeGeometry, CylinderGeometry, InstancedMesh, MeshStandardMaterial, Object3D, SphereGeometry } from 'three'
 import type { BufferGeometry } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { cutawayBox } from './NestCutaway'
 
 /*
  * 3D moss cushions (owner, 2026-11-07: "anything bushy should be 3D"). Like real cushion moss
@@ -56,6 +57,8 @@ export function MossCushions3D({ cushions, shootSize = 0.42 }: { cushions: Cushi
     const dummy = new Object3D(), colour = new Color()
     let n = 0
     cushions.forEach((cushion, index) => {
+      // No moss hanging over the nest cutaway's open face.
+      if (cutawayBox.active && cushion.x + cushion.radius > cutawayBox.xMin && cushion.x - cushion.radius < cutawayBox.xMax && cushion.z + cushion.radius > cutawayBox.zFace) { dummy.scale.setScalar(0); dummy.updateMatrix(); domes.current!.setMatrixAt(index, dummy.matrix); return }
       dummy.position.set(cushion.x, cushion.y - 0.02, cushion.z); dummy.rotation.set(0, 0, 0)
       dummy.scale.set(cushion.radius * 0.92, cushion.height * 0.85, cushion.radius * 0.92); dummy.updateMatrix()
       domes.current!.setMatrixAt(index, dummy.matrix)

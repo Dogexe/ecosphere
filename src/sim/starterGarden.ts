@@ -1,4 +1,5 @@
 import { introduceLife } from './ecosystem.ts'
+import { introduceColony } from './colony.ts'
 import type { PlantKind, World } from './ecosystem.ts'
 
 /*
@@ -48,5 +49,8 @@ export function withStarterGarden(world: World): World {
     planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * (plant.kind === 'tree' ? 0.8 : 0.85), age: 90, development: 90 }] }
   }
   for (const [kind, x, z] of pondCrew) planted = introduceLife(planted, kind, x, z)
+  // A seed-harvester colony on the front-right bank (owner's reference, 2026-11-07): its nest is shown in cutaway
+  // through the glass in the natural look. Placed through the normal rules, so it is skipped if the spot is unsuitable.
+  planted = introduceColony(planted, 1.8, 2.0)
   return planted
 }

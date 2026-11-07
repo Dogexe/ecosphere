@@ -12,6 +12,9 @@ import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
 import { drawnAnimals, naturalLook, PaperAnimal, paperLook } from './PaperCritter'
 import { PondCrew3D } from './PondCrew3D'
+import { CutawayFace, cutawayBox } from './NestCutaway'
+import { cutUniform } from './LayeredGround'
+import { jarLevels } from './JarSetting'
 import { Watercolor } from './watercolor'
 import { Polish, polishLook } from './Polish'
 
@@ -29,6 +32,7 @@ import { PondAtmosphere, PondControls } from './PondView'
 import { AntColonyScene } from './AntColony'
 import { NestControls } from './NestView'
 import { antPosition, seedMaterialAvailable } from '../sim/colony'
+import type { AntColony } from '../sim/colony'
 import type { Remains } from '../sim/life'
 import { AntRemainsScene } from './AntRemains'
 import type { SurfacePose } from './PondView'
@@ -874,6 +878,22 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
   return <OrbitControls ref={controls} makeDefault enablePan screenSpacePanning minDistance={minimum} maxDistance={focusedFrame?.maxDistance ?? (frontView ? 28 : 21)} minPolarAngle={frontView ? 0.95 : 0.25} maxPolarAngle={frontView ? 1.5 : 1.42} minAzimuthAngle={frontView ? -frontTurn : -Infinity} maxAzimuthAngle={frontView ? frontTurn : Infinity} target={surfacePose.target} enableDamping dampingFactor={0.08} onStart={() => { if (plant || remains) { autoPlant.current = false; focus.current.remaining = 0 } }} />
 }
 
+/**
+ * Natural look: the colony's nest shown in section behind the front glass (ant-farm cutaway, owner's
+ * reference 2026-11-07). The nest, its ants and brood are the same scene as the underground view,
+ * lifted onto the poured ground at the entrance; CutawayFace is the soil face with the nest's holes.
+ */
+function NestSection({ colony, ...props }: { colony: AntColony; speed: number; events: SimulationEvent[]; selected: number | null; revision: number; remains: Remains[]; selectedBrood: number | null; onSelectBrood: (id: number) => void; onSelect: (id: number) => void; onColony: () => void; onChamber: (id: number) => void; onRemains: (id: number) => void; antCenters: Map<number, Vector3>; broodCenters: Map<number, Vector3> }) {
+  const offset = groundShape.offset(colony.entrance.x, colony.entrance.z)
+  const ground = (x: number, z: number) => environmentScale.soilSurfaceY + groundShape.offset(x, z)
+  useFrame(() => { cutUniform.set(cutawayBox.xMin, cutawayBox.xMax, cutawayBox.zFace, cutawayBox.active ? 1 : 0) })
+  useEffect(() => () => { cutawayBox.active = false; cutUniform.w = 0 }, [])
+  return <group position={[0, offset, 0]}>
+    <CutawayFace colony={colony} ground={ground} floor={jarLevels.floor} gravelTop={jarLevels.gravelTop} offset={offset} />
+    <AntColonyScene colony={colony} underground chamber={null} selectedRemains={null} {...props} />
+  </group>
+}
+
 function RenderProbe({ onSample }: { onSample: (sample: RenderSample) => void }) {
   const frames = useRef<number[]>([])
   const warmup = useRef(0)
@@ -947,6 +967,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       <Fauna {...{ world: viewWorld, events, worldRevision, selectedCreature, placing, onPlace, onSelectCreature, speed }} />
       </>}
       {world.colony && !underwater && <AntColonyScene broodCenters={broodCenters} antCenters={antCenters} colony={world.colony} underground={underground} speed={speed} events={events} selected={selectedAnt} chamber={focusChamber} revision={worldRevision} onSelect={selectAnt} onColony={() => placing ? onPlace(world.colony!.entrance.x, world.colony!.entrance.z) : onSelectColony()} onChamber={onSelectChamber} remains={world.remains} selectedRemains={focusedRemains?.id ?? null} onRemains={selectRemains} selectedBrood={selectedBrood} onSelectBrood={onSelectBrood} />}
+      {naturalLook && world.colony && !underwater && !underground && <NestSection colony={world.colony} speed={speed} events={events} selected={selectedAnt} revision={worldRevision} remains={world.remains} selectedBrood={selectedBrood} onSelectBrood={onSelectBrood} onSelect={selectAnt} onColony={() => placing ? onPlace(world.colony!.entrance.x, world.colony!.entrance.z) : onSelectColony()} onChamber={onSelectChamber} onRemains={selectRemains} antCenters={antCenters} broodCenters={broodCenters} />}
       {!underwater && <AntRemainsScene remains={world.remains} colony={world.colony} underground={underground} selected={focusedRemains?.id ?? null} onSelect={selectRemains} />}
       {profiling && <RenderProbe onSample={setProfile} />}
       {underground && world.colony ? <NestControls broodCenters={broodCenters} antCenters={antCenters} remains={focusedRemains} colony={world.colony} ant={followedAnt} focusBrood={focusBrood} broodId={selectedBrood} chamber={focusChamber} surfacePose={surfacePose} /> : underwater ? <PondControls creature={viewWorld.creatures.find((creature) => creature.id === followCreature)} fish={viewWorld.creatures.filter((creature) => creature.kind === 'fish')} surfacePose={surfacePose} /> : <WatchingControls remains={focusedRemains} creature={world.creatures.find((creature) => creature.id === followCreature)} plant={world.plants.find((plant) => plant.id === focusPlant)} ant={surfaceAnt} surfacePose={surfacePose} />}

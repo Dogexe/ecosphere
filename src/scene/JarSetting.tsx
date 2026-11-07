@@ -5,7 +5,7 @@ import { pondCenter } from '../sim/pond'
 import { nearestSoil } from '../sim/ecosystem'
 import type { SoilPatch } from '../sim/ecosystem'
 import { environmentScale, groundShape } from './scale'
-import { cellX, inside, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
+import { cellX, inside, layerDepths, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
 import type { Decor, SavedSubstrate } from '../sim/substrate'
 import { isPresetJar } from '../sim/substrate'
 import { maskShape } from '../sim/pondShape'
@@ -106,6 +106,8 @@ function jarGeometry(bottom: number) {
   return new LatheGeometry(points, 128)
 }
 const flat = () => top
+/** The poured jar's floor and gravel top in world y, for the natural look's nest cutaway. */
+export const jarLevels = { floor: -3.4, gravelTop: -2.8 }
 const pond = [{ x: pondCenter.x, z: pondCenter.z, radius: pondCenter.radius + 0.15 }]
 const nowhere: { x: number; z: number; radius: number }[] = []
 const noRaycast = () => undefined
@@ -323,6 +325,7 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
   const soilHeight = useMemo(() => smoothGround(state), [state])
   const ground = useMemo(() => (x: number, z: number) => (shape ? shape(x, z, soilHeight(x, z)) : soilHeight(x, z)) + floor, [shape, soilHeight, floor])
   // Plants and animals stand on this ground instead of the flat default.
+  useLayoutEffect(() => { jarLevels.floor = floor; jarLevels.gravelTop = floor + layerDepths(state).gravel }, [floor, state])
   useLayoutEffect(() => { groundShape.offset = (x, z) => ground(x, z) - top; groundShape.poured = !!water; return () => { groundShape.offset = () => 0; groundShape.poured = false } }, [ground, water])
   const keepOut = useMemo(() => water && hasPond ? (x: number, z: number) => water.signedDistance(x, z) < 0.12 : undefined, [water, hasPond])
   const shore = useMemo(() => water && hasPond ? shoreSpots(water, ground) : undefined, [water, hasPond, ground])
