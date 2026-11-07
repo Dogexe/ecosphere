@@ -169,7 +169,7 @@ function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: n
     {/* A thick glass base the jar stands on (image 12): a green-tinted slab whose edge catches the light. */}
     <mesh position={[0, bottom - 0.2, 0]} raycast={noRaycast} renderOrder={2}>
       <cylinderGeometry args={[wall - 0.04, wall - 0.12, 0.3, 96]} />
-      <meshPhysicalMaterial color="#cfe0d6" transparent opacity={0.16} roughness={0.08} metalness={0} clearcoat={1} clearcoatRoughness={0.05} depthWrite={false} />
+      <meshPhysicalMaterial color="#cfe0d6" transparent opacity={0.06} roughness={0.08} metalness={0} clearcoat={1} clearcoatRoughness={0.05} depthWrite={false} />
     </mesh>
     {/* Contact shadow where the jar stands on the sill, so it sits rather than floats. */}
     <mesh position={[0, bottom - 0.348, 0.15]} rotation={[-Math.PI / 2, 0, 0]} raycast={noRaycast} material={contactShadow}>

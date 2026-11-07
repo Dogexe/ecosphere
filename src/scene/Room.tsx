@@ -125,7 +125,7 @@ export function Room({ world }: { world: World }) {
   const walls = useRef<MeshStandardMaterial[]>([])
   const sky = environmentAt(lightingWorld(world))
   const solar = sky.cycling ? sky.solar : 1
-  const wallDay = useMemo(() => new Color('#8a7c66'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
+  const wallDay = useMemo(() => new Color('#6e6352'), []), wallNight = useMemo(() => new Color('#2a2c35'), [])
   const background = useMemo(() => new Color(), [])
   const fog = useMemo(() => new Fog('#2a2c35', 18, 48), [])
   const daylight = useRef(solar)
@@ -144,7 +144,7 @@ export function Room({ world }: { world: World }) {
     }
     if (sun.current) sun.current.opacity = 0.8 * MathUtils.smoothstep(d, 0.05, 0.4)
     for (const material of walls.current) if (material) material.color.copy(wallNight).lerp(wallDay, MathUtils.smoothstep(d, 0, 0.6))
-    background.copy(wallNight).lerp(wallDay, MathUtils.smoothstep(d, 0, 0.6)).multiplyScalar(0.55)
+    background.copy(wallNight).lerp(wallDay, MathUtils.smoothstep(d, 0, 0.6)).multiplyScalar(0.38)
     scene.background = background
     fog.color.copy(background)
     scene.fog = fog
