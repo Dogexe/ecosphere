@@ -48,7 +48,7 @@ for (let k = 0; k < N * N; k += 1) {
   if (!inside[k]) continue
   const x = cellX(k % N), z = cellX(Math.floor(k / N))
   const base = state.gravel[k] + state.charcoal[k]
-  const land = 1.55 + 0.7 * smoothstep(1.6, -3.2, z) + 0.1 * smoothstep(-1, 2.5, x) * smoothstep(1.5, -2, z) - 0.35 * smoothstep(0.5, 3, z) * smoothstep(-0.5, 1.5, x) + wobble(x, z)
+  const land = 1.55 + 0.7 * smoothstep(1.6, -3.2, z) + 0.1 * smoothstep(-1, 2.5, x) * smoothstep(1.5, -2, z) - 0.42 * smoothstep(0.5, 3, z) * smoothstep(-0.5, 1.5, x) + wobble(x, z)
   const t = smoothstep(0.62, 1.08, hollow(x, z))
   const bed = base - (t < 0.15 ? state.charcoal[k] : 0)
   if (t < 0.15) state.charcoal[k] = 0
