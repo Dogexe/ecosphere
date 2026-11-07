@@ -265,6 +265,7 @@ export function useLayerMaterials() {
           .replace('void main() {', `void main() {
   ${pebbleScale < 0.2 ? `
   // Nest windows (walls only): measure in the glass's own unrolled coordinates (arc length, height).
+  float nestRim = 1e3;
   if (cutBox.w > 0.5) {
     float angle = atan(vCutWorld.z, vCutWorld.x), radius = length(vCutWorld.xz);
     float field = 1e3;
@@ -274,6 +275,7 @@ export function useLayerMaterials() {
       vec2 ab = vec2(atan(sin(atan(b.z, b.x) - atan(a.z, a.x)), cos(atan(b.z, b.x) - atan(a.z, a.x))) * radius, b.y - a.y);
       float t = clamp(dot(pa, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0); field = min(field, length(pa - ab * t) - a.w); }
     if (field < 0.0) discard;
+    nestRim = field;
   }` : ''}`)
           // On steep banks the top-down UVs stretch the scan's bumps into streaks; keep the plain normal there.
           .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(nonPerturbedNormal, normal, vFlat));')
@@ -311,7 +313,29 @@ export function useLayerMaterials() {
             vec3 earth = vec3(0.2, 0.11, 0.055) * mix(vec3(1.0), ratio, 0.5);
             soil = earth * (0.95 + 0.07 * crumb);
             grit = vec3(0.12, 0.1, 0.09);
-            gravel = mix(vec3(0.36, 0.33, 0.29), vec3(0.62, 0.55, 0.45), smoothstep(0.25, 0.7, pebbleScan.g)) * clamp(vColor.rgb / gravelRef, 0.0, 1.2);` : ''}
+            gravel = mix(vec3(0.36, 0.33, 0.29), vec3(0.62, 0.55, 0.45), smoothstep(0.25, 0.7, pebbleScan.g)) * clamp(vColor.rgb / gravelRef, 0.0, 1.2);
+            ${pebbleScale < 0.2 ? `
+            // Through the glass (owner's reference): rounded pebbles drawn as soft cells with a lit top and
+            // a shaded rim, gently waving soil bands with a few stones embedded, and packed pale walls
+            // round the ant tunnels.
+            vec2 cellUv = vec2(vMapUv.x * 5.0, vMapUv.y * 17.0);
+            vec2 cid = floor(cellUv), cf = fract(cellUv);
+            float nearest = 9.0; vec2 nearestOff = vec2(0.0); float nearestId = 0.0;
+            for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+              vec2 o = vec2(float(i), float(j));
+              float h = fract(sin(dot(cid + o, vec2(127.1, 311.7))) * 43758.5453);
+              vec2 centre = o + 0.5 + 0.35 * vec2(cos(h * 6.28), sin(h * 6.28)) - cf;
+              float d = length(centre);
+              if (d < nearest) { nearest = d; nearestOff = centre; nearestId = h; }
+            }
+            float stone = 1.0 - smoothstep(0.4, 0.5, nearest);
+            vec3 stoneColour = mix(vec3(0.36, 0.32, 0.27), vec3(0.56, 0.48, 0.37), nearestId) * (0.8 + 0.35 * smoothstep(0.0, 0.4, nearestOff.y));
+            gravel = mix(vec3(0.18, 0.15, 0.12), stoneColour, stone);
+            float band = sin(vMapUv.y * 18.0 + sin(vMapUv.x * 3.0) * 1.4);
+            soil *= 0.9 + 0.14 * smoothstep(-0.3, 0.3, band);
+            float embedded = stone * step(0.97, nearestId);
+            soil = mix(soil, stoneColour * 0.9, embedded);
+            soil = mix(soil, vec3(0.52, 0.36, 0.22), 1.0 - smoothstep(0.0, 0.045, nestRim));` : ''}` : ''}
             diffuseColor.rgb *= mix(mix(soil, grit, charcoal), gravel, vPebble);`)
           .replace('#include <color_fragment>', '')
       }
