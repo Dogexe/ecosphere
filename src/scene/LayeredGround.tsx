@@ -88,6 +88,7 @@ export function useLayeredGeometry() {
     const surface = new PlaneGeometry(2 * R, 2 * R, M - 1, M - 1).rotateX(-Math.PI / 2)
     surface.setAttribute('color', new BufferAttribute(new Float32Array(M * M * 3), 3))
     surface.setAttribute('pebble', new BufferAttribute(new Float32Array(M * M), 1))
+    surface.setAttribute('flatness', new BufferAttribute(new Float32Array(M * M).fill(1), 1))
     // UVs in world units so the grain keeps its size: about 4 tiles across the jar.
     const uv = surface.getAttribute('uv') as BufferAttribute, position = surface.getAttribute('position') as BufferAttribute
     for (let v = 0; v < uv.count; v += 1) uv.setXY(v, position.getX(v) / 2.1, position.getZ(v) / 2.1)
@@ -97,6 +98,7 @@ export function useLayeredGeometry() {
     walls.setAttribute('color', new BufferAttribute(new Float32Array(ring * bands * 6 * 3), 3).setUsage(DynamicDrawUsage))
     walls.setAttribute('uv', new BufferAttribute(new Float32Array(ring * bands * 6 * 2), 2).setUsage(DynamicDrawUsage))
     walls.setAttribute('pebble', new BufferAttribute(new Float32Array(ring * bands * 6), 1).setUsage(DynamicDrawUsage))
+    walls.setAttribute('flatness', new BufferAttribute(new Float32Array(ring * bands * 6).fill(1), 1))
     const puddles = new PlaneGeometry(2 * R, 2 * R, M - 1, M - 1).rotateX(-Math.PI / 2)
     puddles.setAttribute('color', new BufferAttribute(new Float32Array(M * M * 4), 4))
     return { surface, walls, puddles, ring, cells: new Float32Array(N * N * 5) }
@@ -105,7 +107,7 @@ export function useLayeredGeometry() {
 
 const tint = new Color(), other = new Color()
 /** Pebbles under pond water: grey stone greened by a film of algae, darker with depth. */
-const pondBed = new Color('#7d8466')
+const pondBed = new Color('#5f6a4c')
 /** Puddle water over soil: clear but tea-coloured from the humus it sits on. */
 const waterTint = new Color('#5e6650')
 
@@ -149,6 +151,22 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
   position.needsUpdate = true; colours.needsUpdate = true; pebbles.needsUpdate = true; water.needsUpdate = true; waterColours.needsUpdate = true
   geometry.puddles.computeVertexNormals()
   geometry.surface.computeVertexNormals()
+  // The surface UVs are a top-down projection, so on the steep pond bank the pebble scan stretches into
+  // streaks that read as a see-through ramp (Codex reviews, image 12 rounds 2-5): banks steeper than
+  // about 40 degrees show soil instead, and the algae-pebble tint fades with them.
+  const normals = geometry.surface.getAttribute('normal') as BufferAttribute, flatAttribute = geometry.surface.getAttribute('flatness') as BufferAttribute
+  for (let v = 0; v < pebbles.count; v += 1) {
+    const flatness = smoothstep(0.55, 0.85, normals.getY(v))
+    // Under the pond, seen at a grazing angle through the water, the scans' bumps also streak: keep it plain.
+    const x = position.getX(v), z = position.getZ(v), wet = smoothstep(0.15, 0.5, bilinear(cells, 5, 4, x, z))
+    flatAttribute.setX(v, flatness * (1 - wet))
+    if (flatness < 1) {
+      pebbles.setX(v, pebbles.getX(v) * flatness)
+      const soilTone = tint.copy(layerColours.soil).lerp(layerColours.wetSoil, 0.85)
+      colours.setXYZ(v, colours.getX(v) * flatness + soilTone.r * (1 - flatness), colours.getY(v) * flatness + soilTone.g * (1 - flatness), colours.getZ(v) * flatness + soilTone.b * (1 - flatness))
+    }
+  }
+  pebbles.needsUpdate = true; colours.needsUpdate = true; flatAttribute.needsUpdate = true
   geometry.surface.computeBoundingSphere(); geometry.surface.computeBoundingBox()
 
   const wall = geometry.walls.getAttribute('position') as BufferAttribute
@@ -223,9 +241,11 @@ export function useLayerMaterials() {
         shader.uniforms.gritMap = { value: set.grit }
         shader.uniforms.soilRef = { value: soilRef }
         shader.uniforms.gravelRef = { value: gravelRef }
-        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nvarying float vPebble;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;')
+        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nattribute float flatness;\nvarying float vPebble;\nvarying float vFlat;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;\nvFlat = flatness;')
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nvarying float vPebble;')
+          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nvarying float vPebble;\nvarying float vFlat;')
+          // On steep banks the top-down UVs stretch the scan's bumps into streaks; keep the plain normal there.
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(nonPerturbedNormal, normal, vFlat));')
           .replace('#include <map_fragment>', `
             vec3 soilScan = texture2D(map, vMapUv).rgb;
             vec3 pebbleScan = texture2D(pebbleMap, vMapUv * ${pebbleScale.toFixed(3)}).rgb;

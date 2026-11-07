@@ -298,7 +298,9 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
         const shore = smooth(0, 0.14, depth)
         colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.06 + shade * 0.28 + look.cloud * 0.6) * shore)
       } else {
-        position.setXYZ(v, x, floor + beds[v] - 0.03, z)
+        // Away from the water the sheet stays level and clear, hidden under the higher ground. (Dropping
+        // these vertices to the bed made sloped see-through triangles along the bank: a streaky ramp.)
+        position.setXYZ(v, x, floor + surface, z)
         colours.setXYZW(v, look.tint.r, look.tint.g, look.tint.b, 0)
       }
     }
