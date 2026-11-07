@@ -17,9 +17,10 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
   const hemisphere = useRef<HemisphereLight>(null)
   const key = useRef<DirectionalLight>(null)
   const sky = environmentAt(lightingWorld(world))
-  const sun = new Color('#e0eee9').lerp(new Color('#fff4da'), world.light)
+  // Warm sun against cool sky fill, the contrast that makes big-budget daylight read (2026-11-07).
+  const sun = new Color('#ffe8c2').lerp(new Color('#fff1d6'), world.light)
   const night = sky.phase === 'night'
-  const tint = !sky.cycling ? sun : new Color(night ? '#a5bbdf' : '#e6bba4').lerp(sun, sky.solar)
+  const tint = !sky.cycling ? sun : new Color(night ? '#a5bbdf' : '#ff9d58').lerp(sun, MathUtils.smoothstep(sky.solar, 0.1, 0.6))
   // In the room the key light comes in through the window, so its source is in view.
   // Image 12 round 7 (Codex): the key reads as one broad light from the upper left of the window.
   const position = room ? new Vector3(...windowLight(sky.cycling ? sky.solar : 1, sky.cycling ? sky.hour : 12)).add(new Vector3(-5, 5, 0)) : !sky.cycling ? new Vector3(-5, 9, 6) : sky.solar > 0
@@ -40,7 +41,7 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
   })
   return <>
     <ambientLight ref={ambient} intensity={0.8} color={sky.cycling ? '#d9e5ec' : '#e4eee3'} />
-    <hemisphereLight ref={hemisphere} args={['#edf6e9', '#a38368', 1]} />
+    <hemisphereLight ref={hemisphere} args={['#cfe2f0', '#8a6645', 1]} />
     <directionalLight ref={key} position={[-5, 9, 6]} intensity={1} color={tint} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-5} shadow-camera-right={5} shadow-camera-top={5} shadow-camera-bottom={-5} shadow-bias={-0.0002} />
     {/* In the room, light from the window bounces off the walls and comes back at the jar's front, soft and warm. */}
     {room && <directionalLight position={[2, 4, 12]} intensity={0.3 + brightness * 0.35} color="#ffe6c8" />}

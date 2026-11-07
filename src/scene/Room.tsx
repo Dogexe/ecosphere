@@ -35,6 +35,24 @@ export function windowLight(solar: number, hour: number) {
   return [windowCentre.x + (along - 0.5) * windowCentre.width * 0.6, windowCentre.y - windowCentre.height * 0.2 + solar * windowCentre.height * 0.6, backZ - 9] as const
 }
 
+/**
+ * The bright patch of sky low in the upper-left pane: where the daylight visibly comes from
+ * (2026-11-07, owner: "beautiful light like Crimson Desert": a visible warm sun against cool sky
+ * fill). Additive light-shaft cards and a GodRays pass were both tried and read as artefacts here.
+ */
+const paneDay = new Color('#9a9a92'), paneGold = new Color('#d79a5e'), sunDay = new Color('#ffffff'), sunGold = new Color('#ffb36b')
+const sunGlow = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 128
+  const context = canvas.getContext('2d')!
+  const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64)
+  gradient.addColorStop(0, 'rgba(255,248,226,1)'); gradient.addColorStop(0.35, 'rgba(255,236,196,0.85)'); gradient.addColorStop(1, 'rgba(255,230,190,0)')
+  context.fillStyle = gradient; context.fillRect(0, 0, 128, 128)
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  return texture
+})()
+
 /** The back wall in four pieces around the window opening (x -30..30, y -12..28). */
 const backWall = (() => {
   const x0 = -30, x1 = 30, y0 = -12, y1 = 28
@@ -103,6 +121,7 @@ export function Room({ world }: { world: World }) {
   const views = useViews()
   const scene = useThree((state) => state.scene)
   const day = useRef<MeshBasicMaterial>(null)
+  const sun = useRef<MeshBasicMaterial>(null)
   const walls = useRef<MeshStandardMaterial[]>([])
   const sky = environmentAt(lightingWorld(world))
   const solar = sky.cycling ? sky.solar : 1
@@ -116,7 +135,14 @@ export function Room({ world }: { world: World }) {
     const blend = 1 - Math.exp(-delta * 3)
     daylight.current = MathUtils.lerp(daylight.current, solar, blend)
     const d = daylight.current
-    if (day.current) day.current.opacity = MathUtils.smoothstep(d, 0.02, 0.35)
+    if (day.current) {
+      day.current.opacity = MathUtils.smoothstep(d, 0.02, 0.35)
+      // Low sun turns the garden outside gold, the warm hour big-budget daylight is known for.
+      const golden = MathUtils.smoothstep(d, 0.05, 0.15) * (1 - MathUtils.smoothstep(d, 0.3, 0.6))
+      day.current.color.copy(paneDay).lerp(paneGold, golden)
+      if (sun.current) sun.current.color.copy(sunDay).lerp(sunGold, golden)
+    }
+    if (sun.current) sun.current.opacity = 0.8 * MathUtils.smoothstep(d, 0.05, 0.4)
     for (const material of walls.current) if (material) material.color.copy(wallNight).lerp(wallDay, MathUtils.smoothstep(d, 0, 0.6))
     background.copy(wallNight).lerp(wallDay, MathUtils.smoothstep(d, 0, 0.6)).multiplyScalar(0.55)
     scene.background = background
@@ -132,6 +158,10 @@ export function Room({ world }: { world: World }) {
     {backWall.map((piece, index) => <mesh key={index} position={[piece.x, piece.y, backZ]} receiveShadow><planeGeometry args={[piece.width, piece.height]} /><meshStandardMaterial ref={wall(index)} roughness={0.95} /></mesh>)}
     <mesh position={[wallX, 8, 10]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[60, 40]} /><meshStandardMaterial ref={wall(4)} roughness={0.95} /></mesh>
     <group position={[windowCentre.x, windowCentre.y, backZ - 0.4]}>
+      <mesh position={[-windowCentre.width * 0.12, windowCentre.height * 0.24, 0.05]}>
+        <planeGeometry args={[3.6, 3.6]} />
+        <meshBasicMaterial ref={sun} map={sunGlow} transparent depthWrite={false} toneMapped={false} fog={false} />
+      </mesh>
       <mesh><planeGeometry args={[windowCentre.width, windowCentre.height]} /><meshBasicMaterial map={views.night} toneMapped={false} fog={false} /></mesh>
       <mesh position={[0, 0, 0.01]}><planeGeometry args={[windowCentre.width, windowCentre.height]} /><meshBasicMaterial ref={day} map={views.day} color="#9a9a92" transparent toneMapped={false} fog={false} /></mesh>
       {/* Frame and glazing bars. */}
