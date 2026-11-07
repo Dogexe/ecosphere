@@ -4,6 +4,7 @@ import { cellX, index, inside, substrateSize, topAt, topLayer, wetness } from '.
 import type { Substrate } from '../sim/substrate'
 import { polyHaven, useTextureSet } from './semiReal'
 import { naturalLook } from './PaperCritter'
+import { MossCarpet } from './MossCarpet'
 
 /*
  * Draws a poured substrate: the top surface and the strata seen through the
@@ -348,7 +349,7 @@ export function useLayerMaterials() {
 }
 
 /** Static drawing of a built substrate, raised by `floor`. */
-export function LayeredGround({ state, floor, shape, poolScale, onClick }: { state: Substrate; floor: number; shape?: GroundShape['shape']; poolScale?: GroundShape['poolScale']; onClick?: boolean }) {
+export function LayeredGround({ state, floor, shape, poolScale, onClick, carpet = false }: { state: Substrate; floor: number; shape?: GroundShape['shape']; poolScale?: GroundShape['poolScale']; onClick?: boolean; carpet?: boolean }) {
   const geometry = useLayeredGeometry()
   const materials = useLayerMaterials()
   useLayoutEffect(() => { updateLayered(geometry, state, { shape, poolScale }) }, [geometry, state, shape, poolScale])
@@ -356,5 +357,6 @@ export function LayeredGround({ state, floor, shape, poolScale, onClick }: { sta
     <mesh geometry={geometry.surface} material={materials.surface} receiveShadow raycast={onClick ? undefined : () => undefined} />
     <mesh geometry={geometry.walls} material={materials.walls} raycast={() => undefined} />
     <mesh geometry={geometry.puddles} material={materials.puddles} raycast={() => undefined} renderOrder={2} />
+    {carpet && <MossCarpet geometry={geometry.surface} />}
   </group>
 }

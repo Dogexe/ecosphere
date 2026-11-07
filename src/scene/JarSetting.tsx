@@ -14,7 +14,6 @@ import type { Pond } from '../sim/pond'
 import { ShapedPond } from './PondWater'
 import { GlassDroplets } from './GlassDroplets'
 import { DrawnCurledLeaf, DrawnMossCushion } from './DrawnPlant'
-import { MossCushions3D } from './Moss3D'
 import { naturalLook } from './PaperCritter'
 import { OrganismAsset } from './OrganismAsset'
 import { LayeredGround, smoothGround } from './LayeredGround'
@@ -257,7 +256,7 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {dry(0.6, 3.05) && <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />}
     {/* Drawn moss cushions (image 12, Codex image_gen 2026-11-07) replace the sprig scatter Codex flagged every round. */}
     {/* Moss cushions made the woodlouse's way: the painted cushion wrapped on a 3D dome from its outline. */}
-    {naturalLook && <MossCushions3D cushions={cushionSet} />}
+    {/* Natural look: the moss is a fuzzy carpet on the ground (MossCarpet) as in the owner's reference. */}
     {!naturalLook && cushionSet.map((cushion, index) => <group key={index} position={[cushion.x, cushion.y - 0.05, cushion.z]} scale={[1, cushion.height / (cushion.radius * 0.95) * 0.9, 1]}><DrawnMossCushion width={cushion.radius * 2.3} variant={index} turn={(index % 3 - 1) * 0.25} /></group>)}
     <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={150} ground={ground} spots={shore ?? bank} scale={0.9} />
     {dry(-2.6, 1.9) && <Fern x={-2.6} z={1.9} ground={ground} />}
@@ -334,7 +333,7 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
   // A closed jar with standing water always beads a little on the glass, as in concept image 12; the sim's fog adds more.
   const mist = sealed && hasPond ? Math.max(fog, 0.45) : fog
   return <>
-    <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} poolScale={poolScale} onClick /></Suspense>
+    <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} poolScale={poolScale} onClick carpet={naturalLook && dressed} /></Suspense>
     {water && hasPond && water.cells && pond && <ShapedPond ground={ground} cells={water.cells} level={water.level ?? 0} floor={floor} pond={pond} underwater={!!underwater} onPondClick={onPondClick ?? (() => undefined)} />}
     <Suspense fallback={null}>{state.decor.map((item, index) => <DecorPiece key={index} item={item} index={index} ground={ground} />)}</Suspense>
     {dressed && <Suspense fallback={null}><Dressing ground={ground} keepOut={keepOut} shore={shore} /></Suspense>}
