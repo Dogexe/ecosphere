@@ -3,7 +3,7 @@ import type { AnimationAction } from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 
-export type OrganismFile = 'natural-clover' | 'natural-mushroom' | 'natural-hollow-log' | 'tiger-beetle' | 'pond-fish' | 'daphnia' | 'leaf-grazer' | 'woodlouse' | 'springtail' | 'clover' | 'grass' | 'bloom' | 'tree' | 'lily' | 'reed' | 'ant-worker' | 'ant-queen' | 'ant-larva' | 'ant-pupa'
+export type OrganismFile = 'natural-fern' | 'natural-clover' | 'natural-mushroom' | 'natural-hollow-log' | 'tiger-beetle' | 'pond-fish' | 'daphnia' | 'leaf-grazer' | 'woodlouse' | 'springtail' | 'clover' | 'grass' | 'bloom' | 'tree' | 'lily' | 'reed' | 'ant-worker' | 'ant-queen' | 'ant-larva' | 'ant-pupa'
 export type ModelShape = ({ length: number; base: number; centered?: boolean; measure?: 'max' } | { spread: number; height: number; base?: number }) & { fallen?: boolean }
 
 // Independent bones/mixers, shared immutable geometry/textures. Normalization

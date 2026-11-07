@@ -75,8 +75,10 @@ export function PlantAsset({ kind, health, flowering, fallback, seed = 0 }: { ki
   // Natural look: the painted leaves on 3D stems without ink lines for the broadleaf, violets, clover and fern;
   // grass, reeds and lilies use the low-poly models.
   // Natural look: Quaternius's low-poly clover (round pads on stalks, as in the owner's reference).
+  // Quaternius CC0 low-poly fern, one style with the clover (2026-11-07).
+  if (naturalLook && kind === 'fern') { const { spread, height } = plantDimensions.fern; return <OrganismAsset file="natural-fern" shape={{ spread, height, base: 0 }} health={health} flowering={flowering} fallback={fallback} /> }
   if (naturalLook && kind === 'clover') { const { spread, height } = plantDimensions.clover; return <OrganismAsset file="natural-clover" shape={{ spread, height, base: 0 }} health={health} flowering={flowering} fallback={fallback} /> }
-  if (paperLook && drawnLook && hasDrawnPlant(kind) && (!naturalLook || ['tree', 'bloom', 'fern'].includes(kind))) return <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} flowering={flowering} /></Suspense>
+  if (paperLook && drawnLook && hasDrawnPlant(kind) && (!naturalLook || kind === 'tree' || kind === 'bloom')) return <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} flowering={flowering} /></Suspense>
   if (paperLook && !naturalLook && hasScanPlant(kind)) return <ScanPlant kind={kind} seed={seed} health={health} fallback={fallback} />
   if (paperLook && kind === 'lily') return <FloatingRosette health={health} seed={seed} />
   if (paperLook && kind === 'reed') return <HairgrassTuft health={health} seed={seed} height={plantDimensions.reed.height} spread={plantDimensions.reed.spread} />

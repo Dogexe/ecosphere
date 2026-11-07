@@ -5,3 +5,4 @@
 | hollow-log.glb | Log with Fungus | sirkitree | CC BY 3.0 | https://poly.pizza/m/32czhZtc7oY |
 | mushroom.glb | Mushroom | jeremy | CC BY 3.0 | https://poly.pizza/m/2DAaKHD48ZP |
 | clover.glb | Clover | Quaternius | CC0 | https://poly.pizza/m/u5SOgBFiut |
+| fern.glb | Fern | Quaternius | CC0 | https://poly.pizza/m/jqcanvH7D6 |
