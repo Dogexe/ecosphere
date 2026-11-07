@@ -217,8 +217,8 @@ function ScanMoss({ x, z, radius, count, ground, flat = false, spots, scale = 1,
 function PaintedMossSprigs({ x, z, radius, count, ground, flat = false, spots, scale = 1, avoid = nowhere, keepOut }: MossProps) {
   const mesh = useRef<InstancedMesh>(null)
   const geometry = useMemo(() => {
-    const a = new PlaneGeometry(1, 1).translate(0, 0.5, 0)
-    return mergeGeometries([a, a.clone().rotateY(Math.PI / 2)])
+    // One card per sprig, turned no more than +-35 degrees from the jar front (no crossed cards).
+    return new PlaneGeometry(1, 1).translate(0, 0.5, 0)
   }, [])
   const texture = useMemo(() => sprigTexture(Math.round(x * 100 + z * 10) + 7), [x, z])
   useLayoutEffect(() => {
@@ -239,7 +239,7 @@ function PaintedMossSprigs({ x, z, radius, count, ground, flat = false, spots, s
       const hidden = avoid.some((circle) => Math.hypot(px - circle.x, pz - circle.z) < circle.radius) || (!spot && !!keepOut?.(px, pz))
       const size = hidden ? 0 : (0.2 + rand() * 0.14) * (1 - edge * 0.35) * scale
       dummy.position.set(px, spot ? spot.y - 0.03 : ground(px, pz) + dome - 0.02, pz)
-      dummy.rotation.set((rand() - 0.5) * 0.5, rand() * Math.PI, (rand() - 0.5) * 0.5)
+      dummy.rotation.set((rand() - 0.5) * 0.5, (rand() - 0.5) * 1.2, (rand() - 0.5) * 0.5)
       dummy.scale.set(size, size * (0.9 + rand() * 0.4), size)
       dummy.updateMatrix()
       mesh.current.setMatrixAt(index, dummy.matrix)

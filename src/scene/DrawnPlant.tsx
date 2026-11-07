@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import type { ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
 import { InstancedMesh, Object3D, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, DoubleSide, Matrix4, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
-import type { Material, Texture } from 'three'
+import type { Group, Material, Texture } from 'three'
+import { Quaternion } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { PlantKind } from '../sim/ecosystem'
 import { plantDimensions } from './scale'
@@ -126,7 +128,8 @@ function prepare(texture: Texture) {
   return texture
 }
 
-type Piece = { geometry: BufferGeometry; texture: Texture | null; bend: boolean }
+/** `front`: kept facing the jar's front whatever way the plant's root is turned (see FrontFacing). */
+type Piece = { geometry: BufferGeometry; texture: Texture | null; bend: boolean; front?: boolean }
 const aspect = (texture: Texture) => { const image = texture.image as { width: number; height: number }; return image.width / image.height }
 
 /** Lights a piece mostly from above, like the leaves around it, rather than by which way it faces. */
@@ -153,6 +156,28 @@ function upright(texture: Texture, height: number, { cup = 0, curl = 0, lean = 0
     position.setXYZ(v, px * Math.cos(turn) - z * Math.sin(turn) + lean * t * t * height, position.getY(v) * (1 - curl * curl * t * 0.3), px * Math.sin(turn) + z * Math.cos(turn))
   }
   return soften(geometry)
+}
+
+/**
+ * A painting given body (owner, 2026-11-07: no 2D cards crossed at 90 degrees). One upright
+ * painting, facing +z, pushed out into a soft dome front and back like a pillow, so from the
+ * jar's +-30 degree view it has real thickness, shading and one clean silhouette. `peak` is the
+ * height (0-1) where it bulges most: low for a moss cushion on soil, mid for a tuft or mushroom.
+ */
+function puffed(texture: Texture, height: number, depth: number, peak = 0.3) {
+  const width = height * aspect(texture)
+  const sheet = (sign: number) => {
+    const geometry = new PlaneGeometry(width, height, 14, 12).translate(0, height / 2, 0)
+    const position = geometry.getAttribute('position')
+    for (let v = 0; v < position.count; v += 1) {
+      const x = position.getX(v) / (width / 2), t = position.getY(v) / height
+      const across = Math.sqrt(Math.max(0, 1 - x * x)), up = Math.sqrt(Math.max(0, 1 - ((t - peak) / (t < peak ? peak + 0.15 : 1 - peak)) ** 2))
+      position.setZ(v, sign * depth * across * up)
+    }
+    if (sign < 0) { const index = geometry.getIndex()!; for (let i = 0; i < index.count; i += 3) { const a = index.getX(i); index.setX(i, index.getX(i + 1)); index.setX(i + 1, a) } }
+    return geometry
+  }
+  return soften(mergeGeometries([sheet(1), sheet(-1)])!, 0.35)
 }
 
 /** A card lying flat, centred on the origin, its painting's top pointing along -z. */
@@ -205,15 +230,18 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
   const rand = random(seed + 1)
   const pieces: Piece[] = []
   const add = (geometry: BufferGeometry, texture: Texture | null, bend = false) => pieces.push({ geometry, texture, bend })
+  const front = (geometry: BufferGeometry, texture: Texture | null, bend = false) => pieces.push({ geometry, texture, bend, front: true })
   const turn = rand() * Math.PI * 2
 
   if (kind === 'grass' || kind === 'reed') {
     // Three crossed copies of the tuft; reeds add a few single stalks around it.
-    const tuft = textures[rand() < 0.5 ? 'tuft-1' : 'tuft-2']
-    for (let index = 0; index < 3; index += 1) add(place(upright(tuft, height, { cup: 0.15 }), { yaw: turn + index * Math.PI / 3 }), tuft, true)
+    // One tuft painting with body, facing the jar front, and a second one set behind and to the side.
+    const tuft = textures[rand() < 0.5 ? 'tuft-1' : 'tuft-2'], other = textures[tuft === textures['tuft-1'] ? 'tuft-2' : 'tuft-1']
+    front(place(puffed(tuft, height, height * 0.18, 0.25), { yaw: (rand() - 0.5) * 0.5 }), tuft, true)
+    front(place(puffed(other, height * 0.85, height * 0.15, 0.25), { x: (rand() - 0.5) * spread * 0.5, z: -spread * 0.2, yaw: (rand() - 0.5) * 0.5 }), other, true)
     if (kind === 'reed') for (let index = 0; index < 3; index += 1) {
       const texture = textures[`stalk-${index + 1}`], angle = turn + index * golden, reach = spread * 0.3
-      for (const cross of [0, Math.PI / 2]) add(place(upright(texture, height * (1 + rand() * 0.15)), { x: Math.cos(angle) * reach, z: Math.sin(angle) * reach, yaw: angle + cross }), texture, true)
+      front(place(puffed(texture, height * (1 + rand() * 0.15), height * 0.04, 0.4), { x: Math.cos(angle) * reach, z: Math.sin(angle) * reach, yaw: (rand() - 0.5) * 0.6 }), texture, true)
     }
   }
 
@@ -249,8 +277,8 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
       add(stem([new Vector3(0, 0, 0), new Vector3(tip.x * 0.2, top * 0.8, tip.z * 0.2), new Vector3(tip.x * 0.7, top * 1.02, tip.z * 0.7), tip], 0.01), null)
       const face = textures[`flower-${index + 1}`], size = height * 0.3
       // The flower faces out and a little down; a side painting crosses it so it keeps its shape edge-on.
-      add(place(upright(face, size), { x: tip.x, y: tip.y - size * 0.5, z: tip.z, yaw: Math.PI / 2 - angle, tilt: 0.25 }), face)
-      add(place(upright(textures['flower-side'], size), { x: tip.x, y: tip.y - size * 0.5, z: tip.z, yaw: -angle }), textures['flower-side'])
+      // The flower faces the jar front, nodding a little; no crossed side card.
+      front(place(puffed(face, size, size * 0.12, 0.5), { x: tip.x, y: tip.y - size * 0.5, z: tip.z, yaw: (rand() - 0.5) * 0.6, tilt: 0.25 }), face)
     }
   }
 
@@ -272,7 +300,7 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
       }
     }
     const base = textures.base
-    for (const cross of [0, Math.PI / 2]) add(place(upright(base, height * 0.22), { yaw: turn + cross }), base)
+    front(place(puffed(base, height * 0.22, height * 0.06, 0.4), { yaw: (rand() - 0.5) * 0.4 }), base)
   }
 
   if (kind === 'fern') {
@@ -294,7 +322,7 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
     if (flowering) {
       const size = spread * 0.3
       add(place(flat(textures['flower-top'], size), { y: size * 0.35, yaw: turn }), textures['flower-top'])
-      for (const cross of [0, Math.PI / 2]) add(place(upright(textures['flower-side'], size * 0.5), { yaw: turn + cross }), textures['flower-side'])
+      front(place(puffed(textures['flower-side'], size * 0.5, size * 0.1, 0.4), { yaw: (rand() - 0.5) * 0.4 }), textures['flower-side'])
     }
   }
   return pieces
@@ -302,15 +330,33 @@ function build(kind: PlantKind, textures: Record<string, Texture>, seed: number,
 
 /** Merges the pieces that share a painting, so the plant draws in a few calls. */
 function merge(pieces: Piece[]) {
-  const groups = new Map<string, { texture: Texture | null; bend: boolean; geometries: BufferGeometry[] }>()
+  const groups = new Map<string, { texture: Texture | null; bend: boolean; front: boolean; geometries: BufferGeometry[] }>()
   for (const piece of pieces) {
-    const key = `${piece.texture?.uuid ?? 'stem'}|${piece.bend}`
-    const group = groups.get(key) ?? { texture: piece.texture, bend: piece.bend, geometries: [] }
+    const key = `${piece.texture?.uuid ?? 'stem'}|${piece.bend}|${!!piece.front}`
+    const group = groups.get(key) ?? { texture: piece.texture, bend: piece.bend, front: !!piece.front, geometries: [] }
     // Stems carry no uv-based sway; drop attributes the cards do not share before merging.
     group.geometries.push(piece.geometry.index ? piece.geometry.toNonIndexed() : piece.geometry)
     groups.set(key, group)
   }
-  return [...groups.values()].map((group) => ({ geometry: mergeGeometries(group.geometries)!, texture: group.texture, bend: group.bend }))
+  return [...groups.values()].map((group) => ({ geometry: mergeGeometries(group.geometries)!, texture: group.texture, bend: group.bend, front: group.front }))
+}
+
+/**
+ * Turns its children to face the jar's front (+z) whatever the plant root's own turn is. The
+ * camera only swings +-30 degrees around the front, so a painting facing the front never shows
+ * its edge. It is set when mounted; it does not follow the camera.
+ */
+function FrontFacing({ children }: { children: ReactNode }) {
+  const group = useRef<Group>(null)
+  useLayoutEffect(() => {
+    const node = group.current
+    if (!node?.parent) return
+    node.parent.updateWorldMatrix(true, false)
+    const parent = new Quaternion()
+    node.parent.getWorldQuaternion(parent)
+    node.quaternion.copy(parent.invert())
+  })
+  return <group ref={group}>{children}</group>
 }
 
 /** Keeps the shared sway clock running. */
@@ -321,7 +367,7 @@ function Clock() {
 
 const sprigCard = (() => {
   let geometry: BufferGeometry | null = null
-  return () => geometry ??= soften(mergeGeometries([new PlaneGeometry(1, 1).translate(0, 0.5, 0), new PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateY(Math.PI / 2)])!, 0.5)
+  return () => geometry ??= soften(new PlaneGeometry(1, 1, 2, 2).translate(0, 0.5, 0), 0.5)
 })()
 const sprigMaps = new Map<number, Texture>()
 
@@ -343,14 +389,14 @@ function MossPatch({ health, seed }: { health: number; seed: number }) {
       const angle = rand() * Math.PI * 2, edge = Math.sqrt(rand()) * (0.75 + 0.25 * Math.sin(angle * 3 + seed))
       const size = (0.2 + rand() * 0.12) * (1 - edge * 0.35)
       dummy.position.set(Math.cos(angle) * edge * radius, Math.sqrt(Math.max(0, 1 - edge * edge)) * radius * 0.12 - 0.02, Math.sin(angle) * edge * radius)
-      dummy.rotation.set((rand() - 0.5) * 0.5, rand() * Math.PI, (rand() - 0.5) * 0.5)
+      dummy.rotation.set((rand() - 0.5) * 0.5, (rand() - 0.5) * 1.2, (rand() - 0.5) * 0.5)
       dummy.scale.set(size, size * (0.9 + rand() * 0.4), size)
       dummy.updateMatrix()
       mesh.current.setMatrixAt(index, dummy.matrix)
     }
     mesh.current.instanceMatrix.needsUpdate = true
   }, [seed, radius])
-  return <instancedMesh ref={mesh} args={[sprigCard(), material, count]} frustumCulled={false} raycast={() => undefined} />
+  return <FrontFacing><instancedMesh ref={mesh} args={[sprigCard(), material, count]} frustumCulled={false} raycast={() => undefined} /></FrontFacing>
 }
 
 export function DrawnPlant({ kind, health, seed, flowering = false }: { kind: PlantKind; health: number; seed: number; flowering?: boolean }) {
@@ -369,10 +415,11 @@ function PaperPlant({ kind, health, seed, flowering }: { kind: PlantKind; health
   }, [kind, loaded, seed, flowering]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => pieces.forEach((piece) => piece.geometry.dispose()), [pieces])
   const step = healthStep(health)
-  const meshes = useMemo(() => pieces.map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, step, piece.bend) })), [pieces, step])
+  const meshes = useMemo(() => pieces.map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, step, piece.bend), front: piece.front })), [pieces, step])
   return <>
     <Clock />
-    {meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} raycast={() => undefined} />)}
+    {meshes.filter((mesh) => !mesh.front).map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} raycast={() => undefined} />)}
+    <FrontFacing>{meshes.filter((mesh) => mesh.front).map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} raycast={() => undefined} />)}</FrontFacing>
   </>
 }
 
@@ -403,7 +450,7 @@ export function DrawnMossCushion({ width, variant = 0, turn = 0 }: { width: numb
   const meshes = useMemo(() => {
     const texture = prepare(textures[variant % textures.length])
     const height = width / aspect(texture)
-    const pieces: Piece[] = [0, Math.PI / 3, -Math.PI / 3].map((yaw) => ({ geometry: soften(place(upright(texture, height, { cup: 0.12 }), { yaw }), 0.7), texture, bend: false }))
+    const pieces: Piece[] = [{ geometry: puffed(texture, height, width * 0.3, 0.05), texture, bend: false }]
     return merge(pieces).map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, 1, piece.bend) }))
   }, [textures, width, variant])
   useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
@@ -423,7 +470,7 @@ export function DrawnCurledLeaf({ length, turn = 0 }: { length: number; turn?: n
 }
 
 const mushroomFiles = ['side-1', 'side-2', 'side-3', 'cap-1', 'cap-2'].map((name) => url('mushroom', name))
-/** A drawn mushroom: the side painting on two crossed cards, the cap painting laid in it as seen from above. */
+/** A drawn mushroom: the side painting with a rounded body facing the jar front, the cap painting laid in it as seen from above. */
 export function DrawnMushroom({ height, lean = 0, variant = 0 }: { height: number; lean?: number; variant?: number }) {
   const textures = useTexture(mushroomFiles) as Texture[]
   // Built at unit height and scaled, so a growing mushroom keeps one geometry.
@@ -431,12 +478,12 @@ export function DrawnMushroom({ height, lean = 0, variant = 0 }: { height: numbe
     textures.forEach(prepare)
     const side = textures[variant % 3], cap = textures[3 + variant % 2]
     const width = aspect(side)
-    const pieces: Piece[] = [0, Math.PI / 2].map((cross) => ({ geometry: place(upright(side, 1), { yaw: cross }), texture: side, bend: false }))
+    const pieces: Piece[] = [{ geometry: puffed(side, 1, width * 0.35, 0.65), texture: side, bend: false }]
     pieces.push({ geometry: place(flat(cap, width * 0.84, 0.08), { y: 0.8 }), texture: cap, bend: false })
     return merge(pieces).map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, 1, piece.bend) }))
   }, [textures, variant])
   useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
-  return <group rotation={[lean * 0.6, variant * 1.7, lean]} scale={height}>
+  return <group rotation={[lean * 0.6, ((variant % 5) - 2) * 0.15, lean]} scale={height}>
     {meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} raycast={() => undefined} />)}
   </group>
 }
