@@ -393,6 +393,23 @@ export function useFallenLeaves() {
  * one is the focal point. One side painting, cupped, facing the front glass (the view turns only
  * ±30°), with a crossed copy so it keeps a shape when seen from the side.
  */
+const cushionFiles = [1, 2, 3, 4, 5, 6].map((n) => url('moss-cushion', `cushion-${n}`))
+/**
+ * A drawn moss cushion like the mounds in concept image 12 (Codex image_gen, 2026-11-07): the side
+ * painting on three cards crossed at 60°, so it keeps its rounded silhouette across the ±30° view.
+ */
+export function DrawnMossCushion({ width, variant = 0, turn = 0 }: { width: number; variant?: number; turn?: number }) {
+  const textures = useTexture(cushionFiles) as Texture[]
+  const meshes = useMemo(() => {
+    const texture = prepare(textures[variant % textures.length])
+    const height = width / aspect(texture)
+    const pieces: Piece[] = [0, Math.PI / 3, -Math.PI / 3].map((yaw) => ({ geometry: soften(place(upright(texture, height, { cup: 0.12 }), { yaw }), 0.7), texture, bend: false }))
+    return merge(pieces).map((piece) => ({ geometry: piece.geometry, material: paperMaterial(piece.texture, 1, piece.bend) }))
+  }, [textures, width, variant])
+  useEffect(() => () => meshes.forEach((mesh) => mesh.geometry.dispose()), [meshes])
+  return <group rotation={[0, turn, 0]}>{meshes.map((mesh, index) => <mesh key={index} geometry={mesh.geometry} material={mesh.material} receiveShadow raycast={() => undefined} />)}</group>
+}
+
 export function DrawnCurledLeaf({ length, turn = 0 }: { length: number; turn?: number }) {
   const texture = useTexture(url('fallen-leaf', 'curled')) as Texture
   const meshes = useMemo(() => {

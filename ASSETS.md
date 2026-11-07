@@ -121,3 +121,5 @@ Mushrooms (Mycena-like bonnets), floating pads (frogbit-like, lily kind), hairgr
 ## Image 12 plant parts (2026-11-07)
 
 `public/assets/paper/plants/{tree,bloom,clover,grass,mushroom}` were repainted to match concept round 3 image 12 (owner: "plant models don't match the cover"). Three part sheets were generated with Codex's built-in image generation, with image 12 attached as the style reference; prompts, sheets and the cut pieces are in `artifacts/image12-plants-r1/` and the previous parts are kept in `artifacts/image12-plants-r1/replaced/`. Cut with a canvas script (white background flood-filled from the edges, connected pieces cropped, WebP 0.9, longest side 512 px); violet leaves flipped so stalks point down. The `tree` kind's art is now a pink-veined Fittonia (nerve plant) instead of Calathea; simulation kind and ecology unchanged. Personal, non-commercial game; generated images, no third-party licence.
+
+`public/assets/paper/plants/moss-cushion/` (2026-11-07): six drawn moss cushions from a Codex image_gen sheet with image 12 as reference (`artifacts/image12-plants-r1/moss*`), cut the same way; drawn on three crossed cards per cushion.
