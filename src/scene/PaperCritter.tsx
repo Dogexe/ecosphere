@@ -20,6 +20,11 @@ import type { Shell } from './paperShell'
 export const paperLook = (() => {
   try { return new URLSearchParams(window.location.search).get('look') === 'paper' } catch { return false }
 })()
+/**
+ * Animals in the paper look are 3D models by default (owner, 2026-11-07: "make the animals 3D");
+ * the watercolor pass paints them like the drawn plants. `?animals=drawn` brings back the paper sheets.
+ */
+export const drawnAnimals = paperLook && (() => { try { return new URLSearchParams(window.location.search).get('animals') === 'drawn' } catch { return false } })()
 // The semi-real jar draws every animal at its real adult size.
 animalScaleMode.real = paperLook
 
