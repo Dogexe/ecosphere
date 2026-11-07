@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { BufferAttribute, Color, DoubleSide, InstancedMesh, MeshStandardMaterial, Object3D, PlaneGeometry, Vector3 } from 'three'
-import type { BufferGeometry } from 'three'
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { BufferAttribute, BufferGeometry, Color, DoubleSide, InstancedMesh, MeshStandardMaterial, Object3D, Vector3 } from 'three'
 import { environmentScale } from './scale'
 
 /*
@@ -28,40 +26,52 @@ export const mossNoise = (x: number, y: number) => {
 export function mossCover(x: number, y: number, z: number, ny: number) {
   const patchMask = mossNoise(x * 0.8, z * 0.8) * 0.7 + mossNoise(x * 2.1, z * 2.1) * 0.3
   const smooth = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t) }
-  return smooth(0.38, 0.48, patchMask) * smooth(environmentScale.pondSurfaceY + 0.02, environmentScale.pondSurfaceY + 0.14, y) * smooth(0.45, 0.7, ny) * (1 - smooth(3.7, 3.8, Math.hypot(x, z)))
+  return smooth(0.2, 0.52, patchMask) * smooth(environmentScale.pondSurfaceY + 0.02, environmentScale.pondSurfaceY + 0.14, y) * smooth(0.7, 0.86, ny) * (1 - smooth(3.68, 3.8, Math.hypot(x, z)))
 }
 
+/**
+ * A moss tuft as four fern-like sprigs (Codex moss loop, asked every round: short stems carrying
+ * paired narrow leaflets, spreading outward and curving down): each sprig is a thin stem with four
+ * pairs of pointed leaflets, smaller toward the tip, deep olive at the base to yellow-green tips.
+ */
 function tuftGeometry() {
-  const base = new Color('#455c13'), tip = new Color('#a3bb22'), c = new Color()
-  const blades: BufferGeometry[] = []
-  // Six blades of one segment each (two triangles), so 26k tufts stay inside the triangle budget.
-  for (let k = 0; k < 6; k += 1) {
-    const blade = new PlaneGeometry(0.6, 0.75, 2, 3).translate(0, 0.375, 0)
-    const position = blade.getAttribute('position'), colours = new Float32Array(position.count * 3)
-    for (let v = 0; v < position.count; v += 1) {
-      const t = position.getY(v) / 0.75
-      position.setX(v, position.getX(v) * (0.25 + Math.sin(Math.min(1, t) * Math.PI * 0.85) * 0.75))   // rounded lobe, widest near the tip
-      position.setZ(v, -t * t * 0.18)                                      // curls down at the tip
-      c.copy(base).lerp(tip, t)
-      colours.set([c.r, c.g, c.b], v * 3)
-    }
-    blade.setAttribute('color', new BufferAttribute(colours, 3))
-    // Bent outward into a rounded, spreading crown (1.8x wider, Codex moss loop r3).
-    blade.rotateX(-(0.55 + (k % 3) * 0.15)).rotateY(k / 6 * Math.PI * 2)
-    blades.push(blade)
+  const base = new Color('#455c13'), body = new Color('#849d16'), tip = new Color('#bfd02c'), c = new Color()
+  const positions: number[] = [], colours: number[] = []
+  const tri = (a: Vector3, b: Vector3, d: Vector3, t: number) => {
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z, d.x, d.y, d.z)
+    c.copy(t < 0.5 ? base : body).lerp(t < 0.5 ? body : tip, t < 0.5 ? t * 2 : (t - 0.5) * 2)
+    for (let k = 0; k < 3; k += 1) colours.push(c.r, c.g, c.b)
   }
-  const merged = mergeGeometries(blades)!
-  // Light each tuft as a little dome, so neighbouring crowns break into their own light and shade.
-  const position = merged.getAttribute('position'), normal = merged.getAttribute('normal'), n = new Vector3()
-  for (let v = 0; v < normal.count; v += 1) { n.set(position.getX(v), position.getY(v) + 0.35, position.getZ(v)).normalize(); normal.setXYZ(v, n.x, n.y, n.z) }
-  merged.deleteAttribute('uv')
-  return merged
+  // A sprig in its own plane (x across, y along), arched: it rises then curls outward and down.
+  const along = (t: number) => new Vector3(0, Math.sin(t * 1.9) * 0.62, t * 0.75)
+  for (let sprig = 0; sprig < 4; sprig += 1) {
+    const yaw = sprig / 4 * Math.PI * 2 + 0.3, rotate = (v: Vector3) => v.applyAxisAngle(new Vector3(0, 1, 0), yaw)
+    for (let k = 0; k < 4; k += 1) {
+      const t0 = k / 4, t1 = (k + 1) / 4, p0 = along(t0), p1 = along(t1)
+      // Stem segment (a thin sliver).
+      tri(rotate(p0.clone().add(new Vector3(-0.02, 0, 0))), rotate(p1.clone()), rotate(p0.clone().add(new Vector3(0.02, 0, 0))), t0)
+      // A pair of pointed leaflets angled forward and up.
+      const size = 0.3 * (1 - t0 * 0.55), mid = along((t0 + t1) / 2)
+      for (const side of [-1, 1]) {
+        const leafTip = mid.clone().add(new Vector3(side * size, size * 0.35, size * 0.45))
+        tri(rotate(mid.clone().add(new Vector3(0, 0, -0.04))), rotate(leafTip), rotate(mid.clone().add(new Vector3(0, 0.03, 0.06))), t1)
+      }
+    }
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
+  geometry.setAttribute('color', new BufferAttribute(new Float32Array(colours), 3))
+  // Lit as a little dome, so each tuft has its own light and shade.
+  const normals = new Float32Array(positions.length), n = new Vector3()
+  for (let v = 0; v < positions.length; v += 3) { n.set(positions[v], positions[v + 1] + 0.3, positions[v + 2]).normalize(); normals.set([n.x, n.y, n.z], v) }
+  geometry.setAttribute('normal', new BufferAttribute(normals, 3))
+  return geometry
 }
 
 let shared: { geometry: BufferGeometry; material: MeshStandardMaterial } | null = null
 const assets = () => shared ??= { geometry: tuftGeometry(), material: new MeshStandardMaterial({ vertexColors: true, side: DoubleSide, roughness: 1, metalness: 0 }) }
 
-export function MossTufts({ surface, floor, lift }: { surface: BufferGeometry; floor: number; lift: (x: number, y: number, z: number, ny: number) => number }) {
+export function MossTufts({ surface, floor, lift, crownsOnly = false }: { surface: BufferGeometry; floor: number; lift: (x: number, y: number, z: number, ny: number) => number; crownsOnly?: boolean }) {
   const { geometry, material } = assets()
   const capacity = 16000
   const mesh = useRef<InstancedMesh>(null)
@@ -79,6 +89,8 @@ export function MossTufts({ surface, floor, lift }: { surface: BufferGeometry; f
         const jx = x + (hash(v, k) - 0.5) * 0.06, jz = z + (hash(k, v) - 0.5) * 0.06
         const cover = mossCover(jx, y + floor, jz, ny)
         if (cover < 0.2) continue
+        // On the fur mounds only the crowns carry sprigs, so the mounds keep their soft rounded outline.
+        if (crownsOnly && (lift(jx, y + floor, jz, ny) < 0.12 || hash(v, 23 + k) > 0.6)) continue
         dummy.position.set(jx, y + lift(jx, y + floor, jz, ny) - 0.015, jz)
         dummy.rotation.set((hash(v, 11 + k) - 0.5) * 0.4, hash(v, 13 + k) * Math.PI * 2, (hash(v, 17 + k) - 0.5) * 0.4)
         const s = (0.15 + hash(v, 19 + k) * 0.08) * (0.75 + cover * 0.25)
@@ -97,12 +109,12 @@ export function MossTufts({ surface, floor, lift }: { surface: BufferGeometry; f
       if (best < 0 || bestDistance > 0.4) continue
       const top = position.getY(best), cover = mossCover(x, top + floor, z, 0.9)
       if (cover < 0.3 || hash(step, 47) < 0.2) continue
-      const depth = 1 + Math.floor(hash(step, 41) * 3 * cover)
+      const depth = 1 + Math.floor(hash(step, 41) * 1.6 * cover)
       for (let k = 0; k < depth && n < capacity; k += 1) {
         dummy.position.set(Math.cos(angle) * (r + 0.02), top - 0.03 - k * 0.07 - hash(step, k) * 0.04, Math.sin(angle) * (r + 0.02))
         dummy.rotation.set(Math.PI * 0.8, -angle + Math.PI / 2, (hash(k, step) - 0.5) * 0.6)
-        const s = (0.12 + hash(step, 43 + k) * 0.05) * (1 - k * 0.15)
-        dummy.scale.set(s * 1.8, s, s * 1.8)
+        const s = (0.2 + hash(step, 43 + k) * 0.06) * (1 - k * 0.15)
+        dummy.scale.set(s, s, s)
         dummy.updateMatrix()
         target.setMatrixAt(n, dummy.matrix)
         n += 1

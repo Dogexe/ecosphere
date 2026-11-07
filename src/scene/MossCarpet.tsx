@@ -16,30 +16,25 @@ import { MossTufts, mossCover, mossNoise } from './MossTufts'
  *
  * Toon light: two soft bands from the mound's own normal. Visual only.
  */
-const furLayers = 0
+const furLayers = 6
 
 const common = /* glsl */ `
   uniform float waterY;
-  // Hoskins' hash (no large sin arguments), identical in MossTufts' JS so tufts sit on the blanket.
   float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
   float noise(vec2 p) { vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
   float cover(vec3 world, vec3 n) {
     float patchMask = noise(world.xz * 0.8) * 0.7 + noise(world.xz * 2.1) * 0.3;
-    float c = smoothstep(0.38, 0.48, patchMask);
+    float c = smoothstep(0.2, 0.52, patchMask);   // gentle cushion edges, no cliffs
     c *= smoothstep(waterY, waterY + 0.12, world.y);          // none under or just above the water
-    c *= smoothstep(0.45, 0.7, n.y);                           // none on steep banks
-    c *= 1.0 - smoothstep(3.7, 3.8, length(world.xz));         // runs right to the glass (MossTufts drapes it over)
+    c *= smoothstep(0.7, 0.86, n.y);                           // none on steep banks
+    c *= 1.0 - smoothstep(3.68, 3.8, length(world.xz));        // runs to the glass
     return c;
   }
   float thickness(vec3 world, vec3 n) {
     // Clumps about 5-10 mm across, rounded on top, with deep gaps between them.
-    // Broad soft cushions (Codex moss loop r1: 60% lower, rounded, no ridges).
-    // Small tight cushions (Codex moss loop r2: 40% amplitude, 2.5x frequency); MossTufts sits on top.
-    // Overlapping rounded cushions about 2-3 tufts across (Codex moss loop r3).
-    // Clustered domes 4-8 tufts across, 2-3 tufts high (Codex moss loop r4).
-    float lumps = noise(world.xz * 1.8) * 0.75 + noise(world.xz * 4.5) * 0.25;
-    return cover(world, n) * (0.03 + 0.2 * smoothstep(0.3, 0.8, lumps));
+    float lumps = noise(world.xz * 3.0) * 0.4 + smoothstep(0.25, 0.75, noise(world.xz * 9.0)) * 0.6;
+    return cover(world, n) * (0.05 + 0.24 * lumps);
   }
 `
 
@@ -49,9 +44,8 @@ function material(fur: number) {
     uniforms: {
       waterY: { value: environmentScale.pondSurfaceY + 0.02 },
       fur: { value: fur },
-      shade: { value: new Color('#2f3f12') },
-      body: { value: new Color('#425719') },
-      lit: { value: new Color('#5f7a18') },
+      shade: { value: new Color('#24440f') },
+      lit: { value: new Color('#a9d64a') },
     },
     vertexShader: `
       uniform float fur;
@@ -71,51 +65,43 @@ function material(fur: number) {
         gl_Position = projectionMatrix * viewMatrix * moved;
       }`,
     fragmentShader: `
-      uniform float fur; uniform vec3 shade; uniform vec3 body; uniform vec3 lit;
+      uniform float fur; uniform vec3 shade; uniform vec3 lit;
       ${common}
       varying vec3 vWorld; varying vec3 vNormal; varying float vCover; varying float vThick;
       void main() {
         if (vCover < 0.08 || vThick < 0.012) discard;
         if (fur > 0.0) {
           // Short fuzz: fine strands, thinner toward the top shell.
-          // Seen edge-on, shells read as curtains: keep the fuzz on faces turned to the eye.
-          if (abs(dot(normalize(vNormal), normalize(cameraPosition - vWorld))) < 0.2) discard;
-          // Small leafy sprays: 5-9 tapered strokes radiating from each tuft centre.
-          vec2 cell = vWorld.xz * 62.0;
-          vec2 id = floor(cell), f = fract(cell) - 0.5;
-          float h = hash(id);
-          float arms = 5.0 + floor(h * 5.0);
-          float angle = atan(f.y, f.x) + h * 6.283;
-          float stroke = pow(abs(cos(angle * arms * 0.5)), 6.0);
-          float reach = (0.18 + 0.32 * stroke) * (1.0 - fur * 0.55);
-          if (h < fur * 0.45 || length(f) > reach) discard;
+          // Fur only on gently sloping crowns: on the mounds' front faces it read as vertical curtains (Codex).
+          if (normalize(vNormal).y < 0.72) discard;
+          vec2 cell = vWorld.xz * 38.0;
+          if (hash(floor(cell)) < fur * 0.8 || length(fract(cell) - 0.5) > 0.5 - fur * 0.3) discard;
         }
         // Two soft toon bands from the mound's normal, light from above and the window side.
         float facing = dot(normalize(vNormal), normalize(vec3(-0.35, 1.0, 0.25)));
-        // Warm three-tone ramp with soft (about 20%) transitions.
-        float tone = smoothstep(0.2, 0.55, facing) * 0.5 + smoothstep(0.6, 0.95, facing) * 0.5 + fur * 0.2;
-        vec3 colour = tone < 0.5 ? mix(shade, body, tone * 2.0) : mix(body, lit, (tone - 0.5) * 2.0);
-        float band = 0.82 + 0.18 * smoothstep(0.3, 0.7, facing);
+        float band = 0.55 + 0.25 * smoothstep(0.35, 0.5, facing) + 0.2 * smoothstep(0.75, 0.85, facing);
+        vec3 colour = mix(shade, lit, smoothstep(0.4, 0.95, facing) * 0.8 + fur * 0.25);
         // Crevices between clumps stay dark, crowns catch the light.
-        float crown = smoothstep(0.05, 0.13, vThick);
-        colour *= band * (0.82 + 0.22 * crown) * (0.94 + 0.1 * noise(vWorld.xz * 4.0));
+        float crown = smoothstep(0.06, 0.22, vThick);
+        colour *= band * (0.6 + 0.45 * crown) * (0.92 + 0.12 * noise(vWorld.xz * 4.0));
         gl_FragColor = vec4(colour, 1.0);
         #include <colorspace_fragment>
       }`,
   })
 }
 
-/** The blanket's thickness at a world point, as the shader computes it (for seating the tufts). */
 const smooth = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t) }
+/** The mound thickness the shader computes, for seating moss sprigs on the crowns. */
 export const blanketLift = (x: number, y: number, z: number, ny: number) => {
-  const lumps = mossNoise(x * 1.8, z * 1.8) * 0.75 + mossNoise(x * 4.5, z * 4.5) * 0.25
-  return mossCover(x, y, z, ny) * (0.03 + 0.2 * smooth(0.3, 0.8, lumps))
+  const lumps = mossNoise(x * 3, z * 3) * 0.4 + smooth(0.25, 0.75, mossNoise(x * 9, z * 9)) * 0.6
+  return mossCover(x, y, z, ny) * (0.05 + 0.24 * lumps)
 }
 
 export function MossCarpet({ geometry, floor }: { geometry: BufferGeometry; floor: number }) {
   const materials = useMemo(() => [material(0), ...Array.from({ length: furLayers }, (_, index) => material((index + 1) / furLayers))], [])
   return <>
     {materials.map((m, index) => <mesh key={index} geometry={geometry} material={m} raycast={() => undefined} receiveShadow={index === 0} />)}
-    <MossTufts surface={geometry} floor={floor} lift={blanketLift} />
+    {/* Fern-like moss sprigs on the mound crowns and draping at the glass (Codex moss loop). */}
+    <MossTufts surface={geometry} floor={floor} lift={blanketLift} crownsOnly />
   </>
 }
