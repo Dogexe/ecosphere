@@ -1,6 +1,23 @@
 # Art direction
 
-## Paper look (current, owner decision 2026-11-03; `?look=paper`)
+## Current: Stylized 3D Naturalism / Soft Organic Low-poly (owner decision 2026-11-07)
+
+Supersedes the paper look and the concept-image-12 target. References: `artifacts/art-direction-2026-11-07/reference-main.png` and `reference-ui-thumbnails.png` (owner's concept). Inspiration: Sneaky Sasquatch's warmth and charm, Equilinox's ecological creativity, the intimacy of a real terrarium. A cohesive 3D indie game, not photoreal and not flat cartoon.
+
+- **Geometry:** soft, rounded low-poly shapes with recognizable anatomy; no harsh angles, no generic primitives.
+- **Materials:** stylized natural surfaces with subtle variation; plants, animals, soil, rocks and water share one artistic language (no mixing drawn sprites with photo scans).
+- **Lighting:** warm sunlight, soft shadows, gentle ambient light, atmospheric depth; little post-processing.
+- **Colour:** forest greens, earthy browns, warm creams, muted blues, restrained colourful accents.
+- **Animals:** charming but biologically recognizable, real proportions, species-specific animation; tiny organisms stay real-size (zoom in, never enlarge).
+- **Vegetation:** rich and layered: moss, ferns, grasses, flowering plants, shrubs, trees.
+- **World:** genuine 3D with free orbit/zoom/pan; Surface, Underwater and Underground (evolving 3D ant tunnels, roots, soil layers) with seamless cutaway and X-ray modes.
+- **UI:** minimal cream-and-forest-green rounded panels, clean type, contextual inspection and field notes, Surface/Underground/Underwater/X-ray navigation, unobtrusive environment and speed controls, collapsible; the terrarium stays the centrepiece.
+- **Assets (mandatory):** asset-first, modification-first: search high-quality, commercially usable low-poly models first and adapt them with Blender/Python for consistent proportions, materials and animation. Procedural geometry for dynamic things (terrain, ant tunnels, growth). No inferior primitive substitutes when a suitable asset can be legally adapted.
+- **Performance:** desktop browsers and iPad Safari with Three.js: optimized geometry, instancing, efficient materials, restrained transparency, light lighting, LOD. Polished handcrafted indie quality through efficient real-time rendering, not cinematic effects.
+
+"Beautiful from afar. Fascinating up close. Alive at every scale."
+
+## Earlier: paper look (owner decision 2026-11-03, superseded 2026-11-07; `?look=paper`)
 
 - **Creatures:** 2D paper-sticker cut-out sprites, side view facing right, rigged in code.
 - **Environment and plants:** realistic 3D from photo scans (Poly Haven CC0, HDRI, photo textures), in a glass jar on a windowsill with a tilt-shift diorama feel. Plants use scans scaled to real sizes (`src/scene/ScanPlant.tsx`, `src/scene/scale.ts`); cite a real-world size for each.
