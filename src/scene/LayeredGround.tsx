@@ -245,7 +245,7 @@ export function useLayerMaterials() {
   }, ['soil', 'pebble', 'grit'])
   return useMemo(() => {
     const make = (roughness: number, double: boolean, pebbleScale = 0.6) => {
-      const material = new MeshStandardMaterial({ vertexColors: true, map: set.soil, normalMap: set.soilNormal, roughness, side: double ? DoubleSide : undefined })
+      const material = new MeshStandardMaterial({ vertexColors: true, map: set.soil, normalMap: naturalLook ? null : set.soilNormal, roughness, side: double ? DoubleSide : undefined })
       material.normalScale.set(1.1, 1.1)
       material.userData.realistic = true
       material.customProgramCacheKey = () => `layer-${pebbleScale}-${naturalLook}`
@@ -308,10 +308,10 @@ export function useLayerMaterials() {
             // warm earthy browns with a few lighter clods, and plain rounded pebbles.
             vec2 crumbCell = floor(vMapUv * 26.0);
             float crumb = fract(sin(dot(crumbCell, vec2(41.3, 289.1))) * 15731.7);
-            vec3 earth = vec3(0.3, 0.19, 0.11) * mix(vec3(1.0), ratio, 0.5);
-            soil = earth * (0.9 + 0.16 * crumb) * (0.9 + 0.2 * smoothstep(0.4, 0.6, texture2D(map, vMapUv * 0.5).g));
-            grit = vec3(0.16, 0.14, 0.13) * (0.85 + 0.3 * crumb);
-            gravel = mix(vec3(0.62, 0.58, 0.52), vec3(0.78, 0.72, 0.62), crumb) * clamp(vColor.rgb / gravelRef, 0.0, 1.2) * (0.75 + 0.35 * smoothstep(0.2, 0.8, pebbleScan.g));` : ''}
+            vec3 earth = vec3(0.2, 0.11, 0.055) * mix(vec3(1.0), ratio, 0.5);
+            soil = earth * (0.95 + 0.07 * crumb);
+            grit = vec3(0.12, 0.1, 0.09);
+            gravel = mix(vec3(0.36, 0.33, 0.29), vec3(0.62, 0.55, 0.45), smoothstep(0.25, 0.7, pebbleScan.g)) * clamp(vColor.rgb / gravelRef, 0.0, 1.2);` : ''}
             diffuseColor.rgb *= mix(mix(soil, grit, charcoal), gravel, vPebble);`)
           .replace('#include <color_fragment>', '')
       }

@@ -222,7 +222,8 @@ function Sill({ bottom = gravelBottom }: { bottom?: number }) {
   return <mesh position={[0, bottom - 0.85, 1.5]} raycast={noRaycast}>
     <boxGeometry args={[30, 1, 14]} />
     {/* Dark walnut, like the sill in concept image 12. */}
-    <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color={naturalLook ? '#a8693a' : '#57412f'} envMapIntensity={0.35} />
+    {/* Natural look: flat warm wood without the photo grain (Codex: grain competed with the jar). */}
+    {naturalLook ? <meshStandardMaterial color="#b07546" roughness={0.9} /> : <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color="#57412f" envMapIntensity={0.35} />}
   </mesh>
 }
 

@@ -958,7 +958,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
   return (
     <>
     <Canvas
-      shadows
+      shadows={naturalLook ? 'soft' : true}
       dpr={dpr}
       camera={{ position: frontView ? [0.9, 2.0, 15] : [8.5, 6.55, 10], fov: 38, near: 0.1, far: 70 }}
       gl={{ antialias: !composited, alpha: true, powerPreference: 'high-performance' }}
@@ -968,7 +968,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       <DebugHandle />
       {/* Drop to 1x pixels while frames run slow, and go back up once they recover. */}
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(maxDpr)} flipflops={3} onFallback={() => setDpr(1)} />
-      {paperLook && watercolorLook && <Watercolor />}
+      {paperLook && watercolorLook && !naturalLook && <Watercolor />}
       {!underground && <Daylight world={world} dramatic={paperLook && watercolorLook} room={paperLook && watercolorLook && !underwater} />}
       {paperLook && watercolorLook && !underground && !underwater && <Room world={world} />}
       {paperLook && watercolorLook && polishLook && <Polish light={coarsePointer} />}

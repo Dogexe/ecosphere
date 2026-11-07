@@ -26,7 +26,7 @@ function shootGeometry() {
   const geometry = mergeGeometries(parts.map((part) => part.toNonIndexed()))!
   // Colour by height: deep olive at the base, bright yellow-green at the tips.
   const position = geometry.getAttribute('position'), colours = new Float32Array(position.count * 3)
-  const base = new Color('#2c3f17'), tip = new Color('#9cba3c'), c = new Color()
+  const base = new Color('#3c5a1c'), tip = new Color('#a9cf4a'), c = new Color()
   for (let v = 0; v < position.count; v += 1) { c.copy(base).lerp(tip, Math.min(1, Math.max(0, position.getY(v) / 0.85)) ** 1.4); colours.set([c.r, c.g, c.b], v * 3) }
   geometry.setAttribute('color', new BufferAttribute(colours, 3))
   geometry.deleteAttribute('uv')
@@ -39,7 +39,7 @@ const assets = () => shared ??= {
   shoot: shootGeometry(),
   dome: new SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2),
   material: new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }),
-  domeMaterial: new MeshStandardMaterial({ color: '#26361a', roughness: 1 }),
+  domeMaterial: new MeshStandardMaterial({ color: '#4a6b22', roughness: 1 }),
 }
 
 const hash = (n: number) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s) }

@@ -4,6 +4,7 @@ import { AmbientLight, Color, DirectionalLight, HemisphereLight, MathUtils, Vect
 import type { World } from '../sim/ecosystem'
 import { environmentAt } from '../sim/climate'
 import { lightingWorld, windowLight } from './Room'
+import { naturalLook } from './PaperCritter'
 
 /**
  * `dramatic` (paper look, after Drawquarium): low fill light and a strong key
@@ -28,7 +29,8 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
     : new Vector3(4, 7, -4)
   const brightness = sky.cycling ? sky.solar : 1
   // In the room the fill drops further so the window behind the jar is the light you notice (concept image 12).
-  const fill = room ? 0.6 : dramatic ? 0.3 : 1, keyBoost = room ? 1.5 : dramatic ? 1.35 : 1
+  // Natural look: generous cool-green fill so toon shade never goes black (Codex review 2026-11-07).
+  const fill = room ? (naturalLook ? 0.95 : 0.6) : dramatic ? 0.3 : 1, keyBoost = room ? 1.5 : dramatic ? 1.35 : 1
   useFrame((_, delta) => {
     const blend = 1 - Math.exp(-delta * 5)
     if (ambient.current) ambient.current.intensity = MathUtils.lerp(ambient.current.intensity, (sky.cycling ? 0.55 + brightness * 0.7 : 1.25) * fill, blend)
@@ -41,7 +43,7 @@ export function Daylight({ world, dramatic = false, room = false }: { world: Wor
   })
   return <>
     <ambientLight ref={ambient} intensity={0.8} color={sky.cycling ? '#d9e5ec' : '#e4eee3'} />
-    <hemisphereLight ref={hemisphere} args={['#cfe2f0', '#8a6645', 1]} />
+    <hemisphereLight ref={hemisphere} args={naturalLook ? ['#d6efe2', '#9c7a52', 1] : ['#cfe2f0', '#8a6645', 1]} />
     <directionalLight ref={key} position={[-5, 9, 6]} intensity={1} color={tint} castShadow shadow-mapSize={[1024, 1024]} shadow-camera-left={-5} shadow-camera-right={5} shadow-camera-top={5} shadow-camera-bottom={-5} shadow-bias={-0.0002} />
     {/* In the room, light from the window bounces off the walls and comes back at the jar's front, soft and warm. */}
     {room && <directionalLight position={[2, 4, 12]} intensity={0.3 + brightness * 0.35} color="#ffe6c8" />}

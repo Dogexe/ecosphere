@@ -5,6 +5,7 @@ import { CanvasTexture, Color, DoubleSide, Group, MathUtils, Mesh, MeshBasicMate
 import { bodyPath, crawlLift, legSwing, oarStroke, parseRig, placements, rigFromSvg, toLocal, unitsPerPixel } from './paperRig'
 import type { PaperMotion, PaperRig } from './paperRig'
 import { animalScaleMode, groundShape } from './scale'
+import { applyToonLighting } from './toon'
 import { shellGeometry } from './paperShell'
 import type { Shell } from './paperShell'
 
@@ -24,6 +25,7 @@ import type { Shell } from './paperShell'
  */
 const lookParam = (() => { try { return new URLSearchParams(window.location.search).get('look') } catch { return 'classic' } })()
 export const naturalLook = lookParam !== 'paper' && lookParam !== 'classic'
+if (naturalLook) applyToonLighting()
 /** The jar scene (both the natural and the paper look). */
 export const paperLook = lookParam !== 'classic'
 /**
