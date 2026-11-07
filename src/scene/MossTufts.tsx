@@ -28,11 +28,11 @@ export const mossNoise = (x: number, y: number) => {
 export function mossCover(x: number, y: number, z: number, ny: number) {
   const patchMask = mossNoise(x * 0.8, z * 0.8) * 0.7 + mossNoise(x * 2.1, z * 2.1) * 0.3
   const smooth = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t) }
-  return smooth(0.38, 0.48, patchMask) * smooth(environmentScale.pondSurfaceY + 0.02, environmentScale.pondSurfaceY + 0.14, y) * smooth(0.45, 0.7, ny) * (1 - smooth(3.45, 3.7, Math.hypot(x, z)))
+  return smooth(0.38, 0.48, patchMask) * smooth(environmentScale.pondSurfaceY + 0.02, environmentScale.pondSurfaceY + 0.14, y) * smooth(0.45, 0.7, ny) * (1 - smooth(3.7, 3.8, Math.hypot(x, z)))
 }
 
 function tuftGeometry() {
-  const base = new Color('#34481a'), tip = new Color('#8fae22'), c = new Color()
+  const base = new Color('#455c13'), tip = new Color('#a3bb22'), c = new Color()
   const blades: BufferGeometry[] = []
   // Six blades of one segment each (two triangles), so 26k tufts stay inside the triangle budget.
   for (let k = 0; k < 6; k += 1) {
@@ -82,6 +82,26 @@ export function MossTufts({ surface, floor, lift }: { surface: BufferGeometry; f
         dummy.position.set(jx, y + lift(jx, y + floor, jz, ny) - 0.015, jz)
         dummy.rotation.set((hash(v, 11 + k) - 0.5) * 0.4, hash(v, 13 + k) * Math.PI * 2, (hash(v, 17 + k) - 0.5) * 0.4)
         const s = (0.15 + hash(v, 19 + k) * 0.08) * (0.75 + cover * 0.25)
+        dummy.scale.set(s * 1.8, s, s * 1.8)
+        dummy.updateMatrix()
+        target.setMatrixAt(n, dummy.matrix)
+        n += 1
+      }
+    }
+    // Drape (Codex moss loop): where moss reaches the glass, tufts hang down the soil face in an
+    // irregular fringe, 2-4 tufts deep, with gaps.
+    for (let step = 0; step < 900 && n < capacity; step += 1) {
+      const angle = step / 900 * Math.PI * 2, r = 3.66, x = Math.cos(angle) * r, z = Math.sin(angle) * r
+      let best = -1, bestDistance = Infinity
+      for (let v = 0; v < position.count; v += 37) { const d = Math.hypot(position.getX(v) - x, position.getZ(v) - z); if (d < bestDistance) { bestDistance = d; best = v } }
+      if (best < 0 || bestDistance > 0.4) continue
+      const top = position.getY(best), cover = mossCover(x, top + floor, z, 0.9)
+      if (cover < 0.3 || hash(step, 47) < 0.2) continue
+      const depth = 1 + Math.floor(hash(step, 41) * 3 * cover)
+      for (let k = 0; k < depth && n < capacity; k += 1) {
+        dummy.position.set(Math.cos(angle) * (r + 0.02), top - 0.03 - k * 0.07 - hash(step, k) * 0.04, Math.sin(angle) * (r + 0.02))
+        dummy.rotation.set(Math.PI * 0.8, -angle + Math.PI / 2, (hash(k, step) - 0.5) * 0.6)
+        const s = (0.12 + hash(step, 43 + k) * 0.05) * (1 - k * 0.15)
         dummy.scale.set(s * 1.8, s, s * 1.8)
         dummy.updateMatrix()
         target.setMatrixAt(n, dummy.matrix)

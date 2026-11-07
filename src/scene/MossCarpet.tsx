@@ -29,7 +29,7 @@ const common = /* glsl */ `
     float c = smoothstep(0.38, 0.48, patchMask);
     c *= smoothstep(waterY, waterY + 0.12, world.y);          // none under or just above the water
     c *= smoothstep(0.45, 0.7, n.y);                           // none on steep banks
-    c *= 1.0 - smoothstep(3.45, 3.7, length(world.xz));        // tucks down at the glass
+    c *= 1.0 - smoothstep(3.7, 3.8, length(world.xz));         // runs right to the glass (MossTufts drapes it over)
     return c;
   }
   float thickness(vec3 world, vec3 n) {
