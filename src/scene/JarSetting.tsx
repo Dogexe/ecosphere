@@ -258,7 +258,7 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {/* Moss cushions made the woodlouse's way: the painted cushion wrapped on a 3D dome from its outline. */}
     {/* Natural look: the moss is a fuzzy carpet on the ground (MossCarpet) as in the owner's reference. */}
     {!naturalLook && cushionSet.map((cushion, index) => <group key={index} position={[cushion.x, cushion.y - 0.05, cushion.z]} scale={[1, cushion.height / (cushion.radius * 0.95) * 0.9, 1]}><DrawnMossCushion width={cushion.radius * 2.3} variant={index} turn={(index % 3 - 1) * 0.25} /></group>)}
-    <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={150} ground={ground} spots={shore ?? bank} scale={0.9} />
+    {!naturalLook && <MossSprigs x={pondCenter.x} z={pondCenter.z} radius={1} count={150} ground={ground} spots={shore ?? bank} scale={0.9} />}
     {dry(-2.6, 1.9) && <Fern x={-2.6} z={1.9} ground={ground} />}
     {/* Drawn curled dry leaves on the front bank, the shelter a woodlouse uses in concept image 12. */}
     {!naturalLook && dry(2.1, 2.25) && <group position={[2.1, ground(2.1, 2.25) - 0.03, 2.25]}><DrawnCurledLeaf length={2.0} turn={-0.25} /></group>}
@@ -337,7 +337,7 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
     {water && hasPond && water.cells && pond && <ShapedPond ground={ground} cells={water.cells} level={water.level ?? 0} floor={floor} pond={pond} underwater={!!underwater} onPondClick={onPondClick ?? (() => undefined)} />}
     <Suspense fallback={null}>{state.decor.map((item, index) => <DecorPiece key={index} item={item} index={index} ground={ground} />)}</Suspense>
     {dressed && <Suspense fallback={null}><Dressing ground={ground} keepOut={keepOut} shore={shore} /></Suspense>}
-    {dressed && <Suspense fallback={null}><MossSprigs x={0} z={0} radius={1} count={rim.length * 3} ground={ground} spots={rim} scale={1.1} /></Suspense>}
+    {dressed && !naturalLook && <Suspense fallback={null}><MossSprigs x={0} z={0} radius={1} count={rim.length * 3} ground={ground} spots={rim} scale={1.1} /></Suspense>}
     {dressed && water && hasPond && <Suspense fallback={null}><Pebbles water={water} ground={ground} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
     <Glass bottom={floor} sealed={sealed} mist={underwater ? 0 : mist} />

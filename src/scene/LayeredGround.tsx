@@ -357,6 +357,6 @@ export function LayeredGround({ state, floor, shape, poolScale, onClick, carpet 
     <mesh geometry={geometry.surface} material={materials.surface} receiveShadow raycast={onClick ? undefined : () => undefined} />
     <mesh geometry={geometry.walls} material={materials.walls} raycast={() => undefined} />
     <mesh geometry={geometry.puddles} material={materials.puddles} raycast={() => undefined} renderOrder={2} />
-    {carpet && <MossCarpet geometry={geometry.surface} />}
+    {carpet && <MossCarpet geometry={geometry.surface} floor={floor} />}
   </group>
 }
