@@ -20,7 +20,7 @@ import type { Ground } from './semiReal'
 
 const count = 90
 /** Fine pinned beads that mist the glass, as in concept image 12; more show as the fog thickens. */
-const mistCount = 900
+const mistCount = 1600
 const noRaycast = () => undefined
 
 /*
@@ -132,7 +132,7 @@ export function GlassDroplets({ fog, radiusAt, top, ground }: { fog: number; rad
       dummy.updateMatrix()
       beads.current?.setMatrixAt(n, dummy.matrix)
       // The wiped streak only shows for the last centimetre or so; above that the mist closes in again.
-      const length = show && bead.speed > 0 ? Math.min(0.6, bead.start - bead.y) : 0
+      const length = show && bead.speed > 0 ? Math.min(0.28, bead.start - bead.y) : 0
       dummy.position.set(x, bead.y + length / 2, z)
       dummy.scale.set(s * 1.4, Math.max(1e-4, length), 1)
       dummy.updateMatrix()
