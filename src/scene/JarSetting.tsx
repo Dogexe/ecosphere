@@ -88,7 +88,7 @@ const condensationFilm = new ShaderMaterial({
       float glint = bead * smoothstep(0.0, 0.25, -f.y);
       float facing = abs(dot(normalize(vNormal), normalize(vView)));
       float haze = height * (0.10 + 0.08 * (1.0 - facing));
-      float alpha = amount * (haze + bead * height * 0.22);
+      float alpha = amount * (haze + bead * height * 0.04);
       vec3 colour = mix(vec3(0.86, 0.9, 0.88), vec3(1.0, 0.99, 0.95), glint);
       gl_FragColor = vec4(colour, alpha);
     }`,
@@ -176,7 +176,8 @@ function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: n
       {/* A brushed tin screw cap with a ribbed skirt, like a canning jar. */}
       <mesh position={[0, 0.12, 0]} castShadow raycast={noRaycast}>
         <cylinderGeometry args={[lid, lid, 0.24, 96, 1, false]} />
-        <meshStandardMaterial color="#9d9890" metalness={0.55} roughness={0.32} />
+        {/* Warm bronze-tinted tin, like the cap in concept image 12. */}
+        <meshStandardMaterial color="#a88f6a" metalness={0.6} roughness={0.36} />
       </mesh>
       <mesh position={[0, 0.24, 0]} castShadow raycast={noRaycast}>
         <cylinderGeometry args={[lid - 0.06, lid, 0.06, 96]} />
@@ -184,7 +185,7 @@ function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: n
       </mesh>
       {Array.from({ length: 3 }, (_, n) => <mesh key={n} position={[0, 0.05 + n * 0.07, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
         <torusGeometry args={[lid, 0.018, 6, 96]} />
-        <meshStandardMaterial color="#a7a49b" metalness={0.85} roughness={0.42} />
+        <meshStandardMaterial color="#6f5d44" metalness={0.6} roughness={0.5} />
       </mesh>)}
     </group>}
   </group>

@@ -27,7 +27,7 @@ const depth = (layer) => layerDepths(state)[layer]
 // of gravel, 4 mm of charcoal and 36 mm of soil; thinned again the same day to
 // about 14 mm gravel and 22 mm soil (Codex review round 1: the brown wall was
 // the biggest gap), the pond hollow dug down to the charcoal.
-pour('gravel', 0.48, 3, spiral, () => depth('gravel') >= 0.48)
+pour('gravel', 0.3, 3, spiral, () => depth('gravel') >= 0.3)
 pour('charcoal', 0.12, 1, spiral, () => depth('charcoal') >= 0.12)
 // Concept image 12 (owner's pick, 2026-11-06; thread "Match jar visuals to image 12", 2026-11-07):
 // the substrate is only about a third of the jar's height. A low planted bank (about 33 mm
