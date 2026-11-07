@@ -345,20 +345,20 @@ function Pebbles({ water, ground }: { water: PondShape; ground: Ground }) {
   const spots = useMemo(() => {
     const found: { x: number; z: number; size: number; turn: number; node: string; wet: boolean }[] = []
     let bank = 0, bed = 0
-    for (let n = 0; n < 9000 && (bank < 6 || bed < 26); n += 1) {
+    for (let n = 0; n < 9000 && (bank < 6 || bed < 14); n += 1) {
       const x = -3.6 + ((n * 0.618034 + 0.31) % 1) * 7.2, z = -3.6 + ((n * 0.7548777 + 0.17) % 1) * 7.2
       if (Math.hypot(x, z) > 3.45) continue
       const d = water.signedDistance(x, z)
       const wet = d < -0.12
-      if (wet ? bed >= 26 : (d < 0.05 || d > 0.4 || bank >= 6)) continue
+      if (wet ? bed >= 14 || d < -0.55 : (d < 0.05 || d > 0.4 || bank >= 6)) continue
       if (found.some((spot) => Math.hypot(spot.x - x, spot.z - z) < (wet ? 0.22 : 0.35))) continue
       if (wet) bed += 1; else bank += 1
       // A pebble bed seen through the front glass (image 12): many small stones, a few larger ones.
-      found.push({ x, z, size: wet ? 0.12 + ((n * 0.37) % 1) ** 2 * 0.36 : 0.16 + ((n * 0.37) % 1) * 0.32, turn: n * 2.4, node: `namaqualand_stones_01_${'abcde'[n % 5]}`, wet })
+      found.push({ x, z, size: wet ? 0.22 + ((n * 0.37) % 1) * 0.3 : 0.16 + ((n * 0.37) % 1) * 0.32, turn: n * 2.4, node: `namaqualand_stones_01_${'abcde'[n % 5]}`, wet })
     }
     return found
   }, [water])
-  return <>{spots.map((spot, n) => <ScannedProp key={n} file={stones} node={spot.node} x={spot.x} z={spot.z} length={spot.size} turn={spot.turn} ground={ground} lift={0.01} />)}</>
+  return <>{spots.map((spot, n) => <ScannedProp key={n} file={stones} node={spot.node} x={spot.x} z={spot.z} length={spot.size} turn={spot.turn} ground={ground} lift={spot.wet ? -0.04 : 0.01} wet={spot.wet} />)}</>
 }
 
 /**

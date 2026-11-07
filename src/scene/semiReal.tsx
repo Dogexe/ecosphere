@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useGLTF, useTexture } from '@react-three/drei'
 import { BufferAttribute, CanvasTexture, Color, DoubleSide, InstancedMesh, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Object3D, PlaneGeometry, Quaternion, RepeatWrapping, SRGBColorSpace, Texture, Vector2, Vector3 } from 'three'
-import type { BufferGeometry } from 'three'
+import type { BufferGeometry, Material } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { makeNoise } from '../lab/proceduralTextures'
 
@@ -311,7 +311,20 @@ function paintedScan(source: MeshStandardMaterial, extra: string, blur: number, 
 }
 
 /** A Poly Haven CC0 scan placed on the soil: one node, painted like the rest of the set, scaled to `length` units. */
-export function ScannedProp({ file, node, x, z, length, turn, ground, lift = 0 }: { file: string; node: string; x: number; z: number; length: number; turn: number; ground: Ground; lift?: number }) {
+const wetScans = new Map<Material, Material>()
+/** Under water a stone is darker and glossier, with a green film of algae (stones looked like pale debris). */
+function wetScan(material: Material) {
+  let wet = wetScans.get(material)
+  if (!wet) {
+    const standard = (material as MeshStandardMaterial).clone()
+    standard.color.multiply(new Color(0.5, 0.58, 0.44)); standard.roughness = 0.35
+    wet = standard
+    wetScans.set(material, wet)
+  }
+  return wet
+}
+
+export function ScannedProp({ file, node, x, z, length, turn, ground, lift = 0, wet = false }: { file: string; node: string; x: number; z: number; length: number; turn: number; ground: Ground; lift?: number; wet?: boolean }) {
   const { nodes } = useGLTF(`${polyHaven}${file}`)
   const mesh = nodes[node] as Mesh
   const { geometry, material, largest } = useMemo(() => {
@@ -326,7 +339,7 @@ export function ScannedProp({ file, node, x, z, length, turn, ground, lift = 0 }
     return parts
   }, [mesh])
   const scale = length / largest
-  return <mesh geometry={geometry} material={material} position={[x, ground(x, z) - 0.02 + lift, z]} rotation={[0, turn, 0]} scale={scale} raycast={noRaycast} castShadow receiveShadow />
+  return <mesh geometry={geometry} material={wet ? wetScan(material) : material} position={[x, ground(x, z) - 0.02 + lift, z]} rotation={[0, turn, 0]} scale={scale} raycast={noRaycast} castShadow receiveShadow />
 }
 
 /** A painted grey stone from Poly Haven "Rock Moss Set 01" with a cap of moss sprigs on its upward faces. */
