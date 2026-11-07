@@ -762,3 +762,11 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
   .notebook-write { flex-direction: column; }
   .notebook-note { font-size: 16px; }
 }
+
+/* Natural look (owner's reference UI, 2026-11-07): view modes as a rounded cream-and-forest-green rail on the left. */
+.mode-rail { position: absolute; z-index: 4; left: 24px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; }
+.mode-rail button { display: flex; align-items: center; gap: 10px; min-width: 170px; min-height: 48px; padding: 0 20px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(30, 48, 36, 0.82); color: #f4ecd8; font: 600 15px/1 inherit; box-shadow: 0 6px 18px rgba(20, 30, 20, 0.25); cursor: pointer; backdrop-filter: blur(6px); }
+.mode-rail button span { font-size: 18px; }
+.mode-rail button.active { background: #f6efdc; color: #23402c; }
+.mode-rail button:disabled { opacity: 0.45; cursor: default; }
+@media (max-width: 760px) { .mode-rail { top: auto; bottom: 12px; left: 50%; transform: translateX(-50%); flex-direction: row; } .mode-rail button { min-width: 0; padding: 0 14px; } }

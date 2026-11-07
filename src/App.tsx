@@ -26,7 +26,7 @@ import { plantStage, woodlouseLife } from './sim/life'
 import { createHabitatWorld, habitatStarts } from './sim/habitats'
 import type { HabitatStart } from './sim/habitats'
 import { createStressWorld } from './dev/stressWorld'
-import { paperLook } from './scene/PaperCritter'
+import { naturalLook, paperLook } from './scene/PaperCritter'
 import { autosaveInterval, browserStore, readAutosave, writeAutosave } from './sim/autosave'
 import { awayDuration, awayHours, awayLines, awaySliceHours, liveAway, startReport } from './sim/away'
 import type { AwayReport } from './sim/away'
@@ -560,7 +560,13 @@ export function App() {
         />
         {paperLook && !underwater && !underground && <><div className="diorama-blur top" aria-hidden="true" /><div className="diorama-blur bottom" aria-hidden="true" /><div className="window-light" aria-hidden="true" /></>}
         {sealed && !underwater && !underground && <div className="jar-fog" aria-hidden="true" style={{ opacity: fogLevel(world) * 0.6 }} />}
-        <div className="scene-view-tools"><button className="scene-view-button" type="button" onClick={underground ? changeNestView : changeView} disabled={!underwater && !underground && pond.water < 8}>{underwater || underground ? '↑ Return to surface' : '↓ Explore the pond'}</button>{world.colony && !underwater && !underground && <button className="scene-view-button" type="button" onClick={changeNestView}>↓ Inside the nest</button>}</div>
+        {naturalLook && <nav className="mode-rail" aria-label="View">
+          {/* Owner's reference UI (2026-11-07): Surface / Underground / Underwater on the left. */}
+          <button type="button" className={!underwater && !underground ? 'active' : ''} aria-pressed={!underwater && !underground} onClick={() => { if (underwater) changeView(); else if (underground) changeNestView() }}><span aria-hidden="true">🌿</span> Surface</button>
+          <button type="button" className={underground ? 'active' : ''} aria-pressed={underground} disabled={!world.colony} onClick={() => { if (!underground) changeNestView() }}><span aria-hidden="true">⛰</span> Underground</button>
+          <button type="button" className={underwater ? 'active' : ''} aria-pressed={underwater} disabled={!underwater && pond.water < 8} onClick={() => { if (!underwater) changeView() }}><span aria-hidden="true">🐟</span> Underwater</button>
+        </nav>}
+        {!naturalLook && <div className="scene-view-tools"><button className="scene-view-button" type="button" onClick={underground ? changeNestView : changeView} disabled={!underwater && !underground && pond.water < 8}>{underwater || underground ? '↑ Return to surface' : '↓ Explore the pond'}</button>{world.colony && !underwater && !underground && <button className="scene-view-button" type="button" onClick={changeNestView}>↓ Inside the nest</button>}</div>}
         <div className={`scene-hint ${tool ? 'placing-hint' : ''}`}>{tool ? `PLACING ${tool.toUpperCase()} · TAP ${tool !== 'colony' && isAquatic(tool) ? 'WATER' : 'OPEN GROUND'}` : <>{underground ? 'SOIL CUTAWAY · DRAG TO LOOK' : underwater ? 'UNDER THE SURFACE · DRAG TO LOOK' : 'DRAG TO ORBIT'} <span>·</span> PINCH TO ZOOM <span>·</span> TWO FINGERS TO PAN</>}</div>
       </section>
 
