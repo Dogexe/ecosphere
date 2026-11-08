@@ -255,7 +255,7 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     meniscus.setAttribute('color', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 4), 4))
     meniscus.setIndex(order)
     const meniscusMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false })
-    return { side, sideMaterial, meniscus, meniscusMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: 0.3, clearcoat: 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.008, 0.008), depthWrite: false }), { userData: { realistic: true } }) }
+    return { side, sideMaterial, meniscus, meniscusMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: naturalLook ? 0.09 : 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: naturalLook ? 0.16 : 0.3, clearcoat: naturalLook ? 0.04 : 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.008, 0.008), depthWrite: false }), { userData: { realistic: true } }) }
   }, [M])
   // Around the jar wall: the bed height at the glass and whether pond water reaches it there.
   const rim = useMemo(() => {
@@ -287,6 +287,8 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
   const write = (surface: number) => {
     const position = parts.geometry.getAttribute('position') as BufferAttribute, colours = parts.geometry.getAttribute('color') as BufferAttribute
     const deep = new Color(look.tint).multiplyScalar(0.55)
+    // Deep water: the same hue, darker and richer (a grey-blue read as haze to Codex).
+    const abyss = new Color(look.tint).multiplyScalar(0.62).lerp(new Color('#1d6a5a'), 0.35)
     const { beds, near } = bedding
     for (let j = 0; j < M; j += 1) for (let i = 0; i < M; i += 1) {
       const v = j * M + i, gx = -R + i * step, gz = -R + j * step
@@ -300,10 +302,18 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
       // exactly where level and ground cross. The edge fades in over the first few millimetres.
       if (near[v] && depth > -0.35) {
         position.setXYZ(v, x, floor + surface, z)
-        const shade = Math.min(1, Math.max(0, depth) / 1.2)
-        colour.copy(look.tint).lerp(deep, shade)
         const shore = smooth(0, 0.14, depth)
-        colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.06 + shade * 0.28 + look.cloud * 0.6) * shore)
+        if (naturalLook) {
+          // Clear in the shallows, deepening teal toward the middle (overview item 5, 2026-11-08: the
+          // pond read murky and flat). Murk from the sim (algae, silt, stale water) still clouds it.
+          const shade = smooth(0, deepest * 0.9 || 0.6, depth)
+          colour.copy(look.tint).lerp(abyss, shade)
+          colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.015 + shade * 0.42 + look.cloud * 0.55) * shore)
+        } else {
+          const shade = Math.min(1, Math.max(0, depth) / 1.2)
+          colour.copy(look.tint).lerp(deep, shade)
+          colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.06 + shade * 0.28 + look.cloud * 0.6) * shore)
+        }
       } else {
         // Away from the water the sheet stays level and clear, hidden under the higher ground. (Dropping
         // these vertices to the bed made sloped see-through triangles along the bank: a streaky ramp.)
@@ -324,7 +334,8 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
       sidePosition.setXYZ(n * 2 + 1, cos * wallRadius, floor + top, sin * wallRadius)
       // Clear water seen side-on: a faint green cast that thickens toward the bed, so the pebbles show through.
       colour.copy(look.tint).lerp(deep, 0.6)
-      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.85, 0.12 + look.cloud * 0.6) : 0)
+      // Natural look: clearer water wall at the glass, so animals and the bed read from the side (item 5).
+      sideColour.setXYZW(n * 2, colour.r, colour.g, colour.b, water ? Math.min(0.85, (naturalLook ? 0.05 : 0.12) + look.cloud * (naturalLook ? 0.45 : 0.6)) : 0)
       colour.copy(look.tint).lerp(white, 0.15)
       sideColour.setXYZW(n * 2 + 1, colour.r, colour.g, colour.b, water ? Math.min(0.75, 0.025 + look.cloud * 0.6) : 0)
       meniscusPosition.setXYZ(n * 2, cos * (wallRadius + 0.005), floor + top - 0.02, sin * (wallRadius + 0.005))
