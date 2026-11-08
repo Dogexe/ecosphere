@@ -21,7 +21,7 @@ import type { TuftSpot } from './MossTuftAsset'
  */
 const furLayers = 6
 /** With the modelled 3D tufts the tufts are the cushions, so the blanket under them stays low. */
-const domeScale = tuftKind === 'glb' ? 0.35 : 1
+const domeScale = tuftKind === 'glb' ? 0.2 : 1   // low blanket: no thick green platforms at patch edges (Codex)
 
 const common = /* glsl */ `
   uniform float waterY;
@@ -150,7 +150,7 @@ function crownSpots(surface: BufferGeometry, floor: number, state?: MossState): 
     if (mossHash(ix + 5, iz + 9) > local.cover) continue
     const lift = blanketLift(x, y + floor, z, ny)
     // Fewer tall cushions among lower ones (Codex): one in four is large, the rest small and low.
-    const tall = mossHash(ix + 19, iz + 23) < 0.3, size = (tall ? 0.62 : 0.5) * (0.85 + 0.3 * mossHash(ix + 3, iz + 1))
+    const tall = mossHash(ix + 19, iz + 23) < 0.3, size = (tall ? 0.64 : 0.52) * (0.65 + 0.7 * mossHash(ix + 3, iz + 1))   // 0.65-1.35x (Codex)
     spots.push({
       position: new Vector3(x, y + lift - 0.01 - 0.1 * size, z), normal: new Vector3(normal.getX(best), ny, normal.getZ(best)),
       yaw: mossHash(ix + 7, iz + 3) * Math.PI * 2, width: size * (0.7 + 0.3 * cover), squash: (tall ? 0.9 : 0.68) + 0.15 * mossHash(ix, iz + 11),
@@ -159,9 +159,9 @@ function crownSpots(surface: BufferGeometry, floor: number, state?: MossState): 
     })
     // Low outlying tufts around the cushion (Codex: taper the edge into scattered low growth, so
     // the cushions do not sit on the ground like buns). One or two, small and flat.
-    const outliers = mossHash(ix + 29, iz + 31) < 0.55 ? 2 : 1
+    const outliers = 2 + (mossHash(ix + 29, iz + 31) < 0.5 ? 1 : 0)   // satellites join neighbouring cushions
     for (let k = 0; k < outliers; k += 1) {
-      const angle = mossHash(ix + 37 + k, iz + 41) * Math.PI * 2, reach = size * (0.48 + 0.2 * mossHash(ix + k, iz + 43))
+      const angle = mossHash(ix + 37 + k, iz + 41) * Math.PI * 2, reach = size * (0.5 + 0.35 * mossHash(ix + k, iz + 43))
       const fx = x + Math.cos(angle) * reach, fz = z + Math.sin(angle) * reach
       let near = best, nearDistance = Infinity
       for (let dz = -1; dz <= 1; dz += 1) for (let dx = -1; dx <= 1; dx += 1) for (const v of bucket.get(`${Math.floor(fx * 4) + dx},${Math.floor(fz * 4) + dz}`) ?? []) {

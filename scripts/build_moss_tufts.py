@@ -28,7 +28,7 @@ def lerp(a, b, t): return tuple(a[i] + (b[i] - a[i]) * t for i in range(len(a)))
 # Byte colour layers hold sRGB; the glTF exporter converts them to linear.
 def lin(h): return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)) + (1.0,)
 SOIL_D, SOIL, PEBBLE = lin('4f3420'), lin('7a5332'), lin('8c6a48')
-CREASE, BODY, LIT, TIP = lin('2c470c'), lin('6f9f17'), lin('a9d42a'), lin('dcef48')   # paired Codex A/B 2026-11-08: lime won
+CREASE, BODY, LIT, TIP = lin('2a440e'), lin('6a9819'), lin('9cc62c'), lin('c9e046')   # Codex 2026-11-08: ~20% less yellow   # paired Codex A/B 2026-11-08: lime won
 
 def colour_layer(bm):
     return bm.loops.layers.color.get('Col') or bm.loops.layers.color.new('Col')
@@ -158,9 +158,9 @@ def rosette(bm, col, rng, centre, n, scale, bright, outward, leaves, spray=None)
     # Owner 2026-11-08: up close it must read as moss, not flowers. Real cushion moss (Dicranum,
     # Leucobryum) is a stem densely clothed in small leaves all the way up, the tip leaves clasped
     # together into a closed point, so there is no open centre for the eye to read as a blossom.
-    height = scale * (0.6 + rng.random() * 0.3) * 0.65        # compact shoots (Codex: shorten sprays 35%)
+    height = scale * (0.6 + rng.random() * 0.3) * 0.42        # compact shoots: shorter again (Codex round 6)
     tone = 0.9 + rng.random() * 0.2
-    count = rng.randint(7, 9)
+    count = rng.randint(6, 7)
     phase = rng.random() * math.tau
     for k in range(count):
         t = k / (count - 1)
@@ -171,8 +171,8 @@ def rosette(bm, col, rng, centre, n, scale, bright, outward, leaves, spray=None)
         spread = 1.3 - t * 1.05 + (rng.random() - 0.5) * 0.3        # low leaves spread and droop, tip leaves clasp
         d = (out * math.sin(spread) + axis * math.cos(spread)).normalized()
         length = scale * (0.42 - t * 0.18) * (0.85 + rng.random() * 0.3)
-        width = length / 3.4                                    # narrower, less petal-like
-        light = bright * tone * (0.6 + 0.4 * t)
+        width = length / 2.6                                    # a little broader, less fern-like
+        light = bright * tone * (0.45 + 0.55 * t)                 # darker inside, lighter tips
         body = lerp(BODY, LIT, 0.35 + 0.55 * light); tipc = lerp(body, TIP, 0.25 * light); base = lerp(CREASE, body, 0.55)
         shade = (n * 0.65 + d * 0.35).normalized()
         if t < 0.35:
@@ -239,10 +239,10 @@ def build(variant, seed):
     tuft = Tuft(seed)
     def lod0(bm, col):
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 30)
-        return moss(bm, col, tuft, 0.034, 0.095, 7)    # ~50% denser
+        return moss(bm, col, tuft, 0.025, 0.095, 7)    # owner: denser (about 1.85x round 5)
     def lod1(bm, col):
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 20)
-        return moss(bm, col, tuft, 0.078, 0.15, 6)
+        return moss(bm, col, tuft, 0.064, 0.15, 6)
     def lod2(bm, col):
         # Overview level: a coarse body and a few big rosettes, under a thousand triangles.
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 10)
