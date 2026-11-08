@@ -30,7 +30,7 @@ export const mossNoise = (x: number, y: number) => {
 export function mossCover(x: number, y: number, z: number, ny: number) {
   const patchMask = mossNoise(x * 0.8, z * 0.8) * 0.7 + mossNoise(x * 2.1, z * 2.1) * 0.3
   const smooth = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t) }
-  return smooth(0.36, 0.6, patchMask) * smooth(environmentScale.pondSurfaceY + 0.02, environmentScale.pondSurfaceY + 0.14, y) * smooth(0.7, 0.86, ny) * (1 - smooth(3.68, 3.8, Math.hypot(x, z)))
+  return smooth(0.36, 0.6, patchMask) * smooth(environmentScale.pondSurfaceY + 0.02, environmentScale.pondSurfaceY + 0.14, y) * smooth(0.75, 0.9, ny) * (1 - smooth(3.68, 3.8, Math.hypot(x, z)))
 }
 
 /**

@@ -33,7 +33,7 @@ const common = /* glsl */ `
     float patchMask = noise(world.xz * 0.8) * 0.7 + noise(world.xz * 2.1) * 0.3;
     float c = smoothstep(0.36, 0.6, patchMask);   // gentle cushion edges, no cliffs
     c *= smoothstep(waterY, waterY + 0.12, world.y);          // none under or just above the water
-    c *= smoothstep(0.7, 0.86, n.y);                           // none on steep banks
+    c *= smoothstep(0.75, 0.9, n.y);                           // none on steep banks
     c *= 1.0 - smoothstep(3.68, 3.8, length(world.xz));        // runs to the glass
     return c;
   }
@@ -86,6 +86,10 @@ function material(fur: number) {
           // Short fuzz: fine strands, thinner toward the top shell.
           // Fur only on gently sloping crowns: on the mounds' front faces it read as vertical curtains (Codex).
           if (normalize(vNormal).y < 0.72) discard;
+          // Shell fur seen at a grazing angle stacks into a vertical curtain (owner/Codex): fade the
+          // outer shells out as the view flattens, so only the base blanket shows edge-on.
+          float facingView = abs(dot(normalize(cameraPosition - vWorld), normalize(vNormal)));
+          if (facingView < 0.25 + fur * 0.45) discard;
           vec2 cell = vWorld.xz * 38.0;
           if (hash(floor(cell)) < fur * 0.8 || length(fract(cell) - 0.5) > 0.5 - fur * 0.3) discard;
         }
@@ -152,6 +156,26 @@ function crownSpots(surface: BufferGeometry, floor: number, state?: MossState): 
       variant: Math.floor(mossHash(ix + 11, iz + 2) * tuftVariants), brown: Math.min(1, local.brown * (0.8 + 0.4 * mossHash(ix + 2, iz + 8))),
       light: 0.92 + 0.16 * mossHash(ix + 13, iz + 4),
     })
+    // Low outlying tufts around the cushion (Codex: taper the edge into scattered low growth, so
+    // the cushions do not sit on the ground like buns). One or two, small and flat.
+    const outliers = mossHash(ix + 29, iz + 31) < 0.55 ? 2 : 1
+    for (let k = 0; k < outliers; k += 1) {
+      const angle = mossHash(ix + 37 + k, iz + 41) * Math.PI * 2, reach = size * (0.48 + 0.2 * mossHash(ix + k, iz + 43))
+      const fx = x + Math.cos(angle) * reach, fz = z + Math.sin(angle) * reach
+      let near = best, nearDistance = Infinity
+      for (let dz = -1; dz <= 1; dz += 1) for (let dx = -1; dx <= 1; dx += 1) for (const v of bucket.get(`${Math.floor(fx * 4) + dx},${Math.floor(fz * 4) + dz}`) ?? []) {
+        const d = Math.hypot(position.getX(v) - fx, position.getZ(v) - fz); if (d < nearDistance) { nearDistance = d; near = v }
+      }
+      const fy = position.getY(near), fny = normal.getY(near)
+      if (mossCover(fx, fy + floor, fz, fny) < 0.2) continue
+      const small = size * (0.36 + 0.14 * mossHash(ix + 47 + k, iz + 53))
+      spots.push({
+        position: new Vector3(fx, fy + blanketLift(fx, fy + floor, fz, fny) - 0.12 * small, fz), normal: new Vector3(normal.getX(near), fny, normal.getZ(near)),
+        yaw: mossHash(ix + 59 + k, iz + 61) * Math.PI * 2, width: small, squash: 0.5 + 0.15 * mossHash(ix + 67 + k, iz),
+        variant: (Math.floor(mossHash(ix + 11, iz + 2) * tuftVariants) + 1 + k) % tuftVariants, brown: Math.min(1, local.brown * (0.8 + 0.4 * mossHash(ix + 71 + k, iz + 8))),
+        light: 0.9 + 0.16 * mossHash(ix + 73 + k, iz + 4),
+      })
+    }
   }
   return spots
 }

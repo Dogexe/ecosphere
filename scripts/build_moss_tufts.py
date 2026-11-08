@@ -14,7 +14,7 @@ and down so the cushion overhangs its soil, as in the reference.
 
 Run: D:/Blender/blender.exe -b -P scripts/build_moss_tufts.py
 Writes public/assets/organisms/moss-tuft-{1..4}.glb, each holding two meshes, "lod0" (close) and
-"lod1" (far: fewer, larger rosettes), unit width, base at y = 0; and
+"lod1" (mid: fewer, larger rosettes) and "lod2" (overview), unit width, base at y = 0; and
 artifacts/moss-asset/{turnaround,lod1}-{n}-{view}.png renders (front/back/left/right/top/three-quarter).
 """
 import bpy, bmesh, math, random, os
@@ -28,7 +28,7 @@ def lerp(a, b, t): return tuple(a[i] + (b[i] - a[i]) * t for i in range(len(a)))
 # Byte colour layers hold sRGB; the glTF exporter converts them to linear.
 def lin(h): return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)) + (1.0,)
 SOIL_D, SOIL, PEBBLE = lin('4f3420'), lin('7a5332'), lin('8c6a48')
-CREASE, BODY, LIT, TIP = lin('3a5a10'), lin('7fb01a'), lin('b5dc2a'), lin('e0f04c')   # paired Codex A/B 2026-11-08: lime won
+CREASE, BODY, LIT, TIP = lin('2c470c'), lin('6f9f17'), lin('a9d42a'), lin('dcef48')   # paired Codex A/B 2026-11-08: lime won
 
 def colour_layer(bm):
     return bm.loops.layers.color.get('Col') or bm.loops.layers.color.new('Col')
@@ -71,7 +71,7 @@ def soil_plinth(bm, col, tuft):
     def radius(a):
         r = 0.0
         while r < 0.7 and tuft.height(math.cos(a) * (r + 0.01), math.sin(a) * (r + 0.01)) > 0: r += 0.01
-        return max(0.08, r * 0.9)
+        return max(0.08, r * 0.72)   # tucked under the overhanging leaves (Codex: no visible brown band)
     rim = [(math.cos(s / seg * math.tau), math.sin(s / seg * math.tau), radius(s / seg * math.tau)) for s in range(seg)]
     rows = []
     for t, y in ((0.86, 0.0), (1.0, tuft.soil * 0.45), (0.94, tuft.soil * 0.95)):
@@ -127,12 +127,13 @@ def leaflet(bm, col, origin, d, side, length, width, bright):
         for loop, i in zip(f.loops, tri): loop[col] = C[i]
 
 def rosette(bm, col, rng, centre, n, scale, bright, outward, leaves):
-    """A spray of leaflets around a short shoot; rim rosettes lean outward and droop over the edge."""
+    """A spray of broad rounded leaves around a short shoot (paired Codex A/B preferred these broad,
+    soft clusters at macro zoom over spiral shoots); rim sprays lean outward and droop over the edge."""
     n = (n + outward * 0.6).normalized()
     ref = Vector((1, 0, 0)) if abs(n.x) < 0.9 else Vector((0, 0, 1))
     u = n.cross(ref).normalized(); v = n.cross(u).normalized()
     top = centre + n * scale * 0.05
-    tone = 0.7 + rng.random() * 0.3     # each rosette its own light
+    tone = 0.7 + rng.random() * 0.3     # each spray its own light
     for k in range(leaves):
         a = k / leaves * math.tau + rng.random() * 0.5
         out = u * math.cos(a) + v * math.sin(a)
@@ -199,7 +200,11 @@ def build(variant, seed):
     def lod1(bm, col):
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 20)
         return moss(bm, col, tuft, 0.09, 0.13, 6)
-    objs = [mesh_object(name, fn) for name, fn in (('lod0', lod0), ('lod1', lod1))]
+    def lod2(bm, col):
+        # Overview level: a coarse body and a few big rosettes, under a thousand triangles.
+        soil_plinth(bm, col, tuft); body(bm, col, tuft, 10)
+        return moss(bm, col, tuft, 0.17, 0.24, 5)
+    objs = [mesh_object(name, fn) for name, fn in (('lod0', lod0), ('lod1', lod1), ('lod2', lod2))]
     for obj, _ in objs: obj.rotation_euler = (math.pi / 2, 0, 0)   # our y-up build into Blender's z-up
     bpy.ops.object.select_all(action='SELECT'); bpy.context.view_layer.objects.active = objs[0][0]
     bpy.ops.object.transform_apply(rotation=True)
@@ -209,11 +214,13 @@ def build(variant, seed):
     path = os.path.join(OUT, f'moss-tuft-{variant}.glb')
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_apply=True, export_normals=True, export_attributes=True, use_selection=True)
     tris = [sum(len(p.vertices) - 2 for p in o.data.polygons) for o, _ in objs]
-    print(f'moss-tuft-{variant}: lod0 {tris[0]} tris / lod1 {tris[1]} tris, {os.path.getsize(path)} bytes, rosettes {objs[0][1]}/{objs[1][1]}, height {objs[0][0].dimensions.z:.3f}')
-    objs[1][0].hide_render = True
+    print(f'moss-tuft-{variant}: lod0 {tris[0]} / lod1 {tris[1]} / lod2 {tris[2]} tris, {os.path.getsize(path)} bytes, rosettes {objs[0][1]}/{objs[1][1]}, height {objs[0][0].dimensions.z:.3f}')
+    objs[1][0].hide_render = True; objs[2][0].hide_render = True
     render_turnaround(objs[0][0], variant, 'turnaround')
     objs[1][0].hide_render = False; objs[0][0].hide_render = True
     render_turnaround(objs[1][0], variant, 'lod1')
+    objs[1][0].hide_render = True; objs[2][0].hide_render = False
+    render_turnaround(objs[2][0], variant, 'lod2')
 
 def render_turnaround(obj, variant, prefix):
     scene = bpy.context.scene

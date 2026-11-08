@@ -16,22 +16,23 @@ import { Box3, BufferGeometry, Color, DoubleSide, Group, InstancedBufferAttribut
 export const tuftVariants = 4
 const files = Array.from({ length: tuftVariants }, (_, n) => `${import.meta.env.BASE_URL}assets/organisms/moss-tuft-${n + 1}.glb`)
 
-let cache: { lod0: BufferGeometry[]; lod1: BufferGeometry[] } | null = null
+const levels = 3
+let cache: BufferGeometry[][] | null = null
 export function useMossTufts() {
   const gltfs = useGLTF(files)
   return useMemo(() => {
     if (cache) return cache
-    const lod0: BufferGeometry[] = [], lod1: BufferGeometry[] = []
+    const byLevel: BufferGeometry[][] = Array.from({ length: levels }, () => [])
     for (const gltf of gltfs) {
       const meshes: Record<string, BufferGeometry> = {}
       gltf.scene.updateMatrixWorld(true)
       gltf.scene.traverse((object) => { const mesh = object as Mesh; if (mesh.isMesh) meshes[mesh.name] = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld) })
-      const near = meshes.lod0, far = meshes.lod1 ?? meshes.lod0
-      // Unit width, base at y = 0, centred: the same transform for both levels so they line up.
+      const near = meshes.lod0, set = Array.from({ length: levels }, (_, l) => meshes[`lod${l}`] ?? meshes[`lod${l - 1}`] ?? near)
+      // Unit width, base at y = 0, centred: the same transform for every level so they line up.
       near.computeBoundingBox()
       const box = near.boundingBox!, width = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) || 1
       const centre = new Vector3((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2)
-      for (const g of [near, far]) {
+      for (const g of new Set(set)) {
         g.translate(-centre.x, -centre.y, -centre.z); g.scale(1 / width, 1 / width, 1 / width); g.computeBoundingSphere()
         // Light each tuft as one soft cushion: normals mostly from a point below its middle, so the toon
         // bands follow the cushion (lit crown, shaded flanks) rather than every leaflet's own facet.
@@ -42,9 +43,9 @@ export function useMossTufts() {
           normal.setXYZ(v, n.x, n.y, n.z)
         }
       }
-      lod0.push(near); lod1.push(far)
+      set.forEach((g, l) => byLevel[l].push(g))
     }
-    cache = { lod0, lod1 }
+    cache = byLevel
     return cache
   }, [gltfs])
 }
@@ -95,11 +96,12 @@ export interface TuftSpot {
 const up = new Vector3(0, 1, 0)
 
 /**
- * Draws a set of tuft spots with per-instance level of detail. `near` is the camera distance (world
- * units) inside which a tuft uses its close mesh.
+ * Draws a set of tuft spots with per-instance level of detail chosen by on-screen size (world width
+ * over camera distance): `near` is the distance at which a 0.5-wide tuft leaves its close mesh; it
+ * drops to the overview mesh at 2.5x that distance. Small outlying tufts so drop sooner.
  */
 export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: TuftSpot[]; near?: number; shadows?: boolean }) {
-  const { lod0, lod1 } = useMossTufts()
+  const geometries = useMossTufts()
   const shared = mossTuftMaterial()
   const capacity = useMemo(() => Array.from({ length: tuftVariants }, (_, v) => Math.max(1, spots.filter((spot) => spot.variant % tuftVariants === v).length)), [spots])
   const meshes = useRef<(InstancedMesh | null)[]>([])
@@ -130,12 +132,14 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     const local = s.world.copy(camera.position)
     if (s.spots === spots && local.distanceToSquared(s.camera) < 0.04) return
     s.camera.copy(local); s.spots = spots
-    const counts = new Array(tuftVariants * 2).fill(0)
+    const counts = new Array(tuftVariants * levels).fill(0)
+    const scale = origin.getMaxScaleOnAxis(), close = 0.5 / near, mid = close * 0.4
     const p = new Vector3()
     spots.forEach((spot, i) => {
       const variant = spot.variant % tuftVariants
       p.copy(spot.position).applyMatrix4(origin)
-      const level = p.distanceTo(camera.position) < near ? 0 : 1
+      const size = spot.width * scale / Math.max(0.01, p.distanceTo(camera.position))
+      const level = size > close ? 0 : size > mid ? 1 : 2
       const mesh = meshes.current[level * tuftVariants + variant]
       if (!mesh) return
       const n = counts[level * tuftVariants + variant]++
@@ -151,7 +155,7 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     })
   })
   return <>
-    {[lod0, lod1].flatMap((level, l) => level.map((geometry, v) => <instancedMesh key={`${l}:${v}:${capacity[v]}`} ref={(mesh) => { meshes.current[l * tuftVariants + v] = mesh }} args={[geometry, shared, capacity[v]]} castShadow={shadows && l === 0} receiveShadow raycast={() => undefined} />))}
+    {geometries.flatMap((level, l) => level.map((geometry, v) => <instancedMesh key={`${l}:${v}:${capacity[v]}`} ref={(mesh) => { meshes.current[l * tuftVariants + v] = mesh }} args={[geometry, shared, capacity[v]]} castShadow={shadows && l === 0} receiveShadow raycast={() => undefined} />))}
   </>
 }
 

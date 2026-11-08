@@ -11,16 +11,17 @@ function gltf(file) {
 }
 const triangles = (doc, primitive) => (primitive.indices !== undefined ? doc.accessors[primitive.indices].count : doc.accessors[primitive.attributes.POSITION].count) / 3
 
-test('moss tufts are four real-geometry GLBs with a close and a far level, inside budget', () => {
+test('moss tufts are four real-geometry GLBs with close, mid and overview levels, inside budget', () => {
   for (let n = 1; n <= 4; n += 1) {
     const { bytes, doc } = gltf(`moss-tuft-${n}.glb`)
     assert.ok(bytes.length < 1_300_000, `moss-tuft-${n} is ${bytes.length} bytes`)
     const meshes = Object.fromEntries(doc.meshes.map((mesh) => [mesh.name, mesh.primitives[0]]))
-    assert.ok(meshes.lod0 && meshes.lod1, 'both levels present')
+    assert.ok(meshes.lod0 && meshes.lod1 && meshes.lod2, 'all three levels present')
     for (const primitive of Object.values(meshes)) assert.ok(primitive.attributes.COLOR_0 !== undefined && primitive.attributes.NORMAL !== undefined)
     assert.ok(triangles(doc, meshes.lod0) <= 24_000)
     assert.ok(triangles(doc, meshes.lod1) <= 4_500)
-    assert.ok(triangles(doc, meshes.lod1) * 3 < triangles(doc, meshes.lod0), 'far level is much lighter')
+    assert.ok(triangles(doc, meshes.lod1) * 3 < triangles(doc, meshes.lod0), 'mid level is much lighter')
+    assert.ok(triangles(doc, meshes.lod2) <= 1_300 && triangles(doc, meshes.lod2) * 2 < triangles(doc, meshes.lod1), 'overview level is lighter still')
     assert.equal(doc.images, undefined, 'vertex colours, no textures or alpha cards')
   }
 })

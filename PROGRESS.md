@@ -66,3 +66,5 @@ Recovery note: a documentation write failed due Windows default encoding and tru
 ## 3D moss tufts — 2026-11-08
 
 Owner's moss brief. Four modelled tuft GLBs (asset search first; record in ASSETS.md), lod0/lod1 instanced with per-instance LOD, on sim moss plants, blanket crowns, stones and the log; browning/thinning from soil moisture. Validated: 6-view turnarounds, in-game macro/mid/overview, moisture comparison, tests 271 pass, build OK. Renderer triangles: overview 1.36M (old sprigs 1.83M), macro 1.8-1.9M (old 2.7M); frame time at the 165 Hz cap in headless Chrome. Paired Codex A/B: new leaves 6.5 vs 5.5. Open: blanket's vertical fuzz edge at the glass, brown plinths still glimpsed, physical iPad unmeasured.
+
+Moss round 2 (2026-11-08, owner "ปรับต่อ"): shell fur fades at grazing view angles (no vertical curtain), moss off slopes steeper than n.y 0.75-0.9 (no green bank walls), soil plinths tucked under leaves, small outlying tufts taper cushion edges, deeper greens, third overview LOD chosen by on-screen size. Triangles: overview ~0.95M, macro ~2.1M. Paired Codex vs the previous deploy: narrow wins at macro and mid.
