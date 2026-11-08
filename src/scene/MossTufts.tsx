@@ -82,6 +82,49 @@ const assets = () => shared ??= { geometry: tuftGeometry(), material: new MeshSt
  * at the jar's overview the way the owner's reference paints them. Normalized to unit height, coloured
  * deep olive at the base to yellow-green at the tips, lit as a small dome.
  */
+/**
+ * A real moss tuft (owner, 2026-11-08: keep going until it works): like Dicranum or Polytrichum, each
+ * shoot is a short stem with slender pointed leaves set in a spiral all the way up, longest at the
+ * base and spreading, shortest at the tip; seven shoots of varied height lean out from one point so
+ * the tuft reads as a little starburst from above and a feathery cushion edge from the side. Each
+ * leaf is a narrow lanceolate blade with a fold (three triangles). Unit height, base at the origin.
+ */
+let shootTuft: BufferGeometry | null = null
+function mossShootTuft() {
+  if (shootTuft) return shootTuft
+  const positions: number[] = [], colours: number[] = []
+  const base = new Color('#3a5213'), body = new Color('#7e9e18'), tip = new Color('#bcd22c'), c = new Color()
+  const up = new Vector3(0, 1, 0)
+  const push = (p: Vector3, t: number) => { positions.push(p.x, p.y, p.z); c.copy(t < 0.5 ? base : body).lerp(t < 0.5 ? body : tip, t < 0.5 ? t * 2 : (t - 0.5) * 2); colours.push(c.r, c.g, c.b) }
+  const shoots: [number, number, number][] = [[0, 0, 1], ...Array.from({ length: 6 }, (_, k) => [k / 6 * Math.PI * 2 + 0.4, 0.35 + (k % 3) * 0.12, 0.62 + (k % 2) * 0.18] as [number, number, number])]
+  for (const [yaw, lean, height] of shoots) {
+    const axis = new Vector3(Math.sin(lean) * Math.cos(yaw), Math.cos(lean), Math.sin(lean) * Math.sin(yaw)).normalize()
+    const leaves = 14
+    for (let k = 0; k < leaves; k += 1) {
+      const t = k / leaves, at = axis.clone().multiplyScalar(t * height)
+      const angle = k * 2.39996, length = 0.32 * (1 - t * 0.6) * height, spread = 0.9 - t * 0.6
+      // Leaf direction: out from the stem by `spread`, around it by the spiral angle.
+      const side = new Vector3().crossVectors(axis, up).normalize(); if (side.lengthSq() < 0.1) side.set(1, 0, 0)
+      const out = side.clone().applyAxisAngle(axis, angle)
+      const dir = axis.clone().multiplyScalar(Math.cos(spread)).add(out.clone().multiplyScalar(Math.sin(spread))).normalize()
+      const across = new Vector3().crossVectors(dir, out).normalize().multiplyScalar(0.035 * (1 - t * 0.4) * height)
+      const mid = at.clone().addScaledVector(dir, length * 0.45).addScaledVector(out, 0.01), end = at.clone().addScaledVector(dir, length)
+      push(at.clone().sub(across), t); push(mid.clone().sub(across.clone().multiplyScalar(0.6)), t + 0.15); push(end, t + 0.3)
+      push(at.clone().add(across), t); push(end, t + 0.3); push(mid.clone().add(across.clone().multiplyScalar(0.6)), t + 0.15)
+      push(at.clone().sub(across), t); push(at.clone().add(across), t); push(end, t + 0.3)
+    }
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
+  geometry.setAttribute('color', new BufferAttribute(new Float32Array(colours), 3))
+  const normals = new Float32Array(positions.length), n = new Vector3()
+  for (let v = 0; v < positions.length; v += 3) { n.set(positions[v], positions[v + 1] + 0.25, positions[v + 2]).normalize(); normals.set([n.x, n.y, n.z], v) }
+  geometry.setAttribute('normal', new BufferAttribute(normals, 3))
+  shootTuft = geometry
+  return geometry
+}
+const tuftKind = (() => { try { return new URLSearchParams(window.location.search).get('mosstuft') ?? 'shoot' } catch { return 'shoot' } })()
+
 let fernTuft: BufferGeometry | null = null
 function useFernTuft() {
   const { scene } = useGLTF(`${import.meta.env.BASE_URL}assets/organisms/natural-fern.glb`)
@@ -117,7 +160,8 @@ function useFernTuft() {
 
 export function MossTufts({ surface, floor, lift, crownsOnly = false }: { surface: BufferGeometry; floor: number; lift: (x: number, y: number, z: number, ny: number) => number; crownsOnly?: boolean }) {
   const { material } = assets()
-  const geometry = useFernTuft()
+  const fern = useFernTuft()
+  const geometry = tuftKind === 'fern' ? fern : mossShootTuft()
   const capacity = 16000
   const mesh = useRef<InstancedMesh>(null)
   const dummy = useMemo(() => new Object3D(), [])
@@ -139,7 +183,8 @@ export function MossTufts({ surface, floor, lift, crownsOnly = false }: { surfac
         dummy.position.set(jx, y + lift(jx, y + floor, jz, ny) - 0.015, jz)
         dummy.rotation.set((hash(v, 11 + k) - 0.5) * 0.4, hash(v, 13 + k) * Math.PI * 2, (hash(v, 17 + k) - 0.5) * 0.4)
         const s = (0.15 + hash(v, 19 + k) * 0.08) * (0.75 + cover * 0.25)
-        dummy.scale.set(s * 0.5, s * 0.28, s * 0.5)   // the fern is about 3x wider than tall
+        if (tuftKind === 'fern') dummy.scale.set(s * 0.5, s * 0.28, s * 0.5)   // the fern is about 3x wider than tall
+        else dummy.scale.set(s * 1.1, s * 0.9, s * 1.1)
         dummy.updateMatrix()
         target.setMatrixAt(n, dummy.matrix)
         n += 1
