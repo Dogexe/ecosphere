@@ -337,7 +337,39 @@ export function useLayerMaterials() {
             float band = sin(vMapUv.y * 18.0 + sin(vMapUv.x * 3.0) * 1.4);
             soil *= 0.9 + 0.14 * smoothstep(-0.3, 0.3, band);
             float embedded = stone * step(0.97, nearestId);
-            soil = mix(soil, stoneColour * 0.9, embedded);
+            // (embedded stones now drawn below, darker and rounder)
+            // Item 7 (2026-11-08): the wall behind the jar read as one flat slab. Give it a soil profile:
+            // dark organic topsoil grading into lighter, sandier subsoil, wavy layers with a few sandy
+            // streaks, more stones of mixed size, pale roots reaching down from the plants, and a damp
+            // darker band just above the gravel. All from world height and the wall's own UVs.
+            float depthDown = clamp((0.25 - vCutWorld.y) / 1.5, 0.0, 1.0);
+            vec3 topsoil = vec3(0.14, 0.078, 0.04), subsoil = vec3(0.215, 0.135, 0.075);
+            vec3 profile = mix(topsoil, subsoil, smoothstep(0.05, 0.75, depthDown));
+            float wave = vMapUv.y * 4.0 + sin(vMapUv.x * 2.3) * 0.6 + sin(vMapUv.x * 7.1) * 0.15;
+            float layer = smoothstep(0.15, 0.85, abs(fract(wave) - 0.5) * 2.0);
+            float sand = smoothstep(0.82, 0.95, sin(wave * 0.5 + 1.3)) * smoothstep(0.2, 0.6, depthDown);
+            vec3 natural = profile * (0.88 + 0.16 * layer) * (0.95 + 0.07 * crumb);
+            natural = mix(natural, vec3(0.3, 0.21, 0.12), sand * 0.5);
+            // Larger stones on a second, coarser cell grid.
+            vec2 bigUv = vec2(vMapUv.x * 2.2, vMapUv.y * 7.5);
+            vec2 bid = floor(bigUv), bf = fract(bigUv);
+            float bh = fract(sin(dot(bid, vec2(269.5, 183.3))) * 43758.5453);
+            vec2 bc = vec2(0.5) + 0.25 * vec2(cos(bh * 6.28), sin(bh * 9.1)) - bf;
+            // The wall UVs are about 3x wider than tall in world space: squash x so stones come out round.
+            float bigStone = (1.0 - smoothstep(0.2 + 0.1 * bh, 0.24 + 0.1 * bh, length(bc * vec2(2.6, 1.0)))) * step(0.8, bh);
+            // The back wall faces the window and is lit hard, so stones are set relative to the soil, not absolute.
+            vec3 bigColour = mix(vec3(0.11, 0.1, 0.085), vec3(0.17, 0.145, 0.115), fract(bh * 7.3)) * (0.7 + 0.5 * smoothstep(-0.2, 0.2, -bc.y));
+            natural = mix(natural, bigColour, bigStone);
+            // Roots: thin, wandering, pale; denser and thicker in the topsoil under the plants.
+            float rootX = vMapUv.x * 3.2 + 0.05 * sin(vMapUv.y * 23.0 + vMapUv.x * 5.0) + 0.02 * sin(vMapUv.y * 61.0);
+            float rootD = abs(fract(rootX) - 0.5);
+            float rootOn = step(0.4, fract(sin(floor(rootX) * 91.7) * 437.3)) * (1.0 - smoothstep(0.25, 0.75, depthDown));
+            float rootW = mix(0.012, 0.004, depthDown);
+            float roots = (1.0 - smoothstep(rootW * 0.5, rootW, rootD)) * rootOn;
+            natural = mix(natural, vec3(0.25, 0.17, 0.1), roots * 0.55);
+            // Damp, darker soil just above the drainage gravel.
+            natural *= 1.0 - 0.28 * smoothstep(0.7, 1.0, depthDown);
+            soil = mix(soil, natural, 0.85);
             soil = mix(soil, vec3(0.52, 0.36, 0.22), 1.0 - smoothstep(0.0, 0.045, nestRim));` : ''}` : ''}
             diffuseColor.rgb *= mix(mix(soil, grit, charcoal), gravel, vPebble);`)
           .replace('#include <color_fragment>', '')
