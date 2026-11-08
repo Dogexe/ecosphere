@@ -164,7 +164,7 @@ const contactShadow = (() => {
   canvas.width = canvas.height = 128
   const context = canvas.getContext('2d')!
   const gradient = context.createRadialGradient(64, 64, 30, 64, 64, 64)
-  gradient.addColorStop(0, 'rgba(15,10,6,0.55)'); gradient.addColorStop(0.8, 'rgba(15,10,6,0.35)'); gradient.addColorStop(1, 'rgba(15,10,6,0)')
+  gradient.addColorStop(0, 'rgba(15,10,6,0.7)'); gradient.addColorStop(0.8, 'rgba(15,10,6,0.48)'); gradient.addColorStop(1, 'rgba(15,10,6,0)')
   context.fillStyle = gradient; context.fillRect(0, 0, 128, 128)
   return new MeshBasicMaterial({ map: new CanvasTexture(canvas), transparent: true, depthWrite: false })
 })()
@@ -192,12 +192,13 @@ function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: n
     {mist > 0.2 && <mesh geometry={geometry} raycast={noRaycast} renderOrder={4} material={condensationFilm} onBeforeRender={() => { condensationFilm.uniforms.amount.value = Math.min(1, (mist - 0.2) / 0.5) }} />}
     {/* The rolled rim of the neck, and the screw thread just under it. */}
     <mesh position={[0, glassTop, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
-      <torusGeometry args={[neckRadius, 0.07, 10, 96]} />
-      <meshPhysicalMaterial color="#dfe8e4" transparent opacity={0.55} roughness={0.1} clearcoat={1} clearcoatRoughness={0.05} />
+      <torusGeometry args={[neckRadius, naturalLook ? 0.045 : 0.07, 10, 96]} />
+      {/* Natural look: a thinner, fainter lip (item 6: stacked bright rim bands competed with the plants). */}
+      <meshPhysicalMaterial color="#dfe8e4" transparent opacity={naturalLook ? 0.3 : 0.55} roughness={0.1} clearcoat={naturalLook ? 0.4 : 1} clearcoatRoughness={0.05} />
     </mesh>
-    {[0.12, 0.24].map((drop) => <mesh key={drop} position={[0, glassTop - drop, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
+    {(naturalLook ? [0.14] : [0.12, 0.24]).map((drop) => <mesh key={drop} position={[0, glassTop - drop, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={noRaycast}>
       <torusGeometry args={[neckRadius + 0.02, 0.035, 8, 96]} />
-      <meshPhysicalMaterial color="#e6eeea" transparent opacity={0.4} roughness={0.1} clearcoat={1} />
+      <meshPhysicalMaterial color="#e6eeea" transparent opacity={naturalLook ? 0.18 : 0.4} roughness={0.1} clearcoat={naturalLook ? 0.3 : 1} />
     </mesh>)}
     {sealed && <group position={[0, glassTop + 0.02, 0]}>
       {/* A brushed tin screw cap with a ribbed skirt, like a canning jar. */}
@@ -224,7 +225,7 @@ function Sill({ bottom = gravelBottom }: { bottom?: number }) {
     <boxGeometry args={[30, 1, 14]} />
     {/* Dark walnut, like the sill in concept image 12. */}
     {/* Natural look: flat warm wood without the photo grain (Codex: grain competed with the jar). */}
-    {naturalLook ? <meshStandardMaterial color="#b07546" roughness={0.9} /> : <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color="#57412f" envMapIntensity={0.35} />}
+    {naturalLook ? <meshStandardMaterial color="#a07a58" roughness={0.9} /> : <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color="#57412f" envMapIntensity={0.35} />}
   </mesh>
 }
 

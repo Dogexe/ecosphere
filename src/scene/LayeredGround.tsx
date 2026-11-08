@@ -344,7 +344,8 @@ export function useLayerMaterials() {
       }
       return material
     }
-    const puddles = new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: 0.06, metalness: 0, ior: 1.333, specularIntensity: 1, depthWrite: false })
+    // Natural look: a soft sheen, not the hot white sun blob a full-strength glossy specular made (item 6, 2026-11-08).
+    const puddles = new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: naturalLook ? 0.16 : 0.06, metalness: 0, ior: 1.333, specularIntensity: naturalLook ? 0.22 : 1, depthWrite: false })
     // Against the glass the gravel reads as rounded 5-8 mm stones, as in concept image 12.
     return { surface: make(0.95, false, 0.28), walls: make(0.9, true, 0.16), puddles }
   }, [set])

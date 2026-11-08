@@ -154,7 +154,8 @@ export function Room({ world }: { world: World }) {
 
   const wall = (index: number) => (material: MeshStandardMaterial | null) => { if (material) { markRealistic(material); walls.current[index] = material } }
   // A dark stained frame recedes behind the jar instead of drawing bright bars across it.
-  const frame = '#4a3a2e'
+  // Natural look: a lighter, warmer frame so the bars cut less hard across the view (item 6, 2026-11-08).
+  const frame = naturalLook ? '#7a6250' : '#4a3a2e'
   // With the jar turning all the way round (owner, 2026-11-08), a wall the camera has gone behind is
   // hidden, as in a dollhouse cutaway, so the window frame never stands between the camera and the jar.
   const back = useRef<Group>(null), side = useRef<Mesh>(null)
