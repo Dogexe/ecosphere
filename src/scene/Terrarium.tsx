@@ -766,6 +766,8 @@ function RemainsField({ world }: { world: World }) {
  */
 const frontView = paperLook && (() => { try { return new URLSearchParams(window.location.search).get('cam') !== 'orbit' } catch { return true } })()
 const frontTurn = MathUtils.degToRad(30)
+/** Natural look: the jar turns all the way round (owner, 2026-11-08); the paper look keeps its +-30 degree front view. */
+const fullTurn = naturalLook || (() => { try { return new URLSearchParams(window.location.search).get('turn') === '360' } catch { return false } })()
 
 function WatchingControls({ creature, plant, ant, surfacePose, remains }: { creature: Creature | undefined; plant: Plant | undefined; ant?: { id: number; x: number; y: number; z: number }; surfacePose: SurfacePose; remains?: Remains }) {
   const subject = ant ?? (remains?.ant ? { id: remains.id, x: remains.x, y: remains.ant.y + 0.01, z: remains.z } : undefined)
@@ -873,7 +875,7 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
     surfacePose.width = size.width; surfacePose.height = size.height
   }, -0.5)
   const minimum = closePlant && focusedFrame ? focusedFrame.distance / 2 : micro ? 0.06 : subject ? 0.22 : 1.7
-  return <OrbitControls ref={controls} makeDefault enablePan screenSpacePanning minDistance={minimum} maxDistance={focusedFrame?.maxDistance ?? (frontView ? 28 : 21)} minPolarAngle={frontView ? 0.95 : 0.25} maxPolarAngle={frontView ? 1.5 : 1.42} minAzimuthAngle={frontView ? -frontTurn : -Infinity} maxAzimuthAngle={frontView ? frontTurn : Infinity} target={surfacePose.target} enableDamping dampingFactor={0.08} onStart={() => { if (plant || remains) { autoPlant.current = false; focus.current.remaining = 0 } }} />
+  return <OrbitControls ref={controls} makeDefault enablePan screenSpacePanning minDistance={minimum} maxDistance={focusedFrame?.maxDistance ?? (frontView ? 28 : 21)} minPolarAngle={frontView ? 0.95 : 0.25} maxPolarAngle={frontView ? 1.5 : 1.42} minAzimuthAngle={frontView && !fullTurn ? -frontTurn : -Infinity} maxAzimuthAngle={frontView && !fullTurn ? frontTurn : Infinity} target={surfacePose.target} enableDamping dampingFactor={0.08} onStart={() => { if (plant || remains) { autoPlant.current = false; focus.current.remaining = 0 } }} />
 }
 
 /**

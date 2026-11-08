@@ -94,7 +94,7 @@ def body(bm, col, tuft, n):
         for b in range(n + 1):
             x, z = -span + 2 * span * a / n, -span + 2 * span * b / n
             h = tuft.height(x, z)
-            grid[a, b] = (x, max(0.0, h - 0.035) if h > 0 else 0.0, z)
+            grid[a, b] = (x, max(0.0, tuft.soil + (h - tuft.soil) * 0.8 - 0.03) if h > 0 else 0.0, z)
     for a in range(n):
         for b in range(n):
             quad = [(a, b), (a, b + 1), (a + 1, b + 1), (a + 1, b)]
@@ -109,7 +109,7 @@ def leaflet(bm, col, origin, d, side, length, width, bright, shade_normal=None, 
     """A rounded, cupped leaflet with a notched tip (two points), 6 triangles."""
     d = d.normalized(); s = side.normalized(); up = d.cross(s).normalized()
     if up.y < 0: up = -up
-    cup = up * width * 0.4
+    cup = up * width * 0.22                         # shallow fold: less ridge contrast (Codex)
     bend = up * length * 0.12                       # tips curl up a little
     P = [origin,
          origin + d * length * 0.3 + s * width * 0.45 + cup,
@@ -130,31 +130,35 @@ def leaflet(bm, col, origin, d, side, length, width, bright, shade_normal=None, 
         f = bm.faces.new([V[i] for i in tri])
         for loop, i in zip(f.loops, tri): loop[col] = C[i]
 
-def rosette(bm, col, rng, centre, n, scale, bright, outward, leaves):
-    """A puff of moss (owner 2026-11-08: the flat radial sprays read as flowers): rounded leaves
-    pointing out in every direction from a small ball, like the frilly clusters of the reference.
-    Lit and coloured by the puff's own shape: bright on top, olive on its flanks and underside, with
-    no dark centre, and shaded with the puff's radial normals so it reads as one soft ball."""
-    n = (n + outward * 0.6).normalized()
-    ref = Vector((1, 0, 0)) if abs(n.x) < 0.9 else Vector((0, 0, 1))
-    u = n.cross(ref).normalized(); v = n.cross(u).normalized()
-    radius = scale * 0.32
-    middle = centre + n * radius * 0.6
-    tone = 0.78 + rng.random() * 0.22
-    count = leaves + 4
+def rosette(bm, col, rng, centre, n, scale, bright, outward, leaves, spray=None):
+    """A short leaning moss shoot (Codex, 2026-11-08, on why puffs read as flowers): 5-7 narrow
+    teardrop leaves (about 3.5:1) staggered in tiers up a tilted shoot, most of them biased toward the
+    spray's shared lean, so neighbouring shoots overlap into one spray instead of each making a
+    rosette with a centre. Colour runs olive at the base to a tip only slightly lighter, with no lime
+    rim; shading follows the cushion, not each shoot."""
+    lean = (spray if spray is not None else Vector((0, 0, 0))) + outward * 0.9
+    axis = (n * 1.0 + lean * 0.8 + Vector(((rng.random() - 0.5) * 0.3, 0, (rng.random() - 0.5) * 0.3))).normalized()
+    ref = Vector((1, 0, 0)) if abs(axis.x) < 0.9 else Vector((0, 0, 1))
+    u = axis.cross(ref).normalized(); v = axis.cross(u).normalized()
+    bias = (lean - axis * lean.dot(axis))
+    bias = bias.normalized() if bias.length > 1e-4 else u
+    height = scale * (0.45 + rng.random() * 0.25)
+    tone = 0.9 + rng.random() * 0.2                      # each shoot within +-10% of its spray
+    count = rng.randint(5, 7)                            # 3-5 tiers up the shoot
     for k in range(count):
-        # Fibonacci directions over the upper ~70% of a sphere around the puff's up (n).
-        t = (k + 0.5) / count
-        z = 1 - t * 1.35                                     # down to about 20 degrees below the equator
-        r = math.sqrt(max(0.0, 1 - z * z)); a = k * 2.39996 + rng.random() * 0.4
-        d = (u * (r * math.cos(a)) + v * (r * math.sin(a)) + n * z).normalized()
-        jitter = Vector((rng.random() - 0.5, rng.random() - 0.5, rng.random() - 0.5)) * 0.35
-        d = (d + jitter).normalized()
-        side = d.cross(n if abs(d.dot(n)) < 0.95 else u).normalized()
-        light = bright * tone * (0.38 + 0.62 * max(0.0, d.dot(Vector((0, 1, 0)))))   # olive undersides (Codex)
-        inner = lerp(CREASE, BODY, 0.3 + 0.4 * light); outer = lerp(BODY, LIT, light); edge = lerp(LIT, TIP, max(0.0, light - 0.45) / 0.55)
-        C = [inner, outer, outer, edge, outer, edge, edge, outer, outer]
-        leaflet(bm, col, middle + d * radius * 0.3, d, side, scale * (0.42 + rng.random() * 0.12), scale * 0.34, light, shade_normal=d, colours=C)
+        t = k / count
+        at = centre + axis * height * (0.15 + 0.85 * t)
+        a = rng.random() * math.tau
+        side_dir = (u * math.cos(a) + v * math.sin(a))
+        out = (bias * 0.65 + side_dir * 0.35).normalized() if rng.random() < 0.68 else side_dir
+        spread = 1.4 - t * 0.85 + (rng.random() - 0.5) * 0.44   # low tier droops below level (Codex), tips rise; +-12.5 deg
+        d = (out * math.sin(spread) + axis * math.cos(spread)).normalized()
+        length = scale * 0.72 * (0.8 + rng.random() * 0.4) * (1.0 - t * 0.3)
+        width = length / 2.7                              # Codex round 2: rounded tips, 2.5-3:1
+        light = bright * tone * (0.6 + 0.4 * t)          # interiors about 20% darker
+        body = lerp(BODY, LIT, 0.35 + 0.55 * light); tipc = lerp(body, TIP, 0.3 * light)
+        C = [lerp(CREASE, body, 0.55), body, body, tipc, body, tipc, tipc, body, body]
+        leaflet(bm, col, at, d, axis.cross(out), length, width, light, shade_normal=(n * 0.65 + d * 0.35).normalized(), colours=C)
 
 def moss(bm, col, tuft, step, scale, leaves):
     rng = random.Random(tuft.seed * 7 + int(step * 1000))
@@ -177,7 +181,11 @@ def moss(bm, col, tuft, step, scale, leaves):
                 outward = Vector((ox - lobe[0], 0, oz - lobe[1]))
                 outward = (outward.normalized() if outward.length > 1e-5 else Vector((0, 0, 0))) * max(0, rel - 0.55)
                 bright = 1.0 - 0.75 * rel ** 1.6 + 0.1 * noise.noise(Vector((ox * 9, oz * 9, tuft.seed)))
-                rosette(bm, col, rng, Vector((ox, oy - 0.01, oz)), tuft.normal(ox, oz), scale * rng.uniform(0.85, 1.15), max(0.2, min(1, bright)), outward, leaves)
+                sx, sz = math.floor(ox * 7), math.floor(oz * 7)          # ~10 sprays per tuft, each with one lean
+                sr = random.Random(hash((tuft.seed, sx, sz)) & 0xffffffff)
+                spray = Vector((sr.uniform(-1, 1), 0, sr.uniform(-1, 1))) * 0.6
+                spray_tone = 0.9 + sr.random() * 0.2
+                rosette(bm, col, rng, Vector((ox, oy - 0.01, oz)), tuft.normal(ox, oz), scale * rng.uniform(0.8, 1.2), max(0.2, min(1, bright * spray_tone)), outward, leaves, spray)
                 placed += 1
     return placed
 
@@ -211,14 +219,14 @@ def build(variant, seed):
     tuft = Tuft(seed)
     def lod0(bm, col):
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 30)
-        return moss(bm, col, tuft, 0.042, 0.075, 7)
+        return moss(bm, col, tuft, 0.038, 0.095, 7)
     def lod1(bm, col):
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 20)
-        return moss(bm, col, tuft, 0.09, 0.13, 6)
+        return moss(bm, col, tuft, 0.078, 0.15, 6)
     def lod2(bm, col):
         # Overview level: a coarse body and a few big rosettes, under a thousand triangles.
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 10)
-        return moss(bm, col, tuft, 0.17, 0.24, 5)
+        return moss(bm, col, tuft, 0.13, 0.24, 5)
     objs = [mesh_object(name, fn) for name, fn in (('lod0', lod0), ('lod1', lod1), ('lod2', lod2))]
     for obj, _ in objs: obj.rotation_euler = (math.pi / 2, 0, 0)   # our y-up build into Blender's z-up
     bpy.ops.object.select_all(action='SELECT'); bpy.context.view_layer.objects.active = objs[0][0]

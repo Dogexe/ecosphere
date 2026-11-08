@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CanvasTexture, Color, Fog, MathUtils, SRGBColorSpace } from 'three'
-import type { MeshBasicMaterial, MeshStandardMaterial } from 'three'
+import type { Group, Mesh, MeshBasicMaterial, MeshStandardMaterial } from 'three'
 import type { World } from '../sim/ecosystem'
 import { environmentAt } from '../sim/climate'
 import { markRealistic } from './watercolor'
@@ -155,10 +155,18 @@ export function Room({ world }: { world: World }) {
   const wall = (index: number) => (material: MeshStandardMaterial | null) => { if (material) { markRealistic(material); walls.current[index] = material } }
   // A dark stained frame recedes behind the jar instead of drawing bright bars across it.
   const frame = '#4a3a2e'
+  // With the jar turning all the way round (owner, 2026-11-08), a wall the camera has gone behind is
+  // hidden, as in a dollhouse cutaway, so the window frame never stands between the camera and the jar.
+  const back = useRef<Group>(null), side = useRef<Mesh>(null)
+  useFrame(({ camera }) => {
+    if (back.current) back.current.visible = camera.position.z > backZ + 0.3
+    if (side.current) side.current.visible = camera.position.x > wallX + 0.3
+  })
   return <group>
     {/* The back wall with the window, and a plain left wall. */}
+    <group ref={back}>
     {backWall.map((piece, index) => <mesh key={index} position={[piece.x, piece.y, backZ]} receiveShadow><planeGeometry args={[piece.width, piece.height]} /><meshStandardMaterial ref={wall(index)} roughness={0.95} /></mesh>)}
-    <mesh position={[wallX, 8, 10]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[60, 40]} /><meshStandardMaterial ref={wall(4)} roughness={0.95} /></mesh>
+    <mesh ref={side} position={[wallX, 8, 10]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[60, 40]} /><meshStandardMaterial ref={wall(4)} roughness={0.95} /></mesh>
     <group position={[windowCentre.x, windowCentre.y, backZ - 0.4]}>
       <mesh position={[-windowCentre.width * 0.12, windowCentre.height * 0.24, 0.05]}>
         <planeGeometry args={[3.6, 3.6]} />
@@ -171,6 +179,7 @@ export function Room({ world }: { world: World }) {
       {[-1, 1].map((side) => <mesh key={`h${side}`} position={[0, side * windowCentre.height / 2, 0.3]}><boxGeometry args={[windowCentre.width + 0.5, 0.5, 0.6]} /><meshStandardMaterial color={frame} roughness={0.6} /></mesh>)}
       <mesh position={[0, 0, 0.3]}><boxGeometry args={[0.25, windowCentre.height, 0.3]} /><meshStandardMaterial color={frame} roughness={0.6} /></mesh>
       <mesh position={[0, 0.8, 0.3]}><boxGeometry args={[windowCentre.width, 0.25, 0.3]} /><meshStandardMaterial color={frame} roughness={0.6} /></mesh>
+    </group>
     </group>
   </group>
 }

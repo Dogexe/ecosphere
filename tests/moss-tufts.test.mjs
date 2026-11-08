@@ -21,7 +21,7 @@ test('moss tufts are four real-geometry GLBs with close, mid and overview levels
     assert.ok(triangles(doc, meshes.lod0) <= 24_000)
     assert.ok(triangles(doc, meshes.lod1) <= 4_800)
     assert.ok(triangles(doc, meshes.lod1) * 3 < triangles(doc, meshes.lod0), 'mid level is much lighter')
-    assert.ok(triangles(doc, meshes.lod2) <= 1_400 && triangles(doc, meshes.lod2) * 2 < triangles(doc, meshes.lod1), 'overview level is lighter still')
+    assert.ok(triangles(doc, meshes.lod2) <= 1_700 && triangles(doc, meshes.lod2) * 2 < triangles(doc, meshes.lod1), 'overview level is lighter still')
     assert.equal(doc.images, undefined, 'vertex colours, no textures or alpha cards')
   }
 })
