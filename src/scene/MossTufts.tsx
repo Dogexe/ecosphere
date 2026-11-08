@@ -14,7 +14,8 @@ import { environmentScale } from './scale'
  */
 const fract = (v: number) => v - Math.floor(v)
 /** Hoskins' hash12, the same as MossCarpet's shader. */
-const hash = (x: number, y: number) => {
+export const mossHash = (x: number, y: number) => hash(x, y)
+function hash(x: number, y: number) {
   let a = fract(x * 0.1031), b = fract(y * 0.1031), c = fract(x * 0.1031)
   const d = a * (b + 33.33) + b * (c + 33.33) + c * (a + 33.33)
   a += d; b += d; c += d

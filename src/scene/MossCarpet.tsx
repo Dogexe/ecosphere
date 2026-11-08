@@ -2,7 +2,7 @@ import { Suspense, useMemo } from 'react'
 import { Color, DoubleSide, ShaderMaterial } from 'three'
 import type { BufferGeometry } from 'three'
 import { environmentScale } from './scale'
-import { MossTufts, mossCover, mossNoise } from './MossTufts'
+import { MossTufts, mossCover, mossHash, mossNoise } from './MossTufts'
 
 /*
  * Moss for the natural look (owner's moss reference, 2026-11-07): thick, soft, rounded mounds of moss
@@ -33,8 +33,12 @@ const common = /* glsl */ `
   }
   float thickness(vec3 world, vec3 n) {
     // Clumps about 5-10 mm across, rounded on top, with deep gaps between them.
-    float lumps = noise(world.xz * 3.0) * 0.4 + smoothstep(0.25, 0.75, noise(world.xz * 9.0)) * 0.6;
-    return cover(world, n) * (0.06 + 0.32 * lumps);
+    // Separate rounded cushions with creases between them (Codex, 2026-11-08): each jittered cell is a dome.
+    vec2 q = world.xz * 2.4, qi = floor(q); float nearest = 9.0;
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 o = vec2(float(i), float(j)); vec2 c = o + 0.5 + 0.4 * (vec2(hash(qi + o), hash(qi + o + 17.0)) - 0.5); nearest = min(nearest, length(c - fract(q))); }
+    float dome = sqrt(max(0.0, 1.0 - pow(nearest / 0.72, 2.0)));
+    float lumps = dome * 0.8 + noise(world.xz * 9.0) * 0.2;
+    return cover(world, n) * (0.05 + 0.22 * lumps);
   }
 `
 
@@ -90,11 +94,17 @@ function material(fur: number) {
   })
 }
 
-const smooth = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t) }
 /** The mound thickness the shader computes, for seating moss sprigs on the crowns. */
 export const blanketLift = (x: number, y: number, z: number, ny: number) => {
-  const lumps = mossNoise(x * 3, z * 3) * 0.4 + smooth(0.25, 0.75, mossNoise(x * 9, z * 9)) * 0.6
-  return mossCover(x, y, z, ny) * (0.06 + 0.32 * lumps)
+  const qx = x * 2.4, qz = z * 2.4, ix = Math.floor(qx), iz = Math.floor(qz)
+  let nearest = 9
+  for (let j = -1; j <= 1; j += 1) for (let i = -1; i <= 1; i += 1) {
+    const cx = i + 0.5 + 0.4 * (mossHash(ix + i, iz + j) - 0.5), cz = j + 0.5 + 0.4 * (mossHash(ix + i + 17, iz + j + 17) - 0.5)
+    nearest = Math.min(nearest, Math.hypot(cx - (qx - ix), cz - (qz - iz)))
+  }
+  const dome = Math.sqrt(Math.max(0, 1 - (nearest / 0.72) ** 2))
+  const lumps = dome * 0.8 + mossNoise(x * 9, z * 9) * 0.2
+  return mossCover(x, y, z, ny) * (0.05 + 0.22 * lumps)
 }
 
 export function MossCarpet({ geometry, floor }: { geometry: BufferGeometry; floor: number }) {
