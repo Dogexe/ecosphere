@@ -1,10 +1,9 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
-import { Color, DoubleSide, ShaderMaterial } from 'three'
-import type { BufferGeometry } from 'three'
+import { BufferGeometry, Color, DoubleSide, ShaderMaterial } from 'three'
 import { environmentScale } from './scale'
 import { Vector3 } from 'three'
 import { MossTufts, mossCover, mossHash, mossNoise, tuftKind } from './MossTufts'
-import { MossTuftField, tuftVariants } from './MossTuftAsset'
+import { MossTuftField, tuftVariants, useSharedMossSpots } from './MossTuftAsset'
 import type { TuftSpot } from './MossTuftAsset'
 
 /*
@@ -19,7 +18,7 @@ import type { TuftSpot } from './MossTuftAsset'
  *
  * Toon light: two soft bands from the mound's own normal. Visual only.
  */
-const furLayers = 6
+const furLayers = tuftKind === 'glb' ? 4 : 6   // fewer fuzz shells under the modelled tufts (optimisation 2026-11-08)
 /** With the modelled 3D tufts the tufts are the cushions, so the blanket under them stays low. */
 const domeScale = tuftKind === 'glb' ? 0.2 : 1   // low blanket: no thick green platforms at patch edges (Codex)
 
@@ -187,6 +186,26 @@ function crownSpots(surface: BufferGeometry, floor: number, state?: MossState): 
   return spots
 }
 
+/** The triangles of the ground that can carry moss (any corner with cover), sharing its buffers. */
+function mossyPart(surface: BufferGeometry, floor: number) {
+  const position = surface.getAttribute('position'), normal = surface.getAttribute('normal')
+  const source = surface.getIndex()
+  const count = source ? source.count : position.count
+  const mossy = new Uint8Array(position.count)
+  for (let v = 0; v < position.count; v += 1) mossy[v] = mossCover(position.getX(v), position.getY(v) + floor, position.getZ(v), normal.getY(v)) > 0.02 ? 1 : 0
+  const kept: number[] = []
+  for (let t = 0; t < count; t += 3) {
+    const a = source ? source.getX(t) : t, b = source ? source.getX(t + 1) : t + 1, c = source ? source.getX(t + 2) : t + 2
+    if (mossy[a] || mossy[b] || mossy[c]) kept.push(a, b, c)
+  }
+  const part = new BufferGeometry()
+  part.setAttribute('position', position)
+  part.setAttribute('normal', normal)
+  part.setIndex(kept)
+  part.boundingSphere = surface.boundingSphere
+  return part
+}
+
 export function MossCarpet({ geometry, floor, state, stateKey = '' }: { geometry: BufferGeometry; floor: number; state?: MossState; stateKey?: string }) {
   const materials = useMemo(() => [material(0), ...Array.from({ length: furLayers }, (_, index) => material((index + 1) / furLayers))], [])
   // Seated after the ground has been written (LayeredGround's layout effect), and rebuilt only when the
@@ -194,6 +213,19 @@ export function MossCarpet({ geometry, floor, state, stateKey = '' }: { geometry
   const [spots, setSpots] = useState<TuftSpot[]>([])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (tuftKind === 'glb') setSpots(crownSpots(geometry, floor, state)) }, [geometry, floor, stateKey])
+  // Optimisation (2026-11-08): the blanket and its fur shells used to cover the whole ground, discarding
+  // the bare parts pixel by pixel in every layer (192k triangles a frame). They now draw only the
+  // triangles that can carry moss. The new geometry shares the ground's own position/normal buffers,
+  // so it follows the ground, and is rebuilt only when the ground or floor changes, never per frame.
+  // Stones and the log hand their tufts over (world space); this group sits at y = floor.
+  const fromProps = useSharedMossSpots()
+  const allSpots = useMemo(() => fromProps.length ? [...spots, ...fromProps.map((spot) => ({ ...spot, position: spot.position.clone().setY(spot.position.y - floor) }))] : spots, [spots, fromProps, floor])
+  const [shell, setShell] = useState<BufferGeometry | null>(null)
+  useEffect(() => {
+    const next = mossyPart(geometry, floor)
+    setShell(next)
+    return () => next.dispose()
+  }, [geometry, floor])
   // The blanket browns with the jar's mean moss condition (sampled over the soil).
   useEffect(() => {
     let sum = 0, count = 0
@@ -201,8 +233,8 @@ export function MossCarpet({ geometry, floor, state, stateKey = '' }: { geometry
     for (const m of materials) m.uniforms.brown.value = sum / count * 0.85
   }, [materials, stateKey]) // eslint-disable-line react-hooks/exhaustive-deps
   return <>
-    {materials.map((m, index) => <mesh key={index} geometry={geometry} material={m} raycast={() => undefined} receiveShadow={index === 0} />)}
+    {shell && materials.map((m, index) => <mesh key={index} geometry={shell} material={m} raycast={() => undefined} receiveShadow={index === 0} />)}
     {/* Modelled 3D moss tufts on the cushion crowns (owner's moss brief); ?mosstuft=shoot|fern keeps the earlier sprigs. */}
-    <Suspense fallback={null}>{tuftKind === 'glb' ? <MossTuftField spots={spots} /> : <MossTufts surface={geometry} floor={floor} lift={blanketLift} crownsOnly />}</Suspense>
+    <Suspense fallback={null}>{tuftKind === 'glb' ? <MossTuftField spots={allSpots} /> : <MossTufts surface={geometry} floor={floor} lift={blanketLift} crownsOnly />}</Suspense>
   </>
 }

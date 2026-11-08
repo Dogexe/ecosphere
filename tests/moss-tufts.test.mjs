@@ -11,19 +11,31 @@ function gltf(file) {
 }
 const triangles = (doc, primitive) => (primitive.indices !== undefined ? doc.accessors[primitive.indices].count : doc.accessors[primitive.attributes.POSITION].count) / 3
 
-test('moss tufts are four real-geometry GLBs with close, mid and overview levels, inside budget', () => {
+test('moss tufts: four GLBs, each with four levels of detail inside budget', () => {
   for (let n = 1; n <= 4; n += 1) {
     const { bytes, doc } = gltf(`moss-tuft-${n}.glb`)
-    assert.ok(bytes.length < 1_600_000, `moss-tuft-${n} is ${bytes.length} bytes`)
+    assert.ok(bytes.length < 1_800_000, `moss-tuft-${n} is ${bytes.length} bytes`)
     const meshes = Object.fromEntries(doc.meshes.map((mesh) => [mesh.name, mesh.primitives[0]]))
-    assert.ok(meshes.lod0 && meshes.lod1 && meshes.lod2, 'all three levels present')
-    for (const primitive of Object.values(meshes)) assert.ok(primitive.attributes.COLOR_0 !== undefined && primitive.attributes.NORMAL !== undefined)
-    assert.ok(triangles(doc, meshes.lod0) <= 30_000)
-    assert.ok(triangles(doc, meshes.lod1) <= 4_800)
-    assert.ok(triangles(doc, meshes.lod1) * 3 < triangles(doc, meshes.lod0), 'mid level is much lighter')
-    assert.ok(triangles(doc, meshes.lod2) <= 1_700 && triangles(doc, meshes.lod2) * 2 < triangles(doc, meshes.lod1), 'overview level is lighter still')
-    assert.equal(doc.images, undefined, 'vertex colours, no textures or alpha cards')
+    assert.ok(meshes.lod0 && meshes.lod1 && meshes.lod2 && meshes.lod3, 'all four levels present')
+    for (const primitive of Object.values(meshes)) assert.ok(primitive.attributes.COLOR_0 !== undefined && primitive.attributes.NORMAL !== undefined && primitive.attributes.TEXCOORD_0 !== undefined)
+    const tris = ['lod0', 'lod1', 'lod2', 'lod3'].map((name) => triangles(doc, meshes[name]))
+    // Optimisation 2026-11-08: opaque real 3D shoots at the two near levels, baked cards beyond.
+    assert.ok(tris[0] <= 23_000, `lod0 ${tris[0]}`)
+    assert.ok(tris[1] <= 6_500, `lod1 ${tris[1]}`)
+    assert.ok(tris[2] <= 900, `lod2 ${tris[2]}`)
+    assert.ok(tris[3] <= 150, `lod3 ${tris[3]}`)
+    assert.ok(tris[0] > tris[1] * 2 && tris[1] > tris[2] * 4 && tris[2] > tris[3] * 4, 'each level is much lighter than the last')
+    assert.equal(doc.images, undefined, 'the shared atlas is loaded once by the game, not embedded per model')
   }
+})
+
+test('moss atlas is one shared 1024 PNG with an alpha channel', () => {
+  const png = readFileSync(new URL('moss-atlas.png', root))
+  assert.equal(png.toString('ascii', 1, 4), 'PNG')
+  assert.equal(png.readUInt32BE(16), 1024)
+  assert.equal(png.readUInt32BE(20), 1024)
+  assert.equal(png[25], 6, 'RGBA')
+  assert.ok(png.length < 1_000_000)
 })
 
 test('moss looks green in a fresh jar and browns, then thins, as the soil dries', () => {

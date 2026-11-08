@@ -13,9 +13,9 @@ triangles with vertex colours (olive in the creases -> lime on the crowns). Rim 
 and down so the cushion overhangs its soil, as in the reference.
 
 Run: D:/Blender/blender.exe -b -P scripts/build_moss_tufts.py
-Writes public/assets/organisms/moss-tuft-{1..4}.glb, each holding two meshes, "lod0" (close) and
-"lod1" (mid: fewer, larger rosettes) and "lod2" (overview), unit width, base at y = 0; and
-artifacts/moss-asset/{turnaround,lod1}-{n}-{view}.png renders (front/back/left/right/top/three-quarter).
+Writes public/assets/organisms/moss-atlas.png (the detailed shoots baked to a texture) and
+moss-tuft-{1..4}.glb, each holding "lod0" (close), "lod1" (medium) and "lod2" (far) built from
+baked shoot cards (see the optimisation notes below), unit width, base at y = 0.
 """
 import bpy, bmesh, math, random, os
 from mathutils import Vector, noise
@@ -233,21 +233,274 @@ def mesh_object(name, build):
     for p in mesh.polygons: p.use_smooth = True
     return obj, info
 
+# ---------------------------------------------------------------------------------------------
+# Optimisation (owner brief, 2026-11-08): keep the look, cut the cost. The detailed shoots above are
+# no longer exported leaf by leaf. Instead they are baked, as they are, into one texture atlas
+# (public/assets/organisms/moss-atlas.png): four shoot variants seen from the side and from above,
+# and a dense patch seen from above. Each exported shoot is then two textured, alpha-tested quads
+# (a side card standing along the shoot axis and a top card across it), so one shoot costs four
+# triangles instead of about forty, while its outline is the baked leaves themselves.
+#   lod0  (close)  many shoot cards over a coarse shaded body
+#   lod1  (medium) fewer, larger cards (clusters)
+#   lod2  (far)    body textured with the baked patch plus a ring of rim cards
+ATLAS = 1024
+SIDE_Y, TOP_Y, CELL = 768, 512, 256          # atlas rows (Blender: origin bottom-left)
+PATCH = (0, 0, 512)                           # x, y, size of the baked top-view patch
+WHITE = (1016, 8)                             # an opaque white texel for untextured soil
+BAKE_SCALE = 0.1                              # the shoot scale the cells were baked at
+frame = {}                                    # baked frame sizes (side square, top square)
+
+def emission_material():
+    mat = bpy.data.materials.new('BakeVertex'); mat.use_nodes = True
+    nt = mat.node_tree
+    for node in list(nt.nodes): nt.nodes.remove(node)
+    out = nt.nodes.new('ShaderNodeOutputMaterial'); em = nt.nodes.new('ShaderNodeEmission'); vc = nt.nodes.new('ShaderNodeVertexColor')
+    vc.layer_name = 'Col'; nt.links.new(vc.outputs['Color'], em.inputs['Color']); nt.links.new(em.outputs['Emission'], out.inputs['Surface'])
+    return mat
+
+def render_cell(view, size, half, path, base=0.0):
+    """Orthographic render: 'side' looks along +y, 'top' looks down."""
+    scene = bpy.context.scene
+    scene.render.resolution_x = scene.render.resolution_y = size
+    cam = scene.camera
+    cam.data.type = 'ORTHO'; cam.data.ortho_scale = half * 2
+    if view == 'side': cam.location = (0, -5, base + half); cam.rotation_euler = (math.pi / 2, 0, 0)
+    else: cam.location = (0, 0, 5); cam.rotation_euler = (0, 0, 0)
+    scene.render.filepath = path
+    bpy.ops.render.render(write_still=True)
+
+def bake_atlas():
+    import numpy as np
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    scene = bpy.context.scene
+    engines = [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items]
+    scene.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in engines else 'BLENDER_EEVEE'
+    scene.view_settings.view_transform = 'Standard'
+    scene.render.film_transparent = True
+    scene.render.image_settings.file_format = 'PNG'; scene.render.image_settings.color_mode = 'RGBA'
+    cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); scene.collection.objects.link(cam); scene.camera = cam
+    mat = emission_material()
+    tmp = os.path.join(ART, 'bake'); os.makedirs(tmp, exist_ok=True)
+    shoots = []
+    for k in range(4):
+        mesh = bpy.data.meshes.new(f'shoot{k}'); bm = bmesh.new(); col = colour_layer(bm)
+        rng = random.Random(101 + k * 17)
+        rosette(bm, col, rng, Vector((0, 0, 0)), Vector((0, 1, 0)), BAKE_SCALE, 0.95, Vector((0, 0, 0)), 7, None)
+        bm.to_mesh(mesh); bm.free()
+        obj = bpy.data.objects.new(f'shoot{k}', mesh); scene.collection.objects.link(obj); mesh.materials.append(mat)
+        obj.rotation_euler = (math.pi / 2, 0, 0)
+        shoots.append(obj)
+    bpy.context.view_layer.update()
+    lat = top = hgt = 0.0
+    for obj in shoots:
+        for v in obj.data.vertices:
+            w = obj.matrix_world @ v.co
+            lat = max(lat, abs(w.x)); top = max(top, abs(w.x), abs(w.y)); hgt = max(hgt, w.z)
+    side_half = max(lat, hgt / 2) * 1.04; top_half = top * 1.04
+    frame['side'] = side_half * 2; frame['top'] = top_half * 2
+    for k, obj in enumerate(shoots):
+        for other in shoots: other.hide_render = other is not obj
+        render_cell('side', CELL, side_half, os.path.join(tmp, f'side{k}.png'))
+        render_cell('top', CELL, top_half, os.path.join(tmp, f'top{k}.png'))
+    for obj in shoots: obj.hide_render = True
+    # A dense patch of shoots over a dark shade floor, seen from above, for the far body.
+    mesh = bpy.data.meshes.new('patch'); bm = bmesh.new(); col = colour_layer(bm)
+    half = 0.25; rng = random.Random(7)
+    floor = [bm.verts.new((x, -0.002, z)) for x, z in ((-half, -half), (half, -half), (half, half), (-half, half))]
+    f = bm.faces.new(floor[::-1])
+    for loop in f.loops: loop[col] = lerp(CREASE, BODY, 0.1)
+    n = 22
+    for a in range(n):
+        for b in range(n):
+            x = -half + (a + 0.5) * 2 * half / n + rng.uniform(-0.006, 0.006); z = -half + (b + 0.5) * 2 * half / n + rng.uniform(-0.006, 0.006)
+            rosette(bm, col, rng, Vector((x, 0, z)), Vector((0, 1, 0)), BAKE_SCALE * rng.uniform(0.85, 1.15), rng.uniform(0.75, 1.0), Vector((0, 0, 0)), 7, Vector((rng.uniform(-0.6, 0.6), 0, rng.uniform(-0.6, 0.6))))
+    bm.to_mesh(mesh); bm.free()
+    obj = bpy.data.objects.new('patch', mesh); scene.collection.objects.link(obj); mesh.materials.append(mat)
+    obj.rotation_euler = (math.pi / 2, 0, 0)
+    scene.render.film_transparent = False
+    world = bpy.data.worlds.new('w'); scene.world = world; world.use_nodes = True
+    c = lerp(CREASE, BODY, 0.1)
+    world.node_tree.nodes['Background'].inputs['Color'].default_value = (c[0] ** 2.2, c[1] ** 2.2, c[2] ** 2.2, 1)
+    render_cell('top', PATCH[2], half * 0.96, os.path.join(tmp, 'patch.png'))
+    # Compose the atlas (Blender pixels are bottom-up rows of RGBA floats).
+    atlas = np.zeros((ATLAS, ATLAS, 4), dtype=np.float32)
+    def put(path, x, y):
+        img = bpy.data.images.load(path); w, h = img.size
+        atlas[y:y + h, x:x + w] = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+        bpy.data.images.remove(img)
+    for k in range(4):
+        put(os.path.join(tmp, f'side{k}.png'), k * CELL, SIDE_Y)
+        put(os.path.join(tmp, f'top{k}.png'), k * CELL, TOP_Y)
+    put(os.path.join(tmp, 'patch.png'), PATCH[0], PATCH[1])
+    atlas[0:16, 1008:1024] = (1, 1, 1, 1)
+    # Bleed leaf colour into the empty texels beside leaves, so mipmaps keep green edges.
+    rgb, alpha = atlas[..., :3].copy(), atlas[..., 3:4].copy()
+    solid = (alpha > 0.5).astype(np.float32)
+    for _ in range(8):
+        grown = np.zeros_like(rgb); weight = np.zeros_like(solid)
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            grown += np.roll(np.roll(rgb * solid, dy, 0), dx, 1); weight += np.roll(np.roll(solid, dy, 0), dx, 1)
+        fill = (solid < 0.5) & (weight > 0)
+        rgb = np.where(fill, grown / np.maximum(weight, 1e-6), rgb)
+        solid = np.where(fill, 1.0, solid)
+    atlas[..., :3] = rgb
+    image = bpy.data.images.new('moss-atlas', ATLAS, ATLAS, alpha=True)
+    image.pixels = atlas.ravel()
+    image.filepath_raw = os.path.join(OUT, 'moss-atlas.png'); image.file_format = 'PNG'; image.save()
+    print('atlas', os.path.getsize(image.filepath_raw), 'bytes; side frame', round(frame['side'], 4), 'top frame', round(frame['top'], 4))
+
+def uv_layer(bm): return bm.loops.layers.uv.get('UVMap') or bm.loops.layers.uv.new('UVMap')
+
+def quad(bm, col, uv, corners, uvs, colour, normal):
+    vs = [bm.verts.new(p) for p in corners]
+    for v in vs: NORMALS[v] = normal
+    f = bm.faces.new(vs)
+    for loop, t in zip(f.loops, uvs): loop[uv].uv = t; loop[col] = colour
+    return f
+
+def cell_uv(x, y, size=CELL):
+    a, b = x / ATLAS, y / ATLAS; s = size / ATLAS
+    return [(a, b), (a + s, b), (a + s, b + s), (a, b + s)]
+
+def shoot_cards(bm, col, uv, rng, centre, n, scale, bright, outward, spray=None, top_card=True):
+    """One shoot as two baked cards: a side card along the shoot axis and a top card across it."""
+    lean = (spray if spray is not None else Vector((0, 0, 0))) + outward * 0.9
+    axis = (n + lean * 0.8 + Vector(((rng.random() - 0.5) * 0.3, 0, (rng.random() - 0.5) * 0.3))).normalized()
+    f = scale / BAKE_SCALE
+    k = rng.randrange(4)
+    yaw = rng.random() * math.tau
+    ref = Vector((math.cos(yaw), 0, math.sin(yaw)))
+    t = (ref - axis * ref.dot(axis)).normalized()
+    w = frame['side'] * f
+    v = max(0.0, min(1.0, 0.4 + 0.55 * bright * (0.85 + rng.random() * 0.3)))   # cushion light and shade over the baked leaves
+    colour = (v, v, v, 1.0)
+    shade = (n * 0.65 + axis * 0.35).normalized()
+    base = centre - axis * w * 0.06
+    quad(bm, col, uv, [base - t * w / 2, base + t * w / 2, base + t * w / 2 + axis * w, base - t * w / 2 + axis * w], cell_uv(k * CELL, SIDE_Y), colour, shade)
+    if top_card:
+        q = axis.cross(t).normalized(); s = frame['top'] * f
+        mid = centre + axis * w * 0.32
+        quad(bm, col, uv, [mid - t * s / 2 - q * s / 2, mid + t * s / 2 - q * s / 2, mid + t * s / 2 + q * s / 2, mid - t * s / 2 + q * s / 2], cell_uv(k * CELL, TOP_Y), colour, shade)
+
+def card_moss(bm, col, uv, tuft, step, scale, top_card=True):
+    """The same placement as moss(), with shoot cards instead of leaf geometry."""
+    rng = random.Random(tuft.seed * 7 + int(step * 1000))
+    placed = 0; span = 0.6
+    cells = int(2 * span / step) + 1
+    for a in range(cells):
+        for b in range(cells):
+            x = -span + a * step + rng.uniform(-0.35, 0.35) * step
+            z = -span + b * step + rng.uniform(-0.35, 0.35) * step
+            if tuft.height(x, z) <= 0: continue
+            nn = tuft.normal(x, z)
+            extra = 1 + int((1 / max(nn.y, 0.3) - 1) * 1.3)
+            for e in range(extra):
+                ox = x + (rng.uniform(-0.5, 0.5) * step if e else 0); oz = z + (rng.uniform(-0.5, 0.5) * step if e else 0)
+                oy = tuft.height(ox, oz)
+                if oy <= 0: continue
+                lobe = tuft.lobes[tuft.lobe_of(ox, oz)]
+                rel = min(1, math.hypot(ox - lobe[0], oz - lobe[1]) / lobe[2])
+                outward = Vector((ox - lobe[0], 0, oz - lobe[1]))
+                outward = (outward.normalized() if outward.length > 1e-5 else Vector((0, 0, 0))) * max(0, rel - 0.55)
+                bright = 1.0 - 0.75 * rel ** 1.6 + 0.1 * noise.noise(Vector((ox * 9, oz * 9, tuft.seed)))
+                sx, sz = math.floor(ox * 7), math.floor(oz * 7)
+                sr = random.Random(hash((tuft.seed, sx, sz)) & 0xffffffff)
+                spray = Vector((sr.uniform(-1, 1), 0, sr.uniform(-1, 1))) * 0.6
+                shoot_cards(bm, col, uv, rng, Vector((ox, oy - 0.012, oz)), tuft.normal(ox, oz), scale * rng.uniform(0.8, 1.2), max(0.2, min(1, bright * (0.9 + sr.random() * 0.2))), outward, spray, top_card)
+                placed += 1
+    return placed
+
+def textured_body(bm, col, uv, tuft, n, colour_scale, lowered=True):
+    """The cushion body, its top planar-mapped onto the baked patch."""
+    span = 0.6; grid = {}; verts = {}
+    for a in range(n + 1):
+        for b in range(n + 1):
+            x, z = -span + 2 * span * a / n, -span + 2 * span * b / n
+            h = tuft.height(x, z)
+            y = (max(0.0, tuft.soil + (h - tuft.soil) * 0.68 - 0.03) if lowered else max(0.0, h - 0.012)) if h > 0 else 0.0
+            grid[a, b] = (x, y, z)
+    for a in range(n):
+        for b in range(n):
+            ids = [(a, b), (a, b + 1), (a + 1, b + 1), (a + 1, b)]
+            if min(grid[q][1] for q in ids) <= 0: continue
+            f = bm.faces.new([verts.setdefault(q, bm.verts.new(grid[q])) for q in ids])
+            for loop in f.loops:
+                x, y, z = loop.vert.co
+                loop[uv].uv = ((PATCH[0] + (x + span) / (2 * span) * PATCH[2]) / ATLAS, (PATCH[1] + (z + span) / (2 * span) * PATCH[2]) / ATLAS)
+                lobe = tuft.lobes[tuft.lobe_of(x, z)]
+                rel = min(1, math.hypot(x - lobe[0], z - lobe[1]) / lobe[2])
+                v = colour_scale * (1.0 - 0.45 * rel ** 1.6)
+                loop[col] = (v, v, v, 1.0)
+
+def plinth(bm, col, uv, tuft, seg):
+    """The brown soil base (soil_plinth's shape) with fewer segments, mapped to a white texel."""
+    def radius(a):
+        r = 0.0
+        while r < 0.7 and tuft.height(math.cos(a) * (r + 0.01), math.sin(a) * (r + 0.01)) > 0: r += 0.01
+        return max(0.08, r * 0.72)
+    rim = [(math.cos(s / seg * math.tau), math.sin(s / seg * math.tau), radius(s / seg * math.tau)) for s in range(seg)]
+    rows = [[bm.verts.new((c * r * t, y, s * r * t)) for c, s, r in rim] for t, y in ((0.86, 0.0), (1.0, tuft.soil * 0.45), (0.94, tuft.soil * 0.95))]
+    white = (WHITE[0] / ATLAS, WHITE[1] / ATLAS)
+    faces = []
+    for k in range(2):
+        for s in range(seg):
+            f = bm.faces.new([rows[k][s], rows[k][(s + 1) % seg], rows[k + 1][(s + 1) % seg], rows[k + 1][s]])
+            for loop in f.loops: loop[col] = PEBBLE if tuft.rng.random() < 0.18 else lerp(SOIL_D, SOIL, loop.vert.co.y / tuft.soil)
+            faces.append(f)
+    f = bm.faces.new(rows[2][::-1])
+    for loop in f.loops: loop[col] = SOIL_D
+    faces.append(f)
+    for f in faces:
+        for loop in f.loops: loop[uv].uv = white
+
+def rim_cards(bm, col, uv, tuft, count, scale):
+    rng = random.Random(tuft.seed * 13)
+    for k in range(count):
+        a = k / count * math.tau + rng.uniform(-0.1, 0.1)
+        r = 0.0
+        while r < 0.7 and tuft.height(math.cos(a) * (r + 0.01), math.sin(a) * (r + 0.01)) > 0: r += 0.01
+        r *= 0.9; x, z = math.cos(a) * r, math.sin(a) * r
+        shoot_cards(bm, col, uv, rng, Vector((x, tuft.height(x, z) - 0.02, z)), tuft.normal(x, z), scale, 0.7, Vector((math.cos(a), 0, math.sin(a))) * 0.4, None, False)
+
+def card_object(name, build):
+    mesh = bpy.data.meshes.new(name); bm = bmesh.new(); col = colour_layer(bm); uv = uv_layer(bm)
+    NORMALS.clear()
+    info = build(bm, col, uv)
+    bm.normal_update(); bm.verts.index_update()
+    custom = [tuple(NORMALS.get(vert, vert.normal)) for vert in bm.verts]
+    bm.to_mesh(mesh); bm.free()
+    mesh.normals_split_custom_set_from_vertices(custom)
+    obj = bpy.data.objects.new(name, mesh); bpy.context.collection.objects.link(obj)
+    mesh.materials.append(material())
+    for p in mesh.polygons: p.use_smooth = True
+    return obj, info
+
 def build(variant, seed):
     global _mat
     bpy.ops.wm.read_factory_settings(use_empty=True); _mat = None
     tuft = Tuft(seed)
-    def lod0(bm, col):
-        soil_plinth(bm, col, tuft); body(bm, col, tuft, 30)
-        return moss(bm, col, tuft, 0.025, 0.095, 7)    # owner: denser (about 1.85x round 5)
-    def lod1(bm, col):
-        soil_plinth(bm, col, tuft); body(bm, col, tuft, 20)
-        return moss(bm, col, tuft, 0.064, 0.15, 6)
-    def lod2(bm, col):
-        # Overview level: a coarse body and a few big rosettes, under a thousand triangles.
-        soil_plinth(bm, col, tuft); body(bm, col, tuft, 10)
-        return moss(bm, col, tuft, 0.13, 0.24, 5)
-    objs = [mesh_object(name, fn) for name, fn in (('lod0', lod0), ('lod1', lod1), ('lod2', lod2))]
+    white = (WHITE[0] / ATLAS, WHITE[1] / ATLAS)
+    def real(bm, col, uv, step, scale, leaves, body_n):
+        # Opaque real 3D shoots over the shaded body (no cut-out texture: keeps the GPU's early depth
+        # rejection, which alpha-tested cards switch off; that matters most on iPad tile GPUs).
+        plinth(bm, col, uv, tuft, 20); textured_body(bm, col, uv, tuft, body_n, 0.62)
+        before = set(bm.faces)
+        placed = moss(bm, col, tuft, step, scale, leaves)
+        for f in bm.faces:
+            if f not in before:
+                for loop in f.loops: loop[uv].uv = white
+        return placed
+    def lod0(bm, col, uv): return real(bm, col, uv, 0.027, 0.095, 7, 12)      # close: full shoots
+    def lod1(bm, col, uv): return real(bm, col, uv, 0.05, 0.13, 6, 10)        # medium: fewer, larger shoots
+    def lod2(bm, col, uv):
+        # Far: baked shoot cards (alpha-tested) over a body that shows the baked foliage.
+        plinth(bm, col, uv, tuft, 14); textured_body(bm, col, uv, tuft, 10, 0.75, lowered=False)
+        return card_moss(bm, col, uv, tuft, 0.05, 0.16)
+    def lod3(bm, col, uv):
+        plinth(bm, col, uv, tuft, 10); textured_body(bm, col, uv, tuft, 8, 0.95, lowered=False)
+        rim_cards(bm, col, uv, tuft, 18, 0.2)
+        return 18
+    objs = [card_object(name, fn) for name, fn in (('lod0', lod0), ('lod1', lod1), ('lod2', lod2), ('lod3', lod3))]
     for obj, _ in objs: obj.rotation_euler = (math.pi / 2, 0, 0)   # our y-up build into Blender's z-up
     bpy.ops.object.select_all(action='SELECT'); bpy.context.view_layer.objects.active = objs[0][0]
     bpy.ops.object.transform_apply(rotation=True)
@@ -255,15 +508,9 @@ def build(variant, seed):
     for obj, _ in objs: obj.scale = (s, s, s)
     bpy.ops.object.transform_apply(scale=True)
     path = os.path.join(OUT, f'moss-tuft-{variant}.glb')
-    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_apply=True, export_normals=True, export_attributes=True, use_selection=True)
+    bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_apply=True, export_normals=True, export_attributes=True, export_texcoords=True, use_selection=True)
     tris = [sum(len(p.vertices) - 2 for p in o.data.polygons) for o, _ in objs]
-    print(f'moss-tuft-{variant}: lod0 {tris[0]} / lod1 {tris[1]} / lod2 {tris[2]} tris, {os.path.getsize(path)} bytes, rosettes {objs[0][1]}/{objs[1][1]}, height {objs[0][0].dimensions.z:.3f}')
-    objs[1][0].hide_render = True; objs[2][0].hide_render = True
-    render_turnaround(objs[0][0], variant, 'turnaround')
-    objs[1][0].hide_render = False; objs[0][0].hide_render = True
-    render_turnaround(objs[1][0], variant, 'lod1')
-    objs[1][0].hide_render = True; objs[2][0].hide_render = False
-    render_turnaround(objs[2][0], variant, 'lod2')
+    print(f'moss-tuft-{variant}: ' + ' / '.join(f'lod{k} {t}' for k, t in enumerate(tris)) + f' tris, {os.path.getsize(path)} bytes')
 
 def render_turnaround(obj, variant, prefix):
     scene = bpy.context.scene
@@ -286,5 +533,6 @@ def render_turnaround(obj, variant, prefix):
         scene.render.filepath = os.path.join(ART, f'{prefix}-{variant}-{name}.png')
         bpy.ops.render.render(write_still=True)
 
+bake_atlas()
 for variant, seed in ((1, 11), (2, 23), (3, 37), (4, 51)):
     build(variant, seed)

@@ -2,13 +2,15 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
-import { Box3, BufferGeometry, Color, DoubleSide, Group, InstancedBufferAttribute, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Raycaster, Vector3 } from 'three'
+import type { Texture } from 'three'
+import { Box3, BufferGeometry, Color, DoubleSide, Group, InstancedBufferAttribute, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Raycaster, SRGBColorSpace, TextureLoader, Vector3 } from 'three'
 
 /*
  * 3D moss tufts (owner's moss brief, 2026-11-08). Four modelled tuft variants
  * (scripts/build_moss_tufts.py -> public/assets/organisms/moss-tuft-{1..4}.glb), each a soil plinth
- * under overlapping rounded lobes covered by real leaflet rosettes, with a close (lod0) and a far
- * (lod1) mesh. All tufts are drawn through instanced meshes, one per variant and level; each instance
+ * under overlapping rounded lobes covered by moss shoots. The detailed shoots are baked into one atlas
+ * and drawn as two alpha-tested cards each; levels lod0 (close), lod1 (medium clusters) and lod2 (far:
+ * textured body with rim cards). All tufts are drawn through instanced meshes, one per variant and level; each instance
  * picks its level from its own distance to the camera. Per-instance colour carries the ecology:
  * r = browning (0 green .. 1 dead brown), g = brightness. Visual only; picking stays with the
  * organisms' own independent targets.
@@ -16,7 +18,7 @@ import { Box3, BufferGeometry, Color, DoubleSide, Group, InstancedBufferAttribut
 export const tuftVariants = 4
 const files = Array.from({ length: tuftVariants }, (_, n) => `${import.meta.env.BASE_URL}assets/organisms/moss-tuft-${n + 1}.glb`)
 
-const levels = 3
+const levels = 4   // lod0 real 3D shoots, lod1 fewer real shoots, lod2 baked shoot cards, lod3 far textured body
 let cache: BufferGeometry[][] | null = null
 export function useMossTufts() {
   const gltfs = useGLTF(files)
@@ -51,29 +53,52 @@ export function useMossTufts() {
 }
 files.forEach((file) => useGLTF.preload(file))
 
-let material: MeshStandardMaterial | null = null
-/** Vertex-coloured moss; instance colour r browns it toward dead moss, g scales its brightness. */
-export function mossTuftMaterial() {
-  if (material) return material
-  material = new MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: DoubleSide })
+const materials: Partial<Record<'opaque' | 'cutout', MeshStandardMaterial>> = {}
+let atlas: Texture | null = null
+/**
+ * Two shared materials (optimisation brief 2026-11-08), both reading the baked shoot atlas
+ * (public/assets/organisms/moss-atlas.png) times the vertex colour (cushion light and shade):
+ * - 'opaque' for the near levels, real 3D shoots: no alpha test, so the GPU keeps rejecting hidden
+ *   pixels early (measured: the shared cut-out material doubled close-up tuft GPU time; on iPad tile
+ *   GPUs a discard also defeats hidden-surface removal).
+ * - 'cutout' for the far levels, baked shoot cards: alpha test (no blending) with alpha-to-coverage.
+ * Instance colour r browns the leaves toward dead moss after the texture lookup, g scales brightness.
+ */
+export function mossTuftMaterial(kind: 'opaque' | 'cutout' = 'cutout') {
+  const made = materials[kind]
+  if (made) return made
+  if (!atlas) {
+    atlas = new TextureLoader().load(`${import.meta.env.BASE_URL}assets/organisms/moss-atlas.png`)
+    atlas.flipY = false                      // glTF UV convention
+    atlas.colorSpace = SRGBColorSpace
+    atlas.anisotropy = 4
+  }
+  const material = materials[kind] = kind === 'cutout'
+    ? new MeshStandardMaterial({ map: atlas, vertexColors: true, roughness: 1, metalness: 0, side: DoubleSide, alphaTest: 0.4, alphaToCoverage: true })
+    : new MeshStandardMaterial({ map: atlas, vertexColors: true, roughness: 1, metalness: 0, side: DoubleSide })
   material.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader.replace('#include <color_vertex>', /* glsl */ `
-      vColor = vec3(1.0);
-      #ifdef USE_COLOR
-        vColor *= color;
-      #endif
-      #ifdef USE_INSTANCING_COLOR
-        // Drying moss turns olive then straw-brown, keeping its light and shade (soil stays soil).
-        float luma = dot(vColor, vec3(0.3, 0.59, 0.11));
-        float leafy = smoothstep(0.02, 0.12, vColor.g - vColor.r);
-        // Olive first (#85804A), then straw (#A49770) as it dries further (Codex review).
-        float b = instanceColor.r;
-        // Keep the leaf's light and shade but never brighter than the dead colour itself (bright lime leaves went white).
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vBrown;')
+      .replace('#include <color_vertex>', /* glsl */ `
+        vColor = vec3(1.0);
+        #ifdef USE_COLOR
+          vColor *= color;
+        #endif
+        vBrown = 0.0;
+        #ifdef USE_INSTANCING_COLOR
+          vColor *= instanceColor.g;
+          vBrown = instanceColor.r;
+        #endif`)
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vBrown;')
+      .replace('#include <color_fragment>', /* glsl */ `#include <color_fragment>
+        // Drying moss turns olive (#85804A) then straw (#A49770), keeping its light and shade; soil stays soil.
+        float luma = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
+        float leafy = smoothstep(0.02, 0.1, diffuseColor.g - diffuseColor.r);
         float shadeK = clamp(0.45 + 0.9 * luma, 0.45, 1.0);
         vec3 olive = vec3(0.34, 0.33, 0.12) * shadeK, straw = vec3(0.42, 0.31, 0.14) * shadeK;
-        vec3 dead = mix(olive, straw, smoothstep(0.45, 1.0, b));
-        vColor = mix(vColor, dead, min(1.0, b * 1.4) * leafy) * instanceColor.g;
-      #endif`)
+        vec3 dead = mix(olive, straw, smoothstep(0.45, 1.0, vBrown));
+        diffuseColor.rgb = mix(diffuseColor.rgb, dead, min(1.0, vBrown * 1.4) * leafy);`)
   }
   material.customProgramCacheKey = () => 'moss-tuft'
   return material
@@ -99,12 +124,13 @@ const up = new Vector3(0, 1, 0)
 
 /**
  * Draws a set of tuft spots with per-instance level of detail chosen by on-screen size (world width
- * over camera distance): `near` is the distance at which a 0.5-wide tuft leaves its close mesh; it
- * drops to the overview mesh at 2.5x that distance. Small outlying tufts so drop sooner.
+ * over camera distance): a 0.5-wide tuft uses full real shoots (lod0) within near/1.7, fewer
+ * real shoots (lod1) within `near`, baked shoot cards (lod2) within 2.5x near, and the far textured
+ * body (lod3) beyond. Small outlying tufts so drop sooner. Matrices are rebuilt only when the camera moves.
  */
 export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: TuftSpot[]; near?: number; shadows?: boolean }) {
   const geometries = useMossTufts()
-  const shared = mossTuftMaterial()
+  const opaque = mossTuftMaterial('opaque'), cutout = mossTuftMaterial('cutout')
   const capacity = useMemo(() => Array.from({ length: tuftVariants }, (_, v) => Math.max(1, spots.filter((spot) => spot.variant % tuftVariants === v).length)), [spots])
   const meshes = useRef<(InstancedMesh | null)[]>([])
   const matrices = useMemo(() => spots.map((spot) => {
@@ -135,13 +161,13 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     if (s.spots === spots && local.distanceToSquared(s.camera) < 0.04) return
     s.camera.copy(local); s.spots = spots
     const counts = new Array(tuftVariants * levels).fill(0)
-    const scale = origin.getMaxScaleOnAxis(), close = 0.5 / near, mid = close * 0.4
+    const scale = origin.getMaxScaleOnAxis(), close = 0.5 / near, nearest = close * 1.7, mid = close * 0.4
     const p = new Vector3()
     spots.forEach((spot, i) => {
       const variant = spot.variant % tuftVariants
       p.copy(spot.position).applyMatrix4(origin)
       const size = spot.width * scale / Math.max(0.01, p.distanceTo(camera.position))
-      const level = size > close ? 0 : size > mid ? 1 : 2
+      const level = size > nearest ? 0 : size > close ? 1 : size > mid ? 2 : 3
       const mesh = meshes.current[level * tuftVariants + variant]
       if (!mesh) return
       const n = counts[level * tuftVariants + variant]++
@@ -157,7 +183,7 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     })
   })
   return <>
-    {geometries.flatMap((level, l) => level.map((geometry, v) => <instancedMesh key={`${l}:${v}:${capacity[v]}`} ref={(mesh) => { meshes.current[l * tuftVariants + v] = mesh }} args={[geometry, shared, capacity[v]]} castShadow={shadows && l === 0} receiveShadow raycast={() => undefined} />))}
+    {geometries.flatMap((level, l) => level.map((geometry, v) => <instancedMesh key={`${l}:${v}:${capacity[v]}`} ref={(mesh) => { meshes.current[l * tuftVariants + v] = mesh }} args={[geometry, l < 2 ? opaque : cutout, capacity[v]]} castShadow={shadows && l === 0} receiveShadow raycast={() => undefined} />))}
   </>
 }
 
@@ -223,10 +249,32 @@ export function MossOnProp({ children, density = 14, width = 0.32, brown = 0, co
     width: width * (0.7 + 0.6 * hash(seed, k + 9)), squash: 0.8, variant: k % tuftVariants,
     brown: Math.min(1, brown * (0.8 + 0.4 * hash(seed, k + 3))), light: 0.92 + 0.16 * hash(seed, k + 11),
   } satisfies TuftSpot)), [found, brown, cover, seed, width])
-  return <group ref={holder}>
-    {children}
-    {spots.length > 0 && <MossTuftField spots={spots} />}
-  </group>
+  // Drawn by the moss carpet's own instanced meshes (one shared set of draw calls), in world space.
+  useLayoutEffect(() => {
+    const world = holder.current?.matrixWorld
+    shareMossSpots(`prop:${seed}`, spots.map((spot) => ({ ...spot, position: world ? spot.position.clone().applyMatrix4(world) : spot.position })))
+    return () => shareMossSpots(`prop:${seed}`, null)
+  }, [spots, seed])
+  return <group ref={holder}>{children}</group>
+}
+
+/*
+ * Tufts that other props (stones, the log) hand to the moss carpet, so every surface tuft shares one
+ * set of instanced meshes instead of each prop adding its own draw calls (optimisation 2026-11-08).
+ * Positions are in world space.
+ */
+const shared = new Map<string, TuftSpot[]>()
+const listeners = new Set<() => void>()
+let sharedList: TuftSpot[] = []
+export function shareMossSpots(key: string, spots: TuftSpot[] | null) {
+  if (spots && spots.length) shared.set(key, spots); else shared.delete(key)
+  sharedList = [...shared.values()].flat()
+  listeners.forEach((listener) => listener())
+}
+export function useSharedMossSpots() {
+  const [list, setList] = useState(sharedList)
+  useLayoutEffect(() => { const update = () => setList(sharedList); listeners.add(update); update(); return () => { listeners.delete(update) } }, [])
+  return list
 }
 
 export { mossLook } from './mossLook'
