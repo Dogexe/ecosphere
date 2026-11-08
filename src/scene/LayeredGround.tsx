@@ -38,7 +38,7 @@ export type GroundShape = {
 /*
  * The sim works on a 40×40 grid of cells (about 3.6 mm each), which drawn as
  * is shows terraced steps and saw-tooth shorelines. The drawing smooths it
- * like settled soil: the cell tops are softened with two small blur passes,
+ * like settled soil: the cell tops are softened with four small blur passes,
  * then sampled with a smooth (Catmull-Rom) curve onto a mesh three times
  * finer. Plants, animals and the pond stand on the same smoothed ground
  * (see `smoothGround`), so nothing floats or sinks. Visual only: the sim
@@ -53,7 +53,8 @@ const clampCell = (value: number) => Math.min(N - 1, Math.max(0, value))
 export function smoothTops(state: Substrate) {
   let field = new Float32Array(N * N), next = new Float32Array(N * N)
   for (let j = 0; j < N; j += 1) for (let i = 0; i < N; i += 1) field[j * N + i] = topAt(state, sampleCell(cellX(i), cellX(j)))
-  for (let pass = 0; pass < 2; pass += 1) {
+  // Four passes (2026-11-08, overview item 2: bank tops and corners read as sharp boxes); was two.
+  for (let pass = 0; pass < 4; pass += 1) {
     for (let axis = 0; axis < 2; axis += 1) {
       for (let j = 0; j < N; j += 1) for (let i = 0; i < N; i += 1) {
         const at = (d: number) => axis === 0 ? field[j * N + clampCell(i + d)] : field[clampCell(j + d) * N + i]

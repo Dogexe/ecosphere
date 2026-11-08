@@ -14,17 +14,17 @@ const triangles = (doc, primitive) => (primitive.indices !== undefined ? doc.acc
 test('moss tufts: four GLBs, each with four levels of detail inside budget', () => {
   for (let n = 1; n <= 4; n += 1) {
     const { bytes, doc } = gltf(`moss-tuft-${n}.glb`)
-    assert.ok(bytes.length < 1_800_000, `moss-tuft-${n} is ${bytes.length} bytes`)
+    assert.ok(bytes.length < 600_000, `moss-tuft-${n} is ${bytes.length} bytes`)
     const meshes = Object.fromEntries(doc.meshes.map((mesh) => [mesh.name, mesh.primitives[0]]))
     assert.ok(meshes.lod0 && meshes.lod1 && meshes.lod2 && meshes.lod3, 'all four levels present')
     for (const primitive of Object.values(meshes)) assert.ok(primitive.attributes.COLOR_0 !== undefined && primitive.attributes.NORMAL !== undefined && primitive.attributes.TEXCOORD_0 !== undefined)
     const tris = ['lod0', 'lod1', 'lod2', 'lod3'].map((name) => triangles(doc, meshes[name]))
-    // Optimisation 2026-11-08: opaque real 3D shoots at the two near levels, baked cards beyond.
-    assert.ok(tris[0] <= 23_000, `lod0 ${tris[0]}`)
-    assert.ok(tris[1] <= 6_500, `lod1 ${tris[1]}`)
+    // Shingled leaves 2026-11-08: opaque overlapping real leaves at the two near levels, baked cards beyond.
+    assert.ok(tris[0] <= 6_000, `lod0 ${tris[0]}`)
+    assert.ok(tris[1] <= 2_500, `lod1 ${tris[1]}`)
     assert.ok(tris[2] <= 900, `lod2 ${tris[2]}`)
     assert.ok(tris[3] <= 150, `lod3 ${tris[3]}`)
-    assert.ok(tris[0] > tris[1] * 2 && tris[1] > tris[2] * 4 && tris[2] > tris[3] * 4, 'each level is much lighter than the last')
+    assert.ok(tris[0] > tris[1] * 2 && tris[1] > tris[2] * 1.5 && tris[2] > tris[3] * 4, 'each level is much lighter than the last')
     assert.equal(doc.images, undefined, 'the shared atlas is loaded once by the game, not embedded per model')
   }
 })

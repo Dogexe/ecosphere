@@ -125,7 +125,7 @@ const up = new Vector3(0, 1, 0)
 /**
  * Draws a set of tuft spots with per-instance level of detail chosen by on-screen size (world width
  * over camera distance): a 0.5-wide tuft uses full real shoots (lod0) within near/1.7, fewer
- * real shoots (lod1) within `near`, baked shoot cards (lod2) within 2.5x near, and the far textured
+ * real shoots (lod1) within `near`, baked shoot cards (lod2) within 1.7x near, and the far textured
  * body (lod3) beyond. Small outlying tufts so drop sooner. Matrices are rebuilt only when the camera moves.
  */
 export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: TuftSpot[]; near?: number; shadows?: boolean }) {
@@ -161,7 +161,7 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     if (s.spots === spots && local.distanceToSquared(s.camera) < 0.04) return
     s.camera.copy(local); s.spots = spots
     const counts = new Array(tuftVariants * levels).fill(0)
-    const scale = origin.getMaxScaleOnAxis(), close = 0.5 / near, nearest = close * 1.7, mid = close * 0.4
+    const scale = origin.getMaxScaleOnAxis(), close = 0.5 / near, nearest = close * 1.7, mid = close * 0.6   // measured (GPU timer): shingled lod1 costs more than cards beyond this
     const p = new Vector3()
     spots.forEach((spot, i) => {
       const variant = spot.variant % tuftVariants

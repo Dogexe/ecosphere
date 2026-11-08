@@ -158,7 +158,7 @@ function crownSpots(surface: BufferGeometry, floor: number, state?: MossState): 
     if (!inside(x, z, size)) continue
     spots.push({
       position: new Vector3(x, y + lift - 0.01 - 0.1 * size, z), normal: new Vector3(normal.getX(best), ny, normal.getZ(best)),
-      yaw: mossHash(ix + 7, iz + 3) * Math.PI * 2, width: size * (0.7 + 0.3 * cover), squash: (tall ? 0.9 : 0.68) + 0.15 * mossHash(ix, iz + 11),
+      yaw: mossHash(ix + 7, iz + 3) * Math.PI * 2, width: size * (0.7 + 0.3 * cover), squash: ((tall ? 0.9 : 0.68) + 0.15 * mossHash(ix, iz + 11)) * 0.8,   // squat domes (Codex, shingled leaves)
       variant: Math.floor(mossHash(ix + 11, iz + 2) * tuftVariants), brown: Math.min(1, local.brown * (0.8 + 0.4 * mossHash(ix + 2, iz + 8))),
       light: 0.92 + 0.16 * mossHash(ix + 13, iz + 4),
     })

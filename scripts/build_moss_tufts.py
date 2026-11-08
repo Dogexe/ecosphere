@@ -28,7 +28,7 @@ def lerp(a, b, t): return tuple(a[i] + (b[i] - a[i]) * t for i in range(len(a)))
 # Byte colour layers hold sRGB; the glTF exporter converts them to linear.
 def lin(h): return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)) + (1.0,)
 SOIL_D, SOIL, PEBBLE = lin('4f3420'), lin('7a5332'), lin('8c6a48')
-CREASE, BODY, LIT, TIP = lin('2a440e'), lin('6a9819'), lin('9cc62c'), lin('c9e046')   # Codex 2026-11-08: ~20% less yellow   # paired Codex A/B 2026-11-08: lime won
+CREASE, BODY, LIT, TIP = lin('2c460e'), lin('74a21b'), lin('a8cc30'), lin('cfe24a')   # Codex 2026-11-08: ~20% less yellow   # paired Codex A/B 2026-11-08: lime won
 
 def colour_layer(bm):
     return bm.loops.layers.color.get('Col') or bm.loops.layers.color.new('Col')
@@ -284,8 +284,9 @@ def bake_atlas():
     shoots = []
     for k in range(4):
         mesh = bpy.data.meshes.new(f'shoot{k}'); bm = bmesh.new(); col = colour_layer(bm)
-        rng = random.Random(101 + k * 17)
-        rosette(bm, col, rng, Vector((0, 0, 0)), Vector((0, 1, 0)), BAKE_SCALE, 0.95, Vector((0, 0, 0)), 7, None)
+        mini = Tuft(201 + k * 17); mini.soil = 0.0
+        mini.lobes = [(0.0, 0.0, 0.05, 0.04)] + [(math.cos(a) * 0.02, math.sin(a) * 0.02, 0.03, 0.028) for a in (k, k + 2.1, k + 4.2)]
+        shingles(bm, col, mini, 0.011, 0.024, k)
         bm.to_mesh(mesh); bm.free()
         obj = bpy.data.objects.new(f'shoot{k}', mesh); scene.collection.objects.link(obj); mesh.materials.append(mat)
         obj.rotation_euler = (math.pi / 2, 0, 0)
@@ -309,11 +310,9 @@ def bake_atlas():
     floor = [bm.verts.new((x, -0.002, z)) for x, z in ((-half, -half), (half, -half), (half, half), (-half, half))]
     f = bm.faces.new(floor[::-1])
     for loop in f.loops: loop[col] = lerp(CREASE, BODY, 0.1)
-    n = 22
-    for a in range(n):
-        for b in range(n):
-            x = -half + (a + 0.5) * 2 * half / n + rng.uniform(-0.006, 0.006); z = -half + (b + 0.5) * 2 * half / n + rng.uniform(-0.006, 0.006)
-            rosette(bm, col, rng, Vector((x, 0, z)), Vector((0, 1, 0)), BAKE_SCALE * rng.uniform(0.85, 1.15), rng.uniform(0.75, 1.0), Vector((0, 0, 0)), 7, Vector((rng.uniform(-0.6, 0.6), 0, rng.uniform(-0.6, 0.6))))
+    patch = Tuft(5); patch.soil = 0.0
+    patch.lobes = [(rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), rng.uniform(0.06, 0.1), rng.uniform(0.03, 0.05)) for _ in range(70)]
+    shingles(bm, col, patch, 0.016, 0.034, 99)
     bm.to_mesh(mesh); bm.free()
     obj = bpy.data.objects.new('patch', mesh); scene.collection.objects.link(obj); mesh.materials.append(mat)
     obj.rotation_euler = (math.pi / 2, 0, 0)
@@ -371,14 +370,14 @@ def shoot_cards(bm, col, uv, rng, centre, n, scale, bright, outward, spray=None,
     yaw = rng.random() * math.tau
     ref = Vector((math.cos(yaw), 0, math.sin(yaw)))
     t = (ref - axis * ref.dot(axis)).normalized()
-    w = frame['side'] * f
+    w = 0.79 * scale                       # card size in world units, independent of the baked frame
     v = max(0.0, min(1.0, 0.4 + 0.55 * bright * (0.85 + rng.random() * 0.3)))   # cushion light and shade over the baked leaves
     colour = (v, v, v, 1.0)
     shade = (n * 0.65 + axis * 0.35).normalized()
     base = centre - axis * w * 0.06
     quad(bm, col, uv, [base - t * w / 2, base + t * w / 2, base + t * w / 2 + axis * w, base - t * w / 2 + axis * w], cell_uv(k * CELL, SIDE_Y), colour, shade)
     if top_card:
-        q = axis.cross(t).normalized(); s = frame['top'] * f
+        q = axis.cross(t).normalized(); s = 0.94 * scale
         mid = centre + axis * w * 0.32
         quad(bm, col, uv, [mid - t * s / 2 - q * s / 2, mid + t * s / 2 - q * s / 2, mid + t * s / 2 + q * s / 2, mid - t * s / 2 + q * s / 2], cell_uv(k * CELL, TOP_Y), colour, shade)
 
@@ -430,7 +429,7 @@ def textured_body(bm, col, uv, tuft, n, colour_scale, lowered=True):
                 lobe = tuft.lobes[tuft.lobe_of(x, z)]
                 rel = min(1, math.hypot(x - lobe[0], z - lobe[1]) / lobe[2])
                 v = colour_scale * (1.0 - 0.45 * rel ** 1.6)
-                loop[col] = (v, v, v, 1.0)
+                loop[col] = DEBUG_BODY or (v, v, v, 1.0)
 
 def plinth(bm, col, uv, tuft, seg):
     """The brown soil base (soil_plinth's shape) with fewer segments, mapped to a white texel."""
@@ -445,7 +444,7 @@ def plinth(bm, col, uv, tuft, seg):
     for k in range(2):
         for s in range(seg):
             f = bm.faces.new([rows[k][s], rows[k][(s + 1) % seg], rows[k + 1][(s + 1) % seg], rows[k + 1][s]])
-            for loop in f.loops: loop[col] = PEBBLE if tuft.rng.random() < 0.18 else lerp(SOIL_D, SOIL, loop.vert.co.y / tuft.soil)
+            for loop in f.loops: loop[col] = DEBUG_BODY or (PEBBLE if tuft.rng.random() < 0.18 else lerp(SOIL_D, SOIL, loop.vert.co.y / tuft.soil))
             faces.append(f)
     f = bm.faces.new(rows[2][::-1])
     for loop in f.loops: loop[col] = SOIL_D
@@ -475,23 +474,143 @@ def card_object(name, build):
     for p in mesh.polygons: p.use_smooth = True
     return obj, info
 
+# ---------------------------------------------------------------------------------------------
+# Shingled leaf cover (owner, 2026-11-08: "leaves overlapping until the mound is hidden, like the
+# reference"). Broad rounded leaves lie along the cushion like roof tiles: each points down-slope
+# and outward from its lobe's crown, its tip lifted a little off the surface, its base tucked under
+# the leaf above, so neighbours overlap and the body never shows. No radial rings (those read as
+# flowers): leaves share the slope direction. A ring of drooping skirt leaves hides the soil plinth.
+# A few spore stalks (moss sporophytes: seta + capsule) stand above the crown.
+# MOSS_COVERAGE=1 builds variant 1 with a magenta body and prints how much of it shows.
+DEBUG_BODY = (1.0, 0.0, 1.0, 1.0) if os.environ.get('MOSS_COVERAGE') else None
+SETA, CAPSULE = lin('a8963a'), lin('d4cf3c')
+
+def rotate_about(v, axis, angle):
+    axis = axis.normalized()
+    return v * math.cos(angle) + axis.cross(v) * math.sin(angle) + axis * axis.dot(v) * (1 - math.cos(angle))
+
+def shingle_colours(light, rel):
+    base = lerp(CREASE, BODY, 0.25 + 0.3 * light)
+    mid = lerp(BODY, LIT, 0.2 + 0.6 * light)
+    edge = lerp(mid, LIT, 0.08 * light)                         # barely lighter edge: pale rims read as scales (Codex)
+    return [base, mid, mid, edge, mid, edge, edge, mid, mid]
+
+def shingles(bm, col, tuft, spacing, length, seed_offset=0):
+    rng = random.Random(tuft.seed * 31 + seed_offset)
+    span = 0.62; cells = int(2 * span / spacing) + 1
+    placed = 0
+    up = Vector((0, 1, 0))
+    for a in range(cells):
+        for b in range(cells):
+            x = -span + a * spacing + rng.uniform(-0.4, 0.4) * spacing
+            z = -span + b * spacing + rng.uniform(-0.4, 0.4) * spacing
+            h = tuft.height(x, z)
+            if h <= 0: continue
+            n = tuft.normal(x, z)
+            extra = 1 + int((1 / max(n.y, 0.3) - 1) * 1.5)      # steep flanks have more area per cell
+            for e in range(extra):
+                ox = x + (rng.uniform(-0.5, 0.5) * spacing if e else 0); oz = z + (rng.uniform(-0.5, 0.5) * spacing if e else 0)
+                oh = tuft.height(ox, oz)
+                if oh <= 0: continue
+                nn = tuft.normal(ox, oz)
+                lobe = tuft.lobes[tuft.lobe_of(ox, oz)]
+                rel = min(1, math.hypot(ox - lobe[0], oz - lobe[1]) / lobe[2])
+                out = Vector((ox - lobe[0], 0, oz - lobe[1]))
+                if out.length < 1e-4 or rel < 0.12: out = Vector((math.cos(rng.random() * math.tau), 0, math.sin(rng.random() * math.tau)))
+                tangent = (out - nn * out.dot(nn)).normalized()
+                tangent = rotate_about(tangent, nn, rng.uniform(-0.55, 0.55))
+                lift = math.radians(rng.uniform(12, 28))
+                d = (tangent * math.cos(lift) + nn * math.sin(lift)).normalized()
+                L = length * rng.uniform(0.85, 1.2); W = L * rng.uniform(0.6, 0.75)
+                origin = Vector((ox, oh, oz)) - d * L * 0.3 + nn * (0.002 + 0.01 * (1 - rel))
+                light = max(0.15, min(1.0, (0.35 + 0.65 * nn.y) * (1.0 - 0.35 * rel) + 0.12 * noise.noise(Vector((ox * 8, oz * 8, tuft.seed)))))
+                shade = (nn * 0.7 + d * 0.3).normalized()
+                leaflet(bm, col, origin, d, nn.cross(d), L, W, light, shade_normal=shade, colours=shingle_colours(light, rel))
+                placed += 1
+    # Skirt: two rings of drooping leaves round the footprint edge, hiding the soil plinth down to the
+    # ground: an upper ring at the cushion's rim and a lower one at the plinth.
+    reach = max(math.hypot(cx, cz) + r for cx, cz, r, h in tuft.lobes)
+    count = max(8, int(2 * math.pi * reach * 0.85 / (spacing * 0.7)))
+    for ring, (inset, droops, low) in enumerate(((0.9, (25, 50), False), (0.78, (45, 70), True))):
+      for k in range(count):
+        ang = (k + 0.5 * ring) / count * math.tau + rng.uniform(-0.08, 0.08)
+        r = 0.0
+        while r < 0.7 and tuft.height(math.cos(ang) * (r + 0.01), math.sin(ang) * (r + 0.01)) > 0: r += 0.01
+        r *= inset * rng.uniform(0.96, 1.04); x, z = math.cos(ang) * r, math.sin(ang) * r
+        h = tuft.height(x, z)
+        if h <= 0: continue
+        if low: h = min(h, tuft.soil * 1.3)
+        outward = Vector((math.cos(ang), 0, math.sin(ang)))
+        droop = math.radians(rng.uniform(*droops))
+        d = (outward * math.cos(droop) - up * math.sin(droop)).normalized()
+        L = length * rng.uniform(1.0, 1.3); W = L * rng.uniform(0.6, 0.75)
+        origin = Vector((x, h - 0.005, z)) - outward * L * 0.15
+        light = 0.25 + 0.12 * rng.random()
+        leaflet(bm, col, origin, d, up.cross(d), L, W, light, shade_normal=(outward * 0.8 + up * 0.1).normalized(), colours=shingle_colours(light, 1.0))
+        placed += 1
+    return placed
+
+def sporophytes(bm, col, tuft, count, height):
+    """Moss spore stalks: a thin seta (three-sided) with a small capsule, on the highest crowns."""
+    rng = random.Random(tuft.seed * 53)
+    tops = sorted(tuft.lobes, key=lambda lobe: -lobe[3])
+    for k in range(count):
+        cx, cz, r, h = tops[k % len(tops)]
+        a = rng.random() * math.tau; d = rng.uniform(0, 0.5) * r
+        x, z = cx + math.cos(a) * d, cz + math.sin(a) * d
+        base = Vector((x, tuft.height(x, z) - 0.01, z))
+        lean = Vector((rng.uniform(-0.25, 0.25), 1, rng.uniform(-0.25, 0.25))).normalized()
+        top = base + lean * height * rng.uniform(0.8, 1.2)
+        w = height * 0.025
+        ring_b = [base + Vector((math.cos(t) * w, 0, math.sin(t) * w)) for t in (0, 2.09, 4.19)]
+        ring_t = [top + Vector((math.cos(t) * w * 0.7, 0, math.sin(t) * w * 0.7)) for t in (0, 2.09, 4.19)]
+        for i in range(3):
+            face(bm, col, [ring_b[i], ring_b[(i + 1) % 3], ring_t[(i + 1) % 3], ring_t[i]], [SETA] * 4)
+        c = height * 0.07
+        tip = top + lean * c * 2.2
+        mids = [top + lean * c * 0.9 + Vector((math.cos(t) * c, 0, math.sin(t) * c)) for t in (0, 1.57, 3.14, 4.71)]
+        for i in range(4):
+            face(bm, col, [top, mids[(i + 1) % 4], mids[i]], [lerp(SETA, CAPSULE, 0.5), CAPSULE, CAPSULE])
+            face(bm, col, [mids[i], mids[(i + 1) % 4], tip], [CAPSULE, CAPSULE, lerp(CAPSULE, TIP, 0.5)])
+
+def coverage_report(obj):
+    """Render the shingled level with emission vertex colours and count magenta (body) pixels."""
+    import numpy as np
+    scene = bpy.context.scene
+    engines = [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items]
+    scene.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in engines else 'BLENDER_EEVEE'
+    scene.view_settings.view_transform = 'Standard'; scene.render.film_transparent = True
+    scene.render.resolution_x = scene.render.resolution_y = 400
+    obj.data.materials.clear(); obj.data.materials.append(emission_material())
+    cam = bpy.data.objects.new('covcam', bpy.data.cameras.new('covcam')); scene.collection.objects.link(cam); scene.camera = cam
+    z = obj.dimensions.z
+    for name, loc in (('top', (0.001, 0, 2.2)), ('three-quarter', (1.4, -1.4, 1.1)), ('side', (0, -2.0, 0.25))):
+        cam.location = Vector(loc); cam.rotation_euler = (Vector((0, 0, z * 0.35)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+        path = os.path.join(ART, f'coverage-{name}.png'); scene.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+        img = bpy.data.images.load(path); px = np.array(img.pixels[:]).reshape(-1, 4); bpy.data.images.remove(img)
+        seen = px[:, 3] > 0.5
+        body = seen & (px[:, 0] > 0.7) & (px[:, 2] > 0.7) & (px[:, 1] < 0.35)
+        print(f'coverage {name}: body visible {100 * body.sum() / max(1, seen.sum()):.1f}% of moss pixels')
+
 def build(variant, seed):
     global _mat
     bpy.ops.wm.read_factory_settings(use_empty=True); _mat = None
     tuft = Tuft(seed)
     white = (WHITE[0] / ATLAS, WHITE[1] / ATLAS)
-    def real(bm, col, uv, step, scale, leaves, body_n):
-        # Opaque real 3D shoots over the shaded body (no cut-out texture: keeps the GPU's early depth
-        # rejection, which alpha-tested cards switch off; that matters most on iPad tile GPUs).
+    def real(bm, col, uv, spacing, length, body_n, spores):
+        # Opaque real 3D shingled leaves over the shaded body (no cut-out texture: keeps the GPU's early
+        # depth rejection, which alpha-tested cards switch off; that matters most on iPad tile GPUs).
         plinth(bm, col, uv, tuft, 20); textured_body(bm, col, uv, tuft, body_n, 0.62)
         before = set(bm.faces)
-        placed = moss(bm, col, tuft, step, scale, leaves)
+        placed = shingles(bm, col, tuft, spacing, length)
+        if spores: sporophytes(bm, col, tuft, spores, 0.16)
         for f in bm.faces:
             if f not in before:
                 for loop in f.loops: loop[uv].uv = white
         return placed
-    def lod0(bm, col, uv): return real(bm, col, uv, 0.027, 0.095, 7, 12)      # close: full shoots
-    def lod1(bm, col, uv): return real(bm, col, uv, 0.05, 0.13, 6, 10)        # medium: fewer, larger shoots
+    def lod0(bm, col, uv): return real(bm, col, uv, 0.042, 0.085, 12, 4)      # close: overlapping leaves
+    def lod1(bm, col, uv): return real(bm, col, uv, 0.075, 0.15, 10, 3)       # medium: fewer, larger leaves
     def lod2(bm, col, uv):
         # Far: baked shoot cards (alpha-tested) over a body that shows the baked foliage.
         plinth(bm, col, uv, tuft, 14); textured_body(bm, col, uv, tuft, 10, 0.75, lowered=False)
@@ -533,6 +652,19 @@ def render_turnaround(obj, variant, prefix):
         scene.render.filepath = os.path.join(ART, f'{prefix}-{variant}-{name}.png')
         bpy.ops.render.render(write_still=True)
 
-bake_atlas()
-for variant, seed in ((1, 11), (2, 23), (3, 37), (4, 51)):
-    build(variant, seed)
+if DEBUG_BODY:
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    tuft = Tuft(11)
+    for name, spacing, length in (('lod0', 0.042, 0.085), ('lod1', 0.075, 0.15)):
+        for o in list(bpy.data.objects): bpy.data.objects.remove(o)
+        def fn(bm, col, uv, spacing=spacing, length=length):
+            plinth(bm, col, uv, tuft, 20); textured_body(bm, col, uv, tuft, 12, 0.62); return shingles(bm, col, tuft, spacing, length)
+        obj, n = card_object(name, fn); obj.rotation_euler = (math.pi / 2, 0, 0)
+        bpy.context.view_layer.objects.active = obj; obj.select_set(True); bpy.ops.object.transform_apply(rotation=True)
+        tris = sum(len(p.vertices) - 2 for p in obj.data.polygons)
+        print(f'{name}: {n} leaves, {tris} tris')
+        coverage_report(obj)
+else:
+    bake_atlas()
+    for variant, seed in ((1, 11), (2, 23), (3, 37), (4, 51)):
+        build(variant, seed)
