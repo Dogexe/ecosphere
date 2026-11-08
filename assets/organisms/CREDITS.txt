@@ -100,3 +100,4 @@ Natural look (2026-11-07):
 - "Fern" by Quaternius, CC0, via Poly Pizza (https://poly.pizza/m/jqcanvH7D6).
 - moss-tuft-1..4.glb: original models made for ECOSPHERE (scripts/build_moss_tufts.py); no third-party geometry.
 - moss-tuft-1..4.glb: original models made for ECOSPHERE (scripts/build_moss_tufts.py); no third-party geometry.
+- moss-atlas.png: baked from the same original moss shoots (scripts/build_moss_tufts.py); own work.

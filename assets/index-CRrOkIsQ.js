@@ -49,6 +49,17 @@ ${oo}`)};const s=e.customProgramCacheKey?.bind(e);e.customProgramCacheKey=()=>`$
           }
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.09, 0.08, 0.06), outside * 0.92);
         }
+        #endif
+        #if defined(USE_MAP) && defined(NATURAL)
+        {
+          // One style with the low-poly clover and fern (overview item 4, 2026-11-08): the painted
+          // leaves' fine veins and brush texture are softened into broad tones (a blurrier mip, mixed
+          // in), and saturation eased a little. The cut-out leaf outline still comes from the sharp map.
+          vec3 soft = texture(map, vMapUv, 3.0).rgb * diffuse;
+          diffuseColor.rgb = mix(diffuseColor.rgb, soft, 0.65);
+          float grey = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
+          diffuseColor.rgb = mix(vec3(grey), diffuseColor.rgb, 0.88);
+        }
         #endif`).replace("#include <lights_fragment_end>",`#include <lights_fragment_end>
         #if NUM_DIR_LIGHTS > 0
         {
