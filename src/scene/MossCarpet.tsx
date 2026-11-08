@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import { Color, DoubleSide, ShaderMaterial } from 'three'
 import type { BufferGeometry } from 'three'
 import { environmentScale } from './scale'
@@ -102,6 +102,6 @@ export function MossCarpet({ geometry, floor }: { geometry: BufferGeometry; floo
   return <>
     {materials.map((m, index) => <mesh key={index} geometry={geometry} material={m} raycast={() => undefined} receiveShadow={index === 0} />)}
     {/* Fern-like moss sprigs on the mound crowns and draping at the glass (Codex moss loop). */}
-    <MossTufts surface={geometry} floor={floor} lift={blanketLift} crownsOnly />
+    <Suspense fallback={null}><MossTufts surface={geometry} floor={floor} lift={blanketLift} crownsOnly /></Suspense>
   </>
 }

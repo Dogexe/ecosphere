@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useGLTF } from '@react-three/drei'
+import type { Mesh } from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, InstancedMesh, MeshStandardMaterial, Object3D, Vector3 } from 'three'
 import { environmentScale } from './scale'
 
@@ -72,8 +75,48 @@ function tuftGeometry() {
 let shared: { geometry: BufferGeometry; material: MeshStandardMaterial } | null = null
 const assets = () => shared ??= { geometry: tuftGeometry(), material: new MeshStandardMaterial({ vertexColors: true, side: DoubleSide, roughness: 1, metalness: 0 }) }
 
+/**
+ * The Quaternius CC0 low-poly fern (public/assets/organisms/natural-fern.glb) shrunk to a moss tuft
+ * (owner, 2026-11-08: "try it"): a dense radial frond with a clear shape, which reads as a moss shoot
+ * at the jar's overview the way the owner's reference paints them. Normalized to unit height, coloured
+ * deep olive at the base to yellow-green at the tips, lit as a small dome.
+ */
+let fernTuft: BufferGeometry | null = null
+function useFernTuft() {
+  const { scene } = useGLTF(`${import.meta.env.BASE_URL}assets/organisms/natural-fern.glb`)
+  return useMemo(() => {
+    if (fernTuft) return fernTuft
+    const parts: BufferGeometry[] = []
+    scene.updateMatrixWorld(true)
+    scene.traverse((object) => {
+      const mesh = object as Mesh
+      if (!mesh.isMesh) return
+      const g = (mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone()).applyMatrix4(mesh.matrixWorld)
+      for (const name of Object.keys(g.attributes)) if (name !== 'position') g.deleteAttribute(name)
+      parts.push(g)
+    })
+    const merged = mergeGeometries(parts)!
+    merged.computeBoundingBox()
+    const box = merged.boundingBox!, height = box.max.y - box.min.y || 1
+    merged.translate(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2).scale(1 / height, 1 / height, 1 / height)
+    const position = merged.getAttribute('position'), colours = new Float32Array(position.count * 3), normals = new Float32Array(position.count * 3)
+    const base = new Color('#3a5213'), body = new Color('#7e9e18'), tip = new Color('#bcd22c'), c = new Color(), n = new Vector3()
+    for (let v = 0; v < position.count; v += 1) {
+      const t = Math.min(1, Math.max(0, position.getY(v)))
+      c.copy(t < 0.5 ? base : body).lerp(t < 0.5 ? body : tip, t < 0.5 ? t * 2 : (t - 0.5) * 2)
+      colours.set([c.r, c.g, c.b], v * 3)
+      n.set(position.getX(v), position.getY(v) + 0.25, position.getZ(v)).normalize(); normals.set([n.x, n.y, n.z], v * 3)
+    }
+    merged.setAttribute('color', new BufferAttribute(colours, 3))
+    merged.setAttribute('normal', new BufferAttribute(normals, 3))
+    fernTuft = merged
+    return merged
+  }, [scene])
+}
+
 export function MossTufts({ surface, floor, lift, crownsOnly = false }: { surface: BufferGeometry; floor: number; lift: (x: number, y: number, z: number, ny: number) => number; crownsOnly?: boolean }) {
-  const { geometry, material } = assets()
+  const { material } = assets()
+  const geometry = useFernTuft()
   const capacity = 16000
   const mesh = useRef<InstancedMesh>(null)
   const dummy = useMemo(() => new Object3D(), [])
@@ -95,7 +138,7 @@ export function MossTufts({ surface, floor, lift, crownsOnly = false }: { surfac
         dummy.position.set(jx, y + lift(jx, y + floor, jz, ny) - 0.015, jz)
         dummy.rotation.set((hash(v, 11 + k) - 0.5) * 0.4, hash(v, 13 + k) * Math.PI * 2, (hash(v, 17 + k) - 0.5) * 0.4)
         const s = (0.15 + hash(v, 19 + k) * 0.08) * (0.75 + cover * 0.25)
-        dummy.scale.set(s * 1.8, s, s * 1.8)
+        dummy.scale.set(s * 0.5, s * 0.28, s * 0.5)   // the fern is about 3x wider than tall
         dummy.updateMatrix()
         target.setMatrixAt(n, dummy.matrix)
         n += 1
