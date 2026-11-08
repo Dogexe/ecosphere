@@ -254,26 +254,40 @@ normal = normalize(mix(nonPerturbedNormal, normal, vFlat));`).replace("#include 
               natural *= 1.0 - 0.22 * smoothstep(0.85, 1.25, below);
               soil = mix(soil, natural, 0.9);
             } else {
-              // Gravel drainage layer: fewer, larger faceted pebbles (same layer proportions), dark gaps.
-              vec2 gc = vec2(wp.x / 0.3, wp.y / 0.2);
+              // Gravel drainage layer (same layer proportions), irregular (owner 2026-11-08: the grid of
+              // equal hexagons read as a pattern): staggered, randomly shifted rows, pebbles of very
+              // different sizes that overlap their neighbours, 5-7 sides, random elongation and turn,
+              // and a mix of grey, tan and rust stones.
+              vec2 gc = vec2(wp.x / 0.24, wp.y / 0.15);
+              float row = floor(gc.y);
+              gc.x += 0.5 * mod(row, 2.0) + 0.6 * soilHash(vec2(row, 17.0));
               vec2 gid = floor(gc), gf = fract(gc), gq = step(0.5, gf) * 2.0 - 1.0;
-              float pebS = 1e3, pebLit = 0.0, pebTone = 0.0;
+              float pebS = 1e3, pebLit = 0.0, pebTone = 0.0, pebKind = 0.0;
               for (int j = 0; j <= 1; j++) for (int i = 0; i <= 1; i++) {
-                vec2 o = vec2(float(i), float(j)) * gq;
+                vec2 o = vec2(float(i), float(j)) * gq;   // the 2x2 cells nearest this pixel
                 vec2 cell = gid + o;
-                vec2 p = (gf - o - (0.5 + 0.3 * (vec2(soilHash(cell + 0.7), soilHash(cell + 1.9)) - 0.5))) * vec2(1.0, 0.75);
-                float r = 0.4 + 0.12 * soilHash(cell + 3.3), rot = soilHash(cell + 5.7) * 6.283;
+                float big = soilHash(cell + 3.3);
+                float r = mix(0.5, 0.95, big * big);   // densely packed, sizes still vary about 2:1
+                vec2 p = gf - o - (0.5 + 0.5 * (vec2(soilHash(cell + 0.7), soilHash(cell + 1.9)) - 0.5));
+                float turn = soilHash(cell + 5.7) * 6.283, c = cos(turn), sn = sin(turn);
+                p = vec2(c * p.x - sn * p.y, sn * p.x + c * p.y) * vec2(1.0, 1.0 / mix(0.65, 1.0, soilHash(cell + 2.9)));
+                float sides = 5.0 + floor(soilHash(cell + 7.7) * 3.0);
                 float s = -1e3, lit = 0.0;
-                for (int k = 0; k < 6; k++) {
-                  float a = rot + float(k) * 1.0472;
+                for (int k = 0; k < 7; k++) {
+                  if (float(k) >= sides) break;
+                  float a = float(k) * 6.283 / sides + soilHash(cell + float(k) * 0.91) * 0.5;
                   vec2 n = vec2(cos(a), sin(a));
-                  float d = dot(p, n) - r * (0.82 + 0.18 * soilHash(cell + float(k) * 0.53));
-                  if (d > s) { s = d; lit = dot(n, vec2(-0.45, 0.89)); }
+                  float d = dot(p, n) - r * (0.75 + 0.25 * soilHash(cell + float(k) * 0.53));
+                  if (d > s) { s = d; lit = dot(vec2(c * n.x + sn * n.y, -sn * n.x + c * n.y), vec2(-0.45, 0.89)); }
                 }
-                if (s < pebS) { pebS = s; pebLit = lit; pebTone = soilHash(cell + 9.1); }
+                if (s < pebS) { pebS = s; pebLit = lit; pebTone = soilHash(cell + 9.1); pebKind = soilHash(cell + 11.3); }
               }
               float inPeb = 1.0 - smoothstep(-0.02, 0.0, pebS);
-              vec3 pebColour = mix(vec3(0.22, 0.19, 0.155), vec3(0.32, 0.27, 0.21), pebTone) * (0.72 + 0.4 * clamp(pebLit, -0.4, 1.0));
+              vec3 grey = mix(vec3(0.2, 0.19, 0.17), vec3(0.3, 0.28, 0.25), pebTone);
+              vec3 tan = mix(vec3(0.24, 0.2, 0.15), vec3(0.34, 0.28, 0.21), pebTone);
+              vec3 rust = mix(vec3(0.21, 0.13, 0.08), vec3(0.28, 0.18, 0.11), pebTone);
+              vec3 pebColour = pebKind < 0.45 ? tan : pebKind < 0.8 ? grey : rust;
+              pebColour *= 0.72 + 0.4 * clamp(pebLit, -0.4, 1.0);
               gravel = mix(vec3(0.09, 0.075, 0.06), pebColour, inPeb);
             }
             soil = mix(soil, vec3(0.52, 0.36, 0.22), 1.0 - smoothstep(0.0, 0.045, nestRim));
