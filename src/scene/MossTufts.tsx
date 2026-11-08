@@ -123,7 +123,8 @@ function mossShootTuft() {
   shootTuft = geometry
   return geometry
 }
-const tuftKind = (() => { try { return new URLSearchParams(window.location.search).get('mosstuft') ?? 'shoot' } catch { return 'shoot' } })()
+/** `?mosstuft=shoot` or `fern` keep the earlier procedural tufts; default is the modelled 3D tufts (MossTuftAsset). */
+export const tuftKind = (() => { try { return new URLSearchParams(window.location.search).get('mosstuft') ?? 'glb' } catch { return 'glb' } })()
 
 let fernTuft: BufferGeometry | null = null
 function useFernTuft() {

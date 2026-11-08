@@ -258,10 +258,16 @@ const plantLight = (world: World, plant: Plant) => plant.kind === 'tree' ? world
 function pondPatch(pond: Pond): SoilPatch { return { id: 4, x: pondShape().center.x, z: pondShape().center.z, fungi: 0, water: pond.water, nutrients: pond.nutrients, organic: pond.organic } }
 const plantPatch = (world: World, plant: Plant) => isAquatic(plant.kind) ? pondPatch(world.pond ?? defaultPond()) : nearestSoil(soilFor(world), plant.x, plant.z)
 
+/** How well a soil water level suits a plant kind (0..1): the moisture term of its habitat fit. Read-only. */
+export function plantMoisture(kind: PlantKind, water: number) {
+  const traits = plantTraits[kind]
+  return clamp((water - 2) / 20, 0, 1) * suitability(water / 100, traits.moisture, traits.moistureRange)
+}
+
 function plantConditions(plant: Plant, patch: SoilPatch, light: number) {
   const traits = plantTraits[plant.kind]
   return {
-    moisture: clamp((patch.water - 2) / 20, 0, 1) * suitability(patch.water / 100, traits.moisture, traits.moistureRange),
+    moisture: plantMoisture(plant.kind, patch.water),
     sunlight: Math.min(1, Math.max(0, light) / traits.light) * suitability(light, traits.light, traits.lightRange),
     fertility: clamp(patch.nutrients / traits.nutrientNeed, 0, 1),
   }

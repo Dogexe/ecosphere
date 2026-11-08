@@ -134,4 +134,12 @@ Owner's new direction (Stylized 3D Naturalism / Soft Organic Low-poly). From Pol
 - `natural-clover.glb`: "Clover" by Quaternius, CC0 (https://poly.pizza/m/u5SOgBFiut).
 - `natural-mushroom.glb`: "Mushroom" by jeremy, CC BY 3.0 (https://poly.pizza/m/2DAaKHD48ZP). Credit required.
 - `natural-hollow-log.glb`: "Log with Fungus" by sirkitree, CC BY 3.0 (https://poly.pizza/m/32czhZtc7oY). Credit required; decor only, not a sim object.
-The broadleaf (Fittonia), violets and fern reuse the painted leaves as thin 3D leaves without ink outlines; moss is procedural instanced 3D.
+The broadleaf (Fittonia), violets and fern reuse the painted leaves as thin 3D leaves without ink outlines; moss is the modelled 3D moss tufts below.
+
+## Moss tufts (2026-11-08)
+
+`moss-tuft-1..4.glb`: own work, modelled in Blender by `scripts/build_moss_tufts.py` after an asset search (Poly Pizza Quaternius Bush/Bushes CC0 read as shrubs at macro zoom; Sketchfab moss clumps need a login; record in `artifacts/moss-asset/SEARCH.md`). Each holds `lod0` (11-21k tris) and `lod1` (2.9-3.9k tris): a soil plinth under 4-6 overlapping rounded lobes covered by real leaflet rosettes, vertex colours, no textures. Drawn through instanced meshes with per-instance LOD (`src/scene/MossTuftAsset.tsx`); browning and cover follow the sim's soil moss moisture fit (`mossLook`). Visual only; hitboxes unchanged.
+
+## Moss tufts (2026-11-08)
+
+`moss-tuft-1..4.glb`: own work, modelled in Blender by `scripts/build_moss_tufts.py` after an asset search (Poly Pizza Quaternius Bush/Bushes CC0 read as shrubs at macro zoom; Sketchfab moss clumps need a login; record in `artifacts/moss-asset/SEARCH.md`). Each holds `lod0` (16-21k tris) and `lod1` (2.9-3.9k tris): a soil plinth under 4-6 overlapping rounded lobes covered by real leaflet rosettes, vertex colours, no textures. Drawn through instanced meshes with per-instance LOD (`src/scene/MossTuftAsset.tsx`); browning and cover follow the sim's soil moss moisture fit (`mossLook`). Visual only; hitboxes unchanged.

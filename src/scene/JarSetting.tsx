@@ -2,7 +2,7 @@ import { Suspense, useLayoutEffect, useMemo } from 'react'
 import { AdditiveBlending, CanvasTexture, Color, CylinderGeometry, DoubleSide, LatheGeometry, MeshBasicMaterial, ShaderMaterial, MathUtils, Vector2, Vector3 } from 'three'
 import { charcoalTexture, soilSideTexture } from '../lab/proceduralTextures'
 import { pondCenter } from '../sim/pond'
-import { nearestSoil } from '../sim/ecosystem'
+import { nearestSoil, plantMoisture } from '../sim/ecosystem'
 import type { SoilPatch } from '../sim/ecosystem'
 import { environmentScale, groundShape } from './scale'
 import { cellX, inside, layerDepths, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
@@ -16,6 +16,8 @@ import { GlassDroplets } from './GlassDroplets'
 import { DrawnCurledLeaf, DrawnMossCushion } from './DrawnPlant'
 import { naturalLook } from './PaperCritter'
 import { OrganismAsset } from './OrganismAsset'
+import { MossOnProp, mossLook } from './MossTuftAsset'
+import type { MossState } from './MossCarpet'
 import { LayeredGround, smoothGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
@@ -241,7 +243,8 @@ const cushions = Array.from({ length: 16 }, (_, n) => {
 })
 
 /** Moss, stones, a fern and fallen leaves from the approved reference (round 2, image 2), kept clear of the pond. */
-function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?: (x: number, z: number) => boolean; shore?: Vector3[] }) {
+function Dressing({ ground = flat, keepOut, shore, moss }: { ground?: Ground; keepOut?: (x: number, z: number) => boolean; shore?: Vector3[]; moss?: MossState }) {
+  const on = (x: number, z: number) => moss?.(x, z) ?? { brown: 0, cover: 1 }
   const avoid = keepOut ? nowhere : pond
   const dry = (x: number, z: number) => !keepOut || !keepOut(x, z)
   // 3D moss cushions (owner, 2026-11-07): sizes vary 0.6-1.3x, two in three are low and spread.
@@ -251,9 +254,9 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     return [{ x: cushion.x, y: ground(cushion.x, cushion.z), z: cushion.z, radius, height: radius * (index % 3 ? 0.38 : 0.6) }]
   }), [ground, keepOut]) // eslint-disable-line react-hooks/exhaustive-deps
   return <>
-    {dry(2.55, -1.35) && <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />}
-    {dry(-2.55, -1.9) && <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />}
-    {dry(0.6, 3.05) && <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />}
+    {dry(2.55, -1.35) && (naturalLook ? <MossOnProp seed={37} density={10} width={0.3} {...on(2.55, -1.35)}><MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} moss={false} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />)}
+    {dry(-2.55, -1.9) && (naturalLook ? <MossOnProp seed={78} density={10} width={0.3} {...on(-2.55, -1.9)}><MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} moss={false} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />)}
+    {dry(0.6, 3.05) && (naturalLook ? <MossOnProp seed={71} density={10} width={0.3} {...on(0.6, 3.05)}><MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} moss={false} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />)}
     {/* Drawn moss cushions (image 12, Codex image_gen 2026-11-07) replace the sprig scatter Codex flagged every round. */}
     {/* Moss cushions made the woodlouse's way: the painted cushion wrapped on a 3D dome from its outline. */}
     {/* Natural look: the moss is a fuzzy carpet on the ground (MossCarpet) as in the owner's reference. */}
@@ -266,7 +269,7 @@ function Dressing({ ground = flat, keepOut, shore }: { ground?: Ground; keepOut?
     {dry(-1.2, -2.6) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />}
     {naturalLook
       // A low-poly hollow log with fungus (sirkitree, CC BY 3.0, via Poly Pizza) lying among the plants, as in the owner's reference.
-      ? dry(-0.9, -0.55) && <group position={[-0.9, ground(-0.9, -0.55) - 0.08, -0.55]} rotation={[0, 0.35, 0]}><OrganismAsset file="natural-hollow-log" shape={{ length: 3.2, base: 0 }} health={1} fallback={null} /></group>
+      ? dry(-0.9, -0.55) && <MossOnProp seed={7} density={9} width={0.3} {...on(-0.9, -0.55)}><group position={[-0.9, ground(-0.9, -0.55) - 0.08, -0.55]} rotation={[0, 0.35, 0]}><OrganismAsset file="natural-hollow-log" shape={{ length: 3.2, base: 0 }} health={1} fallback={null} /></group></MossOnProp>
       : dry(1.25, 0.35) && <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_c" x={1.25} z={0.35} length={1.4} turn={-0.45} ground={ground} />}
   </>
 }
@@ -332,11 +335,22 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
   const rim = useMemo(() => glassRimSpots(water && hasPond ? water : null, ground), [water, hasPond, ground])
   // A closed jar with standing water always beads a little on the glass, as in concept image 12; the sim's fog adds more.
   const mist = sealed && hasPond ? Math.max(fog, 0.45) : fog
+  // Moss condition from the sim's soil: the moss moisture fit of the nearest soil pocket (quantized so it
+  // only rebuilds tufts when it changes noticeably). Drying browns moss, then thins it.
+  const mossKey = soil.map((patch) => Math.round(plantMoisture('moss', patch.water) * 20)).join(',')
+  if (typeof location !== 'undefined' && location.search.includes('debug')) (window as unknown as { __moss: unknown }).__moss = { mossKey, water: soil.map((patch) => patch.water) }
+  const moss = useMemo<MossState>(() => {
+    // QA only (?profile=1&mossfit=0.1): preview the moss at a given moisture fit without drying the jar.
+    const forced = typeof location !== 'undefined' && location.search.includes('profile=1') ? new URLSearchParams(location.search).get('mossfit') : null
+    const fits = mossKey.split(',').map((value) => forced !== null ? Number(forced) : Number(value) / 20)
+    return (x: number, z: number) => mossLook(soil.length ? fits[soil.indexOf(nearestSoil(soil, x, z))] ?? 0.58 : 0.58)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mossKey])
   return <>
-    <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} poolScale={poolScale} onClick carpet={naturalLook && dressed} /></Suspense>
+    <Suspense fallback={null}><LayeredGround state={state} floor={floor} shape={shape} poolScale={poolScale} onClick carpet={naturalLook && dressed} moss={moss} mossKey={mossKey} /></Suspense>
     {water && hasPond && water.cells && pond && <ShapedPond ground={ground} cells={water.cells} level={water.level ?? 0} floor={floor} pond={pond} underwater={!!underwater} onPondClick={onPondClick ?? (() => undefined)} />}
     <Suspense fallback={null}>{state.decor.map((item, index) => <DecorPiece key={index} item={item} index={index} ground={ground} />)}</Suspense>
-    {dressed && <Suspense fallback={null}><Dressing ground={ground} keepOut={keepOut} shore={shore} /></Suspense>}
+    {dressed && <Suspense fallback={null}><Dressing ground={ground} keepOut={keepOut} shore={shore} moss={moss} /></Suspense>}
     {dressed && !naturalLook && <Suspense fallback={null}><MossSprigs x={0} z={0} radius={1} count={rim.length * 3} ground={ground} spots={rim} scale={1.1} /></Suspense>}
     {dressed && water && hasPond && <Suspense fallback={null}><Pebbles water={water} ground={ground} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>

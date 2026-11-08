@@ -13,6 +13,7 @@ import { hasScanPlant, ScanPlant } from './ScanPlant'
 import { DrawnPlant, drawnLook, hasDrawnPlant } from './DrawnPlant'
 import { FloatingRosette, HairgrassTuft } from './paperNature'
 import { naturalLook, paperLook } from './PaperCritter'
+import { MossClump } from './MossTuftAsset'
 
 const models = new Map<OrganismFile, Promise<GLTF | null>>()
 export const modelUnavailable = (name: string, retry: () => void) => <Html center><button className="asset-retry" type="button" onClick={(event) => { event.stopPropagation(); retry() }}>{name} model unavailable · Retry</button></Html>
@@ -71,7 +72,9 @@ export function OrganismAsset({ file, shape, fallback, moving, feeding = false, 
   return instance ? <primitive object={instance.root} dispose={null} /> : <>{failed && unavailable ? unavailable(() => window.dispatchEvent(new CustomEvent('ecosphere:model-retry', { detail: file }))) : fallback}</>
 }
 
-export function PlantAsset({ kind, health, flowering, fallback, seed = 0 }: { kind: PlantKind; health: number; flowering: boolean; fallback: ReactNode; seed?: number }) {
+export function PlantAsset({ kind, health, flowering, fallback, seed = 0, cover = 1 }: { kind: PlantKind; health: number; flowering: boolean; fallback: ReactNode; seed?: number; cover?: number }) {
+  // Natural look: a moss plant is a clump of the modelled 3D moss tufts; its biomass grows the clump, its fit browns it.
+  if (naturalLook && kind === 'moss') { const { spread, height } = plantDimensions.moss; return <Suspense fallback={fallback}><MossClump seed={seed} cover={cover} health={health} spread={spread} height={height} /></Suspense> }
   // Natural look: the painted leaves on 3D stems without ink lines for the broadleaf, violets, clover and fern;
   // grass, reeds and lilies use the low-poly models.
   // Natural look: Quaternius's low-poly clover (round pads on stalks, as in the owner's reference).

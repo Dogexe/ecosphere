@@ -1,3 +1,4 @@
+import type { MossState } from './MossCarpet'
 import { useLayoutEffect, useMemo } from 'react'
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, Vector4 } from 'three'
 import { cellX, index, inside, substrateSize, topAt, topLayer, wetness } from '../sim/substrate'
@@ -349,7 +350,7 @@ export function useLayerMaterials() {
 }
 
 /** Static drawing of a built substrate, raised by `floor`. */
-export function LayeredGround({ state, floor, shape, poolScale, onClick, carpet = false }: { state: Substrate; floor: number; shape?: GroundShape['shape']; poolScale?: GroundShape['poolScale']; onClick?: boolean; carpet?: boolean }) {
+export function LayeredGround({ state, floor, shape, poolScale, onClick, carpet = false, moss, mossKey }: { state: Substrate; floor: number; shape?: GroundShape['shape']; poolScale?: GroundShape['poolScale']; onClick?: boolean; carpet?: boolean; moss?: MossState; mossKey?: string }) {
   const geometry = useLayeredGeometry()
   const materials = useLayerMaterials()
   useLayoutEffect(() => { updateLayered(geometry, state, { shape, poolScale }) }, [geometry, state, shape, poolScale])
@@ -357,6 +358,6 @@ export function LayeredGround({ state, floor, shape, poolScale, onClick, carpet 
     <mesh geometry={geometry.surface} material={materials.surface} receiveShadow raycast={onClick ? undefined : () => undefined} />
     <mesh geometry={geometry.walls} material={materials.walls} raycast={() => undefined} />
     <mesh geometry={geometry.puddles} material={materials.puddles} raycast={() => undefined} renderOrder={2} />
-    {carpet && <MossCarpet geometry={geometry.surface} floor={floor} />}
+    {carpet && <MossCarpet geometry={geometry.surface} floor={floor} state={moss} stateKey={mossKey} />}
   </group>
 }
