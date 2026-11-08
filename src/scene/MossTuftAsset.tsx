@@ -39,7 +39,7 @@ export function useMossTufts() {
         const position = g.getAttribute('position'), normal = g.getAttribute('normal'), n = new Vector3(), d = new Vector3()
         for (let v = 0; v < position.count; v += 1) {
           d.set(position.getX(v), position.getY(v) + 0.25, position.getZ(v)).normalize()
-          n.set(normal.getX(v), normal.getY(v), normal.getZ(v)).lerp(d, 0.75).normalize()
+          n.set(normal.getX(v), normal.getY(v), normal.getZ(v)).lerp(d, 0.35).normalize()   // puffs carry their own radial normals
           normal.setXYZ(v, n.x, n.y, n.z)
         }
       }
@@ -68,7 +68,9 @@ export function mossTuftMaterial() {
         float leafy = smoothstep(0.02, 0.12, vColor.g - vColor.r);
         // Olive first (#85804A), then straw (#A49770) as it dries further (Codex review).
         float b = instanceColor.r;
-        vec3 olive = vec3(0.52, 0.5, 0.29) * (0.45 + 1.6 * luma), straw = vec3(0.64, 0.59, 0.44) * (0.4 + 1.6 * luma);
+        // Keep the leaf's light and shade but never brighter than the dead colour itself (bright lime leaves went white).
+        float shadeK = clamp(0.45 + 0.9 * luma, 0.45, 1.0);
+        vec3 olive = vec3(0.34, 0.33, 0.12) * shadeK, straw = vec3(0.42, 0.31, 0.14) * shadeK;
         vec3 dead = mix(olive, straw, smoothstep(0.45, 1.0, b));
         vColor = mix(vColor, dead, min(1.0, b * 1.4) * leafy) * instanceColor.g;
       #endif`)

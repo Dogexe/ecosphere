@@ -103,7 +103,9 @@ def body(bm, col, tuft, n):
             f = bm.faces.new(vs)
             for loop in f.loops: loop[col] = lerp(CREASE, BODY, 0.25)
 
-def leaflet(bm, col, origin, d, side, length, width, bright):
+NORMALS = {}   # vertex -> shading normal (puff radial), applied as custom normals
+
+def leaflet(bm, col, origin, d, side, length, width, bright, shade_normal=None, colours=None):
     """A rounded, cupped leaflet with a notched tip (two points), 6 triangles."""
     d = d.normalized(); s = side.normalized(); up = d.cross(s).normalized()
     if up.y < 0: up = -up
@@ -120,30 +122,39 @@ def leaflet(bm, col, origin, d, side, length, width, bright):
          origin + d * length * 0.3 - s * width * 0.45 + cup]
     # Bright tips only on the sunniest leaves (about a fifth), mid green elsewhere.
     base = lerp(CREASE, BODY, 0.15 * bright); mid = lerp(BODY, LIT, 0.6 * bright); tip = lerp(LIT, TIP, bright)
-    C = [base, mid, mid, tip, mid, tip, tip, mid, mid]
+    C = colours or [base, mid, mid, tip, mid, tip, tip, mid, mid]
     V = [bm.verts.new(p) for p in P]          # shared within the leaflet: one vertex per point
+    if shade_normal is not None:
+        for vert in V: NORMALS[vert] = shade_normal
     for tri in ((0, 1, 2), (0, 2, 4), (2, 3, 4), (3, 5, 4), (4, 5, 6), (4, 6, 7), (0, 4, 7), (0, 7, 8)):
         f = bm.faces.new([V[i] for i in tri])
         for loop, i in zip(f.loops, tri): loop[col] = C[i]
 
 def rosette(bm, col, rng, centre, n, scale, bright, outward, leaves):
-    """A spray of broad rounded leaves around a short shoot (paired Codex A/B preferred these broad,
-    soft clusters at macro zoom over spiral shoots); rim sprays lean outward and droop over the edge."""
+    """A puff of moss (owner 2026-11-08: the flat radial sprays read as flowers): rounded leaves
+    pointing out in every direction from a small ball, like the frilly clusters of the reference.
+    Lit and coloured by the puff's own shape: bright on top, olive on its flanks and underside, with
+    no dark centre, and shaded with the puff's radial normals so it reads as one soft ball."""
     n = (n + outward * 0.6).normalized()
     ref = Vector((1, 0, 0)) if abs(n.x) < 0.9 else Vector((0, 0, 1))
     u = n.cross(ref).normalized(); v = n.cross(u).normalized()
-    top = centre + n * scale * 0.05
-    tone = 0.7 + rng.random() * 0.3     # each spray its own light
-    for k in range(leaves):
-        a = k / leaves * math.tau + rng.random() * 0.5
-        out = u * math.cos(a) + v * math.sin(a)
-        rise = 0.35 + rng.random() * 0.45
-        d = out * math.cos(rise) + n * math.sin(rise)
-        leaflet(bm, col, top, d, n.cross(out), scale * (0.45 + rng.random() * 0.15), scale * 0.38, bright * tone * (0.8 + rng.random() * 0.2))
-    for k in range(3):
-        a = k / 3 * math.tau + 0.6
-        out = u * math.cos(a) + v * math.sin(a)
-        leaflet(bm, col, top + n * scale * 0.06, out * 0.5 + n, n.cross(out), scale * 0.38, scale * 0.22, min(1.0, bright * tone + 0.25))
+    radius = scale * 0.32
+    middle = centre + n * radius * 0.6
+    tone = 0.78 + rng.random() * 0.22
+    count = leaves + 4
+    for k in range(count):
+        # Fibonacci directions over the upper ~70% of a sphere around the puff's up (n).
+        t = (k + 0.5) / count
+        z = 1 - t * 1.35                                     # down to about 20 degrees below the equator
+        r = math.sqrt(max(0.0, 1 - z * z)); a = k * 2.39996 + rng.random() * 0.4
+        d = (u * (r * math.cos(a)) + v * (r * math.sin(a)) + n * z).normalized()
+        jitter = Vector((rng.random() - 0.5, rng.random() - 0.5, rng.random() - 0.5)) * 0.35
+        d = (d + jitter).normalized()
+        side = d.cross(n if abs(d.dot(n)) < 0.95 else u).normalized()
+        light = bright * tone * (0.38 + 0.62 * max(0.0, d.dot(Vector((0, 1, 0)))))   # olive undersides (Codex)
+        inner = lerp(CREASE, BODY, 0.3 + 0.4 * light); outer = lerp(BODY, LIT, light); edge = lerp(LIT, TIP, max(0.0, light - 0.45) / 0.55)
+        C = [inner, outer, outer, edge, outer, edge, edge, outer, outer]
+        leaflet(bm, col, middle + d * radius * 0.3, d, side, scale * (0.42 + rng.random() * 0.12), scale * 0.34, light, shade_normal=d, colours=C)
 
 def moss(bm, col, tuft, step, scale, leaves):
     rng = random.Random(tuft.seed * 7 + int(step * 1000))
@@ -183,8 +194,12 @@ def material():
 
 def mesh_object(name, build):
     mesh = bpy.data.meshes.new(name); bm = bmesh.new(); col = colour_layer(bm)
+    NORMALS.clear()
     info = build(bm, col)
+    bm.normal_update(); bm.verts.index_update()
+    custom = [tuple(NORMALS.get(vert, vert.normal)) for vert in bm.verts]
     bm.to_mesh(mesh); bm.free()
+    mesh.normals_split_custom_set_from_vertices(custom)
     obj = bpy.data.objects.new(name, mesh); bpy.context.collection.objects.link(obj)
     mesh.materials.append(material())
     for p in mesh.polygons: p.use_smooth = True

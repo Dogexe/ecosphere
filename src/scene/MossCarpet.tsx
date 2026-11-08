@@ -56,7 +56,8 @@ function material(fur: number) {
       domes: { value: domeScale },
       fur: { value: fur },
       shade: { value: new Color('#24440f') },
-      lit: { value: new Color('#93bf34') },
+      // Under the modelled tufts the blanket is the shaded floor between cushions: a warm olive.
+      lit: { value: new Color(tuftKind === 'glb' ? '#6e8a26' : '#93bf34') },
       brown: { value: 0 },
     },
     vertexShader: `
