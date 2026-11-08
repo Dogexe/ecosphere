@@ -94,14 +94,14 @@ def body(bm, col, tuft, n):
         for b in range(n + 1):
             x, z = -span + 2 * span * a / n, -span + 2 * span * b / n
             h = tuft.height(x, z)
-            grid[a, b] = (x, max(0.0, tuft.soil + (h - tuft.soil) * 0.8 - 0.03) if h > 0 else 0.0, z)
+            grid[a, b] = (x, max(0.0, tuft.soil + (h - tuft.soil) * 0.68 - 0.03) if h > 0 else 0.0, z)
     for a in range(n):
         for b in range(n):
             quad = [(a, b), (a, b + 1), (a + 1, b + 1), (a + 1, b)]
             if min(grid[q][1] for q in quad) <= 0: continue
             vs = [verts.setdefault(q, bm.verts.new(grid[q])) for q in quad]
             f = bm.faces.new(vs)
-            for loop in f.loops: loop[col] = lerp(CREASE, BODY, 0.25)
+            for loop in f.loops: loop[col] = tuple(c * 0.85 for c in lerp(CREASE, BODY, 0.15)[:3]) + (1.0,)   # shade between shoots, not a green shell
 
 NORMALS = {}   # vertex -> shading normal (puff radial), applied as custom normals
 
@@ -130,6 +130,19 @@ def leaflet(bm, col, origin, d, side, length, width, bright, shade_normal=None, 
         f = bm.faces.new([V[i] for i in tri])
         for loop, i in zip(f.loops, tri): loop[col] = C[i]
 
+def small_leaf(bm, col, origin, d, side, length, width, colours, shade_normal):
+    """A small rounded leaf in four triangles (base, two shoulders, tip, raised middle)."""
+    d = d.normalized(); s = side.normalized(); up = d.cross(s).normalized()
+    if up.y < 0: up = -up
+    P = [origin, origin + d * length * 0.45 + s * width * 0.5, origin + d * length, origin + d * length * 0.45 - s * width * 0.5, origin + d * length * 0.5 + up * width * 0.18]
+    V = [bm.verts.new(p) for p in P]
+    for vert in V: NORMALS[vert] = shade_normal
+    base, body, tip = colours
+    C = [base, body, tip, body, body]
+    for tri in ((0, 1, 4), (1, 2, 4), (2, 3, 4), (3, 0, 4)):
+        f = bm.faces.new([V[i] for i in tri])
+        for loop, i in zip(f.loops, tri): loop[col] = C[i]
+
 def rosette(bm, col, rng, centre, n, scale, bright, outward, leaves, spray=None):
     """A short leaning moss shoot (Codex, 2026-11-08, on why puffs read as flowers): 5-7 narrow
     teardrop leaves (about 3.5:1) staggered in tiers up a tilted shoot, most of them biased toward the
@@ -142,23 +155,30 @@ def rosette(bm, col, rng, centre, n, scale, bright, outward, leaves, spray=None)
     u = axis.cross(ref).normalized(); v = axis.cross(u).normalized()
     bias = (lean - axis * lean.dot(axis))
     bias = bias.normalized() if bias.length > 1e-4 else u
-    height = scale * (0.45 + rng.random() * 0.25)
-    tone = 0.9 + rng.random() * 0.2                      # each shoot within +-10% of its spray
-    count = rng.randint(5, 7)                            # 3-5 tiers up the shoot
+    # Owner 2026-11-08: up close it must read as moss, not flowers. Real cushion moss (Dicranum,
+    # Leucobryum) is a stem densely clothed in small leaves all the way up, the tip leaves clasped
+    # together into a closed point, so there is no open centre for the eye to read as a blossom.
+    height = scale * (0.6 + rng.random() * 0.3) * 0.65        # compact shoots (Codex: shorten sprays 35%)
+    tone = 0.9 + rng.random() * 0.2
+    count = rng.randint(7, 9)
+    phase = rng.random() * math.tau
     for k in range(count):
-        t = k / count
-        at = centre + axis * height * (0.15 + 0.85 * t)
-        a = rng.random() * math.tau
+        t = k / (count - 1)
+        at = centre + axis * height * (0.08 + 0.85 * t)
+        a = phase + k * 2.39996 + (rng.random() - 0.5) * 0.5          # spiral, as moss leaves are set
         side_dir = (u * math.cos(a) + v * math.sin(a))
-        out = (bias * 0.65 + side_dir * 0.35).normalized() if rng.random() < 0.68 else side_dir
-        spread = 1.4 - t * 0.85 + (rng.random() - 0.5) * 0.44   # low tier droops below level (Codex), tips rise; +-12.5 deg
+        out = (bias * 0.45 + side_dir * 0.55).normalized()
+        spread = 1.3 - t * 1.05 + (rng.random() - 0.5) * 0.3        # low leaves spread and droop, tip leaves clasp
         d = (out * math.sin(spread) + axis * math.cos(spread)).normalized()
-        length = scale * 0.72 * (0.8 + rng.random() * 0.4) * (1.0 - t * 0.3)
-        width = length / 2.7                              # Codex round 2: rounded tips, 2.5-3:1
-        light = bright * tone * (0.6 + 0.4 * t)          # interiors about 20% darker
-        body = lerp(BODY, LIT, 0.35 + 0.55 * light); tipc = lerp(body, TIP, 0.3 * light)
-        C = [lerp(CREASE, body, 0.55), body, body, tipc, body, tipc, tipc, body, body]
-        leaflet(bm, col, at, d, axis.cross(out), length, width, light, shade_normal=(n * 0.65 + d * 0.35).normalized(), colours=C)
+        length = scale * (0.42 - t * 0.18) * (0.85 + rng.random() * 0.3)
+        width = length / 3.4                                    # narrower, less petal-like
+        light = bright * tone * (0.6 + 0.4 * t)
+        body = lerp(BODY, LIT, 0.35 + 0.55 * light); tipc = lerp(body, TIP, 0.25 * light); base = lerp(CREASE, body, 0.55)
+        shade = (n * 0.65 + d * 0.35).normalized()
+        if t < 0.35:
+            leaflet(bm, col, at, d, axis.cross(out), length, width, light, shade_normal=shade, colours=[base, body, body, tipc, body, tipc, tipc, body, body])
+        else:
+            small_leaf(bm, col, at, d, axis.cross(out), length, width, (base, body, tipc), shade)
 
 def moss(bm, col, tuft, step, scale, leaves):
     rng = random.Random(tuft.seed * 7 + int(step * 1000))
@@ -219,7 +239,7 @@ def build(variant, seed):
     tuft = Tuft(seed)
     def lod0(bm, col):
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 30)
-        return moss(bm, col, tuft, 0.038, 0.095, 7)
+        return moss(bm, col, tuft, 0.034, 0.095, 7)    # ~50% denser
     def lod1(bm, col):
         soil_plinth(bm, col, tuft); body(bm, col, tuft, 20)
         return moss(bm, col, tuft, 0.078, 0.15, 6)
