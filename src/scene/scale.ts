@@ -112,20 +112,23 @@ export const animalDimensions: Record<CreatureKind, { length: number; sourceLeng
  *   32-38 mm overall (https://dimensions.com/element/cherry-shrimp-neocaridina-davidi); a 20 mm adult
  *   so it still fits under the shallow poured pond's water.
  * - fish: kept at the old envelope (about 8 mm) until it moves to a water jar.
+ * Owner 2026-11-08 ("animals too big for the jar"): the grazer is drawn as a fourth-instar cabbage white
+ * (about 16 mm; instars 4-5 span about 12-30 mm, UF/IFAS EDIS IN283) and the shrimp as a juvenile cherry
+ * shrimp (about 13 mm), so the jar reads as a miniature world. Visual only.
  * Visual only: feeding ranges, contact cores and saved positions do not change.
  */
 export const millimetresPerUnit = 19
 export const realAdultLengthMm: Record<CreatureKind, number> = {
-  woodlouse: 12, springtail: 2.5, grazer: 25, beetle: 14, flea: 2, fish: 0.43 * 19, snail: 10, shrimp: 20,
+  woodlouse: 12, springtail: 2.5, grazer: 16, beetle: 14, flea: 2, fish: 0.43 * 19, snail: 10, shrimp: 13,
 }
 /**
  * Real hatchling length / adult length where it differs a lot from the
  * Scale Bible's 55%: a cabbage white caterpillar's first instar ends at
  * about 3.2 mm and its fifth averages 30 mm, over about 15 days (UF/IFAS
  * EDIS IN283, https://ask.ifas.ufl.edu/publication/IN283). It hatches at
- * about 2 mm here and grows to the 25 mm adult length above.
+ * about 2 mm here and grows to the 16 mm drawn length above.
  */
-export const realNewbornRatio: Partial<Record<CreatureKind, number>> = { grazer: 2 / 25 }
+export const realNewbornRatio: Partial<Record<CreatureKind, number>> = { grazer: 2 / 16 }
 /** Set once by the paper look; the classic low-poly look keeps the Scale Bible envelopes. */
 export const animalScaleMode = { real: false }
 

@@ -4,7 +4,7 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 
 export type OrganismFile = 'natural-fern' | 'natural-clover' | 'natural-mushroom' | 'natural-hollow-log' | 'tiger-beetle' | 'pond-fish' | 'daphnia' | 'leaf-grazer' | 'woodlouse' | 'springtail' | 'clover' | 'grass' | 'bloom' | 'tree' | 'lily' | 'reed' | 'ant-worker' | 'ant-queen' | 'ant-larva' | 'ant-pupa'
-export type ModelShape = ({ length: number; base: number; centered?: boolean; measure?: 'max' } | { spread: number; height: number; base?: number }) & { fallen?: boolean }
+export type ModelShape = ({ length: number; base: number; centered?: boolean; measure?: 'max' } | { spread: number; height: number; base?: number }) & { fallen?: boolean; /** 0..1: desaturate the model's colours and textures (visual only). */ muted?: number }
 
 // Independent bones/mixers, shared immutable geometry/textures. Normalization
 // lives above the imported animated root, so clips cannot undo game scale.
@@ -19,6 +19,14 @@ export function instantiateOrganism(source: GLTF, shape: ModelShape) {
       const copy = (material as MeshStandardMaterial).clone()
       copy.roughness = 0.94
       copy.metalness = 0
+      if (shape.muted) {
+        const amount = shape.muted.toFixed(2)
+        copy.onBeforeCompile = (shader) => {
+          shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), ${amount}) * (1.0 - ${amount} * 0.25);`)
+        }
+        copy.customProgramCacheKey = () => `muted-${amount}`
+      }
       materials.push(copy)
       baseColors.push(copy.color.clone())
       return copy

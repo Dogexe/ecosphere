@@ -6,7 +6,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import type { ComponentRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, PerformanceMonitor } from '@react-three/drei'
-import { Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, MathUtils, Object3D, PerspectiveCamera, SphereGeometry, Vector2 } from 'three'
+import { Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, MathUtils, Object3D, PerspectiveCamera, Raycaster, SphereGeometry, Vector2 } from 'three'
 import { Vector3 } from 'three'
 import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
@@ -539,7 +539,7 @@ function Grazer({ creature, world, events, selected, onSelect, speed }: Creature
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      {drawnAnimals ? <PaperAnimal animal="caterpillar" base={-0.145} moving={motion} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={scheduledRest(world, creature)} pooping={feeding} /> : <OrganismAsset file="leaf-grazer" shape={{ length: 0.87, base: -0.145 }} moving={motion} feeding={feeding} speed={speed} health={strength} fallback={<>
+      {drawnAnimals ? <PaperAnimal animal="caterpillar" base={-0.145} moving={motion} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={scheduledRest(world, creature)} pooping={feeding} /> : <OrganismAsset file="leaf-grazer" shape={{ length: 0.87, base: -0.145, ...(naturalLook ? { muted: 0.4 } : {}) }} moving={motion} feeding={feeding} speed={speed} health={strength} fallback={<>
       <instancedMesh ref={body} args={[undefined, undefined, 6]} castShadow><primitive object={grazerBody} attach="geometry" /><meshStandardMaterial color="#ffffff" roughness={0.93} flatShading /></instancedMesh>
       <instancedMesh ref={legs} args={[undefined, undefined, 16]} castShadow><primitive object={grazerLeg} attach="geometry" /><meshStandardMaterial color="#9f8063" roughness={1} flatShading /></instancedMesh>
       <mesh position={[0, 0.015, 0.31]} scale={[0.145, 0.135, 0.13]} castShadow>
@@ -930,7 +930,7 @@ function RenderProbe({ onSample }: { onSample: (sample: RenderSample) => void })
 /** ?debug: exposes the scene and renderer as window.__three for profiling scripts. */
 function DebugHandle() {
   const { scene, gl, camera, controls } = useThree()
-  useEffect(() => { if (location.search.includes('debug')) (window as unknown as { __three: unknown }).__three = { scene, gl, camera, controls } }, [scene, gl, camera, controls])
+  useEffect(() => { if (location.search.includes('debug')) (window as unknown as { __three: unknown }).__three = { scene, gl, camera, controls, Raycaster, Vector2 } }, [scene, gl, camera, controls])
   return null
 }
 

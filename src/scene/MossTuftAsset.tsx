@@ -217,7 +217,8 @@ export function MossOnProp({ children, density = 14, width = 0.32, brown = 0, co
     }
     setFound(hits)
   })
-  const spots = useMemo(() => (found ?? []).filter((_, k) => hash(seed, k + 77) < cover).map((hit, k) => ({
+  // Inside the glass only (tufts on the stone by the glass poked through it).
+  const spots = useMemo(() => (found ?? []).filter((hit, k) => hash(seed, k + 77) < cover && Math.hypot(hit.position.x, hit.position.z) + width * 0.7 < 3.7).map((hit, k) => ({
     position: hit.position.clone().addScaledVector(hit.normal, -0.035), normal: hit.normal, yaw: hash(seed, k + 5) * Math.PI * 2,
     width: width * (0.7 + 0.6 * hash(seed, k + 9)), squash: 0.8, variant: k % tuftVariants,
     brown: Math.min(1, brown * (0.8 + 0.4 * hash(seed, k + 3))), light: 0.92 + 0.16 * hash(seed, k + 11),

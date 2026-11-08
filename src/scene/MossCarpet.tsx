@@ -31,9 +31,9 @@ const common = /* glsl */ `
     return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
   float cover(vec3 world, vec3 n) {
     float patchMask = noise(world.xz * 0.8) * 0.7 + noise(world.xz * 2.1) * 0.3;
-    float c = smoothstep(0.36, 0.6, patchMask);   // gentle cushion edges, no cliffs
+    float c = smoothstep(0.26, 0.5, patchMask);   // fuller cover (overview 2026-11-08: bare banks), gentle edges
     c *= smoothstep(waterY, waterY + 0.12, world.y);          // none under or just above the water
-    c *= smoothstep(0.75, 0.9, n.y);                           // none on steep banks
+    c *= smoothstep(0.68, 0.86, n.y);                           // none on steep banks
     c *= 1.0 - smoothstep(3.68, 3.8, length(world.xz));        // runs to the glass
     return c;
   }
@@ -123,6 +123,9 @@ export const blanketLift = (x: number, y: number, z: number, ny: number, domes =
 }
 
 /** Moss condition at a ground point, from the simulation's soil (JarSetting): 0..1 browning and tuft cover. */
+/** Inner radius tufts must stay within (the jar glass is about 3.8 across the soil). */
+export const glassClearance = 3.7
+
 export type MossState = (x: number, z: number) => { brown: number; cover: number }
 
 /**
@@ -149,8 +152,11 @@ function crownSpots(surface: BufferGeometry, floor: number, state?: MossState): 
     const local = state?.(x, z) ?? { brown: 0, cover: 1 }
     if (mossHash(ix + 5, iz + 9) > local.cover) continue
     const lift = blanketLift(x, y + floor, z, ny)
+    // Keep every tuft inside the glass (overview bug 2026-11-08: edge cushions poked through it).
+    const inside = (px: number, pz: number, width: number) => Math.hypot(px, pz) + width * 0.55 < glassClearance
     // Fewer tall cushions among lower ones (Codex): one in four is large, the rest small and low.
     const tall = mossHash(ix + 19, iz + 23) < 0.3, size = (tall ? 0.64 : 0.52) * (0.65 + 0.7 * mossHash(ix + 3, iz + 1))   // 0.65-1.35x (Codex)
+    if (!inside(x, z, size)) continue
     spots.push({
       position: new Vector3(x, y + lift - 0.01 - 0.1 * size, z), normal: new Vector3(normal.getX(best), ny, normal.getZ(best)),
       yaw: mossHash(ix + 7, iz + 3) * Math.PI * 2, width: size * (0.7 + 0.3 * cover), squash: (tall ? 0.9 : 0.68) + 0.15 * mossHash(ix, iz + 11),
@@ -168,8 +174,8 @@ function crownSpots(surface: BufferGeometry, floor: number, state?: MossState): 
         const d = Math.hypot(position.getX(v) - fx, position.getZ(v) - fz); if (d < nearDistance) { nearDistance = d; near = v }
       }
       const fy = position.getY(near), fny = normal.getY(near)
-      if (mossCover(fx, fy + floor, fz, fny) < 0.2) continue
       const small = size * (0.36 + 0.14 * mossHash(ix + 47 + k, iz + 53))
+      if (mossCover(fx, fy + floor, fz, fny) < 0.2 || !inside(fx, fz, small)) continue
       spots.push({
         position: new Vector3(fx, fy + blanketLift(fx, fy + floor, fz, fny) - 0.12 * small, fz), normal: new Vector3(normal.getX(near), fny, normal.getZ(near)),
         yaw: mossHash(ix + 59 + k, iz + 61) * Math.PI * 2, width: small, squash: 0.5 + 0.15 * mossHash(ix + 67 + k, iz),

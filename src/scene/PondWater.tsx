@@ -289,7 +289,12 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     const deep = new Color(look.tint).multiplyScalar(0.55)
     const { beds, near } = bedding
     for (let j = 0; j < M; j += 1) for (let i = 0; i < M; i += 1) {
-      const v = j * M + i, x = -R + i * step, z = -R + j * step
+      const v = j * M + i, gx = -R + i * step, gz = -R + j * step
+      // The sheet is a square grid: vertices past the glass are pulled onto a circle just inside it, so
+      // the water meets the jar wall in a smooth curve instead of stair-steps poking through the glass
+      // (overview bug 2026-11-08).
+      const reach = Math.hypot(gx, gz), inner = R - 0.05, pull = reach > inner ? inner / reach : 1
+      const x = gx * pull, z = gz * pull
       const depth = surface - beds[v]
       // Near the pond the sheet stays flat at the level even a little under the bank, so the shore is
       // exactly where level and ground cross. The edge fades in over the first few millimetres.

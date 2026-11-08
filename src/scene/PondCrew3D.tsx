@@ -78,7 +78,8 @@ function snailBody() {
 }
 
 function shrimpBody() {
-  const red = new Color('#c4291f'), deep = new Color('#8e1712'), clear = new Color('#e8806e'), black = new Color('#0e0a0a')
+  // Softer reds (owner 2026-11-08: the shrimp were brighter than everything else in the jar).
+  const red = new Color('#b14a3c'), deep = new Color('#7e2c22'), clear = new Color('#d79a88'), black = new Color('#0e0a0a')
   const parts: BufferGeometry[] = []
   // Carapace and rostrum.
   parts.push(paint(new SphereGeometry(1, 18, 12).scale(0.1, 0.1, 0.2).translate(0, 0.17, 0.22), red))
