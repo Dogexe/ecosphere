@@ -12,7 +12,9 @@ import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
 import { drawnAnimals, naturalLook, PaperAnimal, paperLook } from './PaperCritter'
 import { PondCrew3D } from './PondCrew3D'
-import { cutUniform, nestWindow } from './LayeredGround'
+import { cutUniform, nestWindow, rootWindow } from './LayeredGround'
+import { buildRoots } from './soilRoots'
+import type { RootPlant } from './soilRoots'
 import { Watercolor } from './watercolor'
 import { Polish, polishLook } from './Polish'
 
@@ -912,6 +914,21 @@ function NestSection({ colony, ...props }: { colony: AntColony; speed: number; e
   </group>
 }
 
+/**
+ * Branching roots of the plants near the glass, drawn by the soil wall shader (soilRoots.ts). Rebuilt
+ * only when the plants or their growth change noticeably, never per frame. Visual only.
+ */
+function RootsOnGlass({ plants }: { plants: RootPlant[] }) {
+  const key = plants.map((plant) => `${plant.id}:${plant.kind}:${Math.round(plant.biomass / Math.max(1e-6, plant.capacity) * 8)}`).join(',')
+  useLayoutEffect(() => {
+    const segments = buildRoots(plants, (x, z) => environmentScale.soilSurfaceY + groundShape.offset(x, z))
+    rootWindow.draw(segments)
+    if (location.search.includes('debug')) (window as unknown as { __roots: unknown }).__roots = { segments: segments.length, where: segments.map((s) => [+(Math.atan2(Math.sin(s.ax / 3.79), Math.cos(s.ax / 3.79)) * 57.3).toFixed(0), +s.ay.toFixed(2), +s.by.toFixed(2), +s.alpha.toFixed(2)]).slice(0, 48), plants: plants.map((plant) => [plant.kind, +(3.79 - Math.hypot(plant.x, plant.z)).toFixed(2)]) }
+    return () => rootWindow.draw([])
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
+}
+
 function RenderProbe({ onSample }: { onSample: (sample: RenderSample) => void }) {
   const frames = useRef<number[]>([])
   const warmup = useRef(0)
@@ -980,6 +997,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       <Terrain fog={fogLevel(world)} sealed={!!world.sealed} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
       {!underwater && (world.soil ?? []).map((patch) => <FungalPatch key={patch.id} patch={patch} />)}
       <RemainsField world={viewWorld} />
+      {naturalLook && <RootsOnGlass plants={viewWorld.plants} />}
       {viewWorld.plants.map((plant) => <PlantModel key={`${worldRevision}:${plant.id}`} plant={plant} fit={habitatFit(world, plant)} tick={world.tick} selected={selectedPlant === plant.id} onSelect={() => placing ? onPlace(plant.x, plant.z) : onSelectPlant(plant.id)} />)}
       {showAntFood && world.colony && !underwater && world.plants.filter((plant) => ['clover', 'grass', 'bloom'].includes(plant.kind) && Math.hypot(plant.x - world.colony!.entrance.x, plant.z - world.colony!.entrance.z) <= 2.8).map((plant) => <mesh key={`food:${plant.id}`} position={[plant.x, 0.052, plant.z]} rotation={[-Math.PI / 2, 0, 0]} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelectPlant(plant.id) }}><ringGeometry args={[0.28, 0.30, 40]} /><meshBasicMaterial color={seedMaterialAvailable(plant) > 0.00001 ? '#55805e' : '#bc9751'} transparent opacity={0.8} depthWrite={false} /></mesh>)}
       <Fauna {...{ world: viewWorld, events, worldRevision, selectedCreature, placing, onPlace, onSelectCreature, speed }} />

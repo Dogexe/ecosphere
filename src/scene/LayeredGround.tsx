@@ -1,8 +1,10 @@
 import type { MossState } from './MossCarpet'
 import { useLayoutEffect, useMemo } from 'react'
-import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, Vector4 } from 'three'
+import { BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, DynamicDrawUsage, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, RepeatWrapping, Vector4 } from 'three'
 import { cellX, index, inside, substrateSize, topAt, topLayer, wetness } from '../sim/substrate'
 import type { Substrate } from '../sim/substrate'
+import { wallRadius } from './soilRoots'
+import type { RootSegment } from './soilRoots'
 import { polyHaven, useTextureSet } from './semiReal'
 import { naturalLook } from './PaperCritter'
 import { MossCarpet } from './MossCarpet'
@@ -93,6 +95,7 @@ export function useLayeredGeometry() {
     surface.setAttribute('color', new BufferAttribute(new Float32Array(M * M * 3), 3))
     surface.setAttribute('pebble', new BufferAttribute(new Float32Array(M * M), 1))
     surface.setAttribute('flatness', new BufferAttribute(new Float32Array(M * M).fill(1), 1))
+    surface.setAttribute('below', new BufferAttribute(new Float32Array(M * M), 1))
     // UVs in world units so the grain keeps its size: about 4 tiles across the jar.
     const uv = surface.getAttribute('uv') as BufferAttribute, position = surface.getAttribute('position') as BufferAttribute
     for (let v = 0; v < uv.count; v += 1) uv.setXY(v, position.getX(v) / 2.1, position.getZ(v) / 2.1)
@@ -103,6 +106,8 @@ export function useLayeredGeometry() {
     walls.setAttribute('uv', new BufferAttribute(new Float32Array(ring * bands * 6 * 2), 2).setUsage(DynamicDrawUsage))
     walls.setAttribute('pebble', new BufferAttribute(new Float32Array(ring * bands * 6), 1).setUsage(DynamicDrawUsage))
     walls.setAttribute('flatness', new BufferAttribute(new Float32Array(ring * bands * 6).fill(1), 1))
+    // Depth under the column's own top at each wall vertex: the soil shader's strata follow the surface.
+    walls.setAttribute('below', new BufferAttribute(new Float32Array(ring * bands * 6), 1).setUsage(DynamicDrawUsage))
     const puddles = new PlaneGeometry(2 * R, 2 * R, M - 1, M - 1).rotateX(-Math.PI / 2)
     puddles.setAttribute('color', new BufferAttribute(new Float32Array(M * M * 4), 4))
     return { surface, walls, puddles, ring, cells: new Float32Array(N * N * 5) }
@@ -177,8 +182,9 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
   const wallColours = geometry.walls.getAttribute('color') as BufferAttribute
   const wallUv = geometry.walls.getAttribute('uv') as BufferAttribute
   const wallPebbles = geometry.walls.getAttribute('pebble') as BufferAttribute
-  let n = 0, pebble = 0
-  const put = (x: number, y: number, z: number, colour: Color, u: number, flat = false) => { wall.setXYZ(n, x, y, z); wallColours.setXYZ(n, colour.r, colour.g, colour.b); if (flat) wallUv.setXY(n, x / 2.1, z / 2.1); else wallUv.setXY(n, u * 11, y / 2.1); wallPebbles.setX(n, pebble); n += 1 }
+  const wallBelow = geometry.walls.getAttribute('below') as BufferAttribute
+  let n = 0, pebble = 0, columnTop = 0
+  const put = (x: number, y: number, z: number, colour: Color, u: number, flat = false) => { wall.setXYZ(n, x, y, z); wallColours.setXYZ(n, colour.r, colour.g, colour.b); if (flat) wallUv.setXY(n, x / 2.1, z / 2.1); else wallUv.setXY(n, u * 11, y / 2.1); wallPebbles.setX(n, pebble); wallBelow.setX(n, flat ? 0 : Math.max(0, columnTop - y)); n += 1 }
   const topColour = (k: number, into: Color) => { const layer = topLayer(state, k); return !layer ? into.set('#eef2f0') : layer === 'soil' ? into.copy(layerColours.soil).lerp(layerColours.wetSoil, wetness(state, k)) : into.copy(layerColours[layer]) }
   const capA = new Color(), capB = new Color()
   const edge = (angle: number) => {
@@ -198,9 +204,11 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
   for (let step = 0; step < geometry.ring; step += 1) {
     const a = ring[step], b = ring[(step + 1) % geometry.ring]
     const ua = step / geometry.ring, ub = (step + 1) / geometry.ring
+    const topA = a.g + a.c + a.s, topB = b.g + b.c + b.s
+    const at = (top: number) => { columnTop = top }
     const band = (y0a: number, y1a: number, y0b: number, y1b: number, ca: Color, cb: Color) => {
-      put(a.x, y0a, a.z, ca, ua); put(b.x, y0b, b.z, cb, ub); put(b.x, y1b, b.z, cb, ub)
-      put(a.x, y0a, a.z, ca, ua); put(b.x, y1b, b.z, cb, ub); put(a.x, y1a, a.z, ca, ua)
+      at(topA); put(a.x, y0a, a.z, ca, ua); at(topB); put(b.x, y0b, b.z, cb, ub); put(b.x, y1b, b.z, cb, ub)
+      at(topA); put(a.x, y0a, a.z, ca, ua); at(topB); put(b.x, y1b, b.z, cb, ub); at(topA); put(a.x, y1a, a.z, ca, ua)
     }
     pebble = 1
     band(0, a.g, 0, b.g, layerColours.gravel, layerColours.gravel)
@@ -216,7 +224,7 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
     put(a.ix, a.inner, a.iz, capA, 0, true); put(b.x, tb, b.z, capB, 0, true); put(b.ix, b.inner, b.iz, capB, 0, true)
     put(a.ix, a.inner, a.iz, capA, 0, true); put(a.x, ta, a.z, capA, 0, true); put(b.x, tb, b.z, capB, 0, true)
   }
-  wall.needsUpdate = true; wallColours.needsUpdate = true; wallUv.needsUpdate = true; wallPebbles.needsUpdate = true
+  wall.needsUpdate = true; wallColours.needsUpdate = true; wallUv.needsUpdate = true; wallPebbles.needsUpdate = true; wallBelow.needsUpdate = true
   geometry.walls.computeVertexNormals()
 }
 
@@ -236,6 +244,30 @@ export const cutUniform = new Vector4(0, 0, 0, 0)
  * seen from the glass, open as windows in the soil wall so the nest behind shows through. World-space
  * nodes (x, y, z, radius) and tunnel ends; radius 0 marks an unused slot.
  */
+/**
+ * Roots on the soil wall (soilRoots.ts), drawn into a small canvas texture in the glass's unrolled
+ * plane (arc round the wall x height) only when the plants change; the wall shader samples it once.
+ */
+export const rootMapY0 = -2.4, rootMapY1 = 1.6
+const rootCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null
+if (rootCanvas) { rootCanvas.width = 2048; rootCanvas.height = 352 }
+export const rootWindow = {
+  texture: (() => { const t = new CanvasTexture(rootCanvas ?? undefined as never); t.wrapS = RepeatWrapping; t.generateMipmaps = true; return t })(),
+  draw(segments: RootSegment[]) {
+    const context = rootCanvas?.getContext('2d')
+    if (!rootCanvas || !context) return
+    const circumference = 2 * Math.PI * wallRadius, w = rootCanvas.width, h = rootCanvas.height
+    const px = (x: number) => (x / circumference + 0.5) * w, py = (y: number) => (1 - (y - rootMapY0) / (rootMapY1 - rootMapY0)) * h
+    context.clearRect(0, 0, w, h)
+    context.lineCap = 'round'
+    for (const s of segments) for (const shift of [-w, 0, w]) {
+      context.strokeStyle = `rgba(255,255,255,${s.alpha.toFixed(3)})`
+      context.lineWidth = Math.max(1, s.width / circumference * w)
+      context.beginPath(); context.moveTo(px(s.ax) + shift, py(s.ay)); context.lineTo(px(s.bx) + shift, py(s.by)); context.stroke()
+    }
+    this.texture.needsUpdate = true
+  },
+}
 export const nestWindow = {
   nodes: Array.from({ length: 12 }, () => new Vector4(0, -99, 0, 0)),
   edgesA: Array.from({ length: 20 }, () => new Vector4(0, -99, 0, 0)),
@@ -258,12 +290,13 @@ export function useLayerMaterials() {
         shader.uniforms.nestNodes = { value: nestWindow.nodes }
         shader.uniforms.nestA = { value: nestWindow.edgesA }
         shader.uniforms.nestB = { value: nestWindow.edgesB }
+        shader.uniforms.rootMap = { value: rootWindow.texture }
         shader.uniforms.gritMap = { value: set.grit }
         shader.uniforms.soilRef = { value: soilRef }
         shader.uniforms.gravelRef = { value: gravelRef }
-        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nattribute float flatness;\nvarying float vPebble;\nvarying float vFlat;\nvarying vec3 vCutWorld;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;\nvFlat = flatness;\nvCutWorld = (modelMatrix * vec4(position, 1.0)).xyz;')
+        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float pebble;\nattribute float flatness;\nattribute float below;\nvarying float vPebble;\nvarying float vFlat;\nvarying float vBelow;\nvarying vec3 vCutWorld;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPebble = pebble;\nvFlat = flatness;\nvBelow = below;\nvCutWorld = (modelMatrix * vec4(position, 1.0)).xyz;')
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nuniform vec4 cutBox;\nuniform vec4 nestNodes[12];\nuniform vec4 nestA[20];\nuniform vec4 nestB[20];\nvarying vec3 vCutWorld;\nvarying float vPebble;\nvarying float vFlat;')
+          .replace('#include <common>', '#include <common>\nuniform sampler2D pebbleMap;\nuniform sampler2D gritMap;\nuniform vec3 soilRef;\nuniform vec3 gravelRef;\nuniform vec4 cutBox;\nuniform vec4 nestNodes[12];\nuniform vec4 nestA[20];\nuniform vec4 nestB[20];\nuniform sampler2D rootMap;\nvarying vec3 vCutWorld;\nvarying float vPebble;\nvarying float vFlat;\nvarying float vBelow;\nfloat soilHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat soilJag(float x, float seed) { float i = floor(x); return mix(soilHash(vec2(i, seed)), soilHash(vec2(i + 1.0, seed)), fract(x)) * 2.0 - 1.0; }')
           // Natural look's nest cutaway: no soil in front of the cut face.
           .replace('void main() {', `void main() {
   ${pebbleScale < 0.2 ? `
@@ -318,59 +351,87 @@ export function useLayerMaterials() {
             grit = vec3(0.12, 0.1, 0.09);
             gravel = mix(vec3(0.36, 0.33, 0.29), vec3(0.62, 0.55, 0.45), smoothstep(0.25, 0.7, pebbleScan.g)) * clamp(vColor.rgb / gravelRef, 0.0, 1.2);
             ${pebbleScale < 0.2 ? `
-            // Through the glass (owner's reference): rounded pebbles drawn as soft cells with a lit top and
-            // a shaded rim, gently waving soil bands with a few stones embedded, and packed pale walls
-            // round the ant tunnels.
-            vec2 cellUv = vec2(vMapUv.x * 5.0, vMapUv.y * 17.0);
-            vec2 cid = floor(cellUv), cf = fract(cellUv);
-            float nearest = 9.0; vec2 nearestOff = vec2(0.0); float nearestId = 0.0;
-            for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
-              vec2 o = vec2(float(i), float(j));
-              float h = fract(sin(dot(cid + o, vec2(127.1, 311.7))) * 43758.5453);
-              vec2 centre = o + 0.5 + 0.35 * vec2(cos(h * 6.28), sin(h * 6.28)) - cf;
-              float d = length(centre);
-              if (d < nearest) { nearest = d; nearestOff = centre; nearestId = h; }
+            // Soil cross-section through the glass (owner's soil brief, 2026-11-08), soft low-poly:
+            // broad flat-toned triangle facets, strata following the real surface (vBelow = depth under
+            // the column's top) with jagged low-poly boundaries, faceted half-buried stones with contact
+            // shade, branching roots from the plants (soilRoots.ts, baked into rootMap when the plants
+            // change, one lookup here), broad leaf-litter fragments under the moss edge, faceted gravel.
+            // Kept cheap for iPad: stones only in the soil, pebbles only in the gravel, 2x2 cell checks.
+            vec2 wp = vec2(atan(vCutWorld.z, vCutWorld.x) * ${wallRadius.toFixed(3)}, vCutWorld.y);
+            vec2 sk = vec2(wp.x * 4.2 + wp.y * 2.4, wp.y * 4.8);
+            vec2 ti = floor(sk), tf = fract(sk);
+            float facet = soilHash(ti + (tf.x > tf.y ? vec2(0.37, 0.11) : vec2(0.0)));
+            float below = max(0.0, vBelow);
+            if (vPebble < 0.5) {
+              float b1 = 0.14 + 0.07 * soilJag(wp.x * 2.2, 1.0);
+              float b2 = 0.38 + 0.1 * soilJag(wp.x * 1.5, 7.0);
+              float b3 = 0.68 + 0.12 * soilJag(wp.x * 1.1, 13.0);
+              // Warm red-browns like the reference (the back wall is hard-lit, so these read lighter on screen).
+              vec3 natural = vec3(0.085, 0.042, 0.02);
+              natural = mix(natural, vec3(0.12, 0.062, 0.03), step(b1, below));
+              natural = mix(natural, vec3(0.15, 0.083, 0.042), step(b2, below));
+              natural = mix(natural, vec3(0.172, 0.1, 0.052), step(b3, below));
+              natural *= (0.92 + 0.13 * facet) * (0.94 + 0.08 * soilJag(wp.x * 0.6 + wp.y * 0.9, 29.0));
+              // Broad leaf-litter fragments tucked under the moss edge, on a coarser facet grid.
+              vec2 lk = sk * 0.55; vec2 li = floor(lk), lf = fract(lk);
+              float leafBit = soilHash(li + (lf.x > lf.y ? vec2(0.21, 0.63) : vec2(0.0)) + 41.0);
+              float litter = step(0.86, leafBit) * (1.0 - smoothstep(0.03, 0.1, below));
+              natural = mix(natural, mix(vec3(0.24, 0.1, 0.045), vec3(0.2, 0.13, 0.06), soilHash(li + 3.1)), litter);
+              // Faceted stones, half buried: six-sided polygons, lit faces, dark contact rim in the soil.
+              vec2 rc = wp / 0.3;
+              vec2 rid = floor(rc), rf = fract(rc), rq = step(0.5, rf) * 2.0 - 1.0;
+              float rockS = 1e3, rockLit = 0.0, rockTone = 0.0, rockCentre = 0.0;
+              for (int j = 0; j <= 1; j++) for (int i = 0; i <= 1; i++) {
+                vec2 o = vec2(float(i), float(j)) * rq;
+                vec2 cell = rid + o;
+                float h = soilHash(cell);
+                if (h > 0.07 + 0.04 * smoothstep(0.2, 0.8, below)) continue;
+                vec2 p = rf - o - (0.5 + 0.3 * (vec2(soilHash(cell + 1.7), soilHash(cell + 2.3)) - 0.5));
+                float r = 0.12 + 0.24 * soilHash(cell + 4.9), rot = soilHash(cell + 6.1) * 6.283;
+                float s = -1e3, lit = 0.0;
+                for (int k = 0; k < 6; k++) {
+                  float a = rot + float(k) * 1.0472;
+                  vec2 n = vec2(cos(a), sin(a));
+                  float d = dot(p, n) - r * (0.8 + 0.2 * soilHash(cell + float(k) * 0.37));
+                  if (d > s) { s = d; lit = dot(n, vec2(-0.45, 0.89)); }
+                }
+                if (s < rockS) { rockS = s; rockLit = lit; rockTone = soilHash(cell + 8.3); rockCentre = 1.0 - smoothstep(r * 0.35, r * 0.4, length(p)); }
+              }
+              float inRock = 1.0 - step(0.0, rockS);
+              natural *= 1.0 - 0.32 * (1.0 - smoothstep(0.0, 0.05, rockS)) * (1.0 - inRock);
+              vec3 rockColour = mix(vec3(0.11, 0.085, 0.065), vec3(0.17, 0.135, 0.1), rockTone);
+              rockColour *= mix(0.72 + 0.42 * clamp(rockLit, -0.4, 1.0), 1.04, rockCentre);
+              natural = mix(natural, rockColour, inRock);
+              // Roots: one lookup in the root map (arc round the glass, height).
+              float rootGlass = texture2D(rootMap, vec2(wp.x / ${(2 * Math.PI * wallRadius).toFixed(3)} + 0.5, (wp.y - ${rootMapY0.toFixed(2)}) / ${(rootMapY1 - rootMapY0).toFixed(2)})).a;
+              natural = mix(natural, vec3(0.3, 0.19, 0.1), rootGlass * 0.85 * (1.0 - inRock));
+              natural *= 1.0 - 0.22 * smoothstep(0.85, 1.25, below);
+              soil = mix(soil, natural, 0.9);
+            } else {
+              // Gravel drainage layer: fewer, larger faceted pebbles (same layer proportions), dark gaps.
+              vec2 gc = vec2(wp.x / 0.3, wp.y / 0.2);
+              vec2 gid = floor(gc), gf = fract(gc), gq = step(0.5, gf) * 2.0 - 1.0;
+              float pebS = 1e3, pebLit = 0.0, pebTone = 0.0;
+              for (int j = 0; j <= 1; j++) for (int i = 0; i <= 1; i++) {
+                vec2 o = vec2(float(i), float(j)) * gq;
+                vec2 cell = gid + o;
+                vec2 p = (gf - o - (0.5 + 0.3 * (vec2(soilHash(cell + 0.7), soilHash(cell + 1.9)) - 0.5))) * vec2(1.0, 0.75);
+                float r = 0.4 + 0.12 * soilHash(cell + 3.3), rot = soilHash(cell + 5.7) * 6.283;
+                float s = -1e3, lit = 0.0;
+                for (int k = 0; k < 6; k++) {
+                  float a = rot + float(k) * 1.0472;
+                  vec2 n = vec2(cos(a), sin(a));
+                  float d = dot(p, n) - r * (0.82 + 0.18 * soilHash(cell + float(k) * 0.53));
+                  if (d > s) { s = d; lit = dot(n, vec2(-0.45, 0.89)); }
+                }
+                if (s < pebS) { pebS = s; pebLit = lit; pebTone = soilHash(cell + 9.1); }
+              }
+              float inPeb = 1.0 - smoothstep(-0.02, 0.0, pebS);
+              vec3 pebColour = mix(vec3(0.22, 0.19, 0.155), vec3(0.32, 0.27, 0.21), pebTone) * (0.72 + 0.4 * clamp(pebLit, -0.4, 1.0));
+              gravel = mix(vec3(0.09, 0.075, 0.06), pebColour, inPeb);
             }
-            float stone = 1.0 - smoothstep(0.4, 0.5, nearest);
-            vec3 stoneColour = mix(vec3(0.36, 0.32, 0.27), vec3(0.56, 0.48, 0.37), nearestId) * (0.8 + 0.35 * smoothstep(0.0, 0.4, nearestOff.y));
-            gravel = mix(vec3(0.18, 0.15, 0.12), stoneColour, stone);
-            float band = sin(vMapUv.y * 18.0 + sin(vMapUv.x * 3.0) * 1.4);
-            soil *= 0.9 + 0.14 * smoothstep(-0.3, 0.3, band);
-            float embedded = stone * step(0.97, nearestId);
-            // (embedded stones now drawn below, darker and rounder)
-            // Item 7 (2026-11-08): the wall behind the jar read as one flat slab. Give it a soil profile:
-            // dark organic topsoil grading into lighter, sandier subsoil, wavy layers with a few sandy
-            // streaks, more stones of mixed size, pale roots reaching down from the plants, and a damp
-            // darker band just above the gravel. All from world height and the wall's own UVs.
-            float depthDown = clamp((0.25 - vCutWorld.y) / 1.5, 0.0, 1.0);
-            vec3 topsoil = vec3(0.14, 0.078, 0.04), subsoil = vec3(0.215, 0.135, 0.075);
-            vec3 profile = mix(topsoil, subsoil, smoothstep(0.05, 0.75, depthDown));
-            float wave = vMapUv.y * 4.0 + sin(vMapUv.x * 2.3) * 0.6 + sin(vMapUv.x * 7.1) * 0.15;
-            float layer = smoothstep(0.15, 0.85, abs(fract(wave) - 0.5) * 2.0);
-            float sand = smoothstep(0.82, 0.95, sin(wave * 0.5 + 1.3)) * smoothstep(0.2, 0.6, depthDown);
-            vec3 natural = profile * (0.88 + 0.16 * layer) * (0.95 + 0.07 * crumb);
-            natural = mix(natural, vec3(0.3, 0.21, 0.12), sand * 0.5);
-            // Larger stones on a second, coarser cell grid.
-            vec2 bigUv = vec2(vMapUv.x * 2.2, vMapUv.y * 7.5);
-            vec2 bid = floor(bigUv), bf = fract(bigUv);
-            float bh = fract(sin(dot(bid, vec2(269.5, 183.3))) * 43758.5453);
-            vec2 bc = vec2(0.5) + 0.25 * vec2(cos(bh * 6.28), sin(bh * 9.1)) - bf;
-            // The wall UVs are about 3x wider than tall in world space: squash x so stones come out round.
-            float bigStone = (1.0 - smoothstep(0.2 + 0.1 * bh, 0.24 + 0.1 * bh, length(bc * vec2(2.6, 1.0)))) * step(0.8, bh);
-            // The back wall faces the window and is lit hard, so stones are set relative to the soil, not absolute.
-            vec3 bigColour = mix(vec3(0.11, 0.1, 0.085), vec3(0.17, 0.145, 0.115), fract(bh * 7.3)) * (0.7 + 0.5 * smoothstep(-0.2, 0.2, -bc.y));
-            natural = mix(natural, bigColour, bigStone);
-            // Roots: thin, wandering, pale; denser and thicker in the topsoil under the plants.
-            float rootX = vMapUv.x * 3.2 + 0.05 * sin(vMapUv.y * 23.0 + vMapUv.x * 5.0) + 0.02 * sin(vMapUv.y * 61.0);
-            float rootD = abs(fract(rootX) - 0.5);
-            float rootOn = step(0.4, fract(sin(floor(rootX) * 91.7) * 437.3)) * (1.0 - smoothstep(0.25, 0.75, depthDown));
-            float rootW = mix(0.012, 0.004, depthDown);
-            float roots = (1.0 - smoothstep(rootW * 0.5, rootW, rootD)) * rootOn;
-            natural = mix(natural, vec3(0.25, 0.17, 0.1), roots * 0.55);
-            // Damp, darker soil just above the drainage gravel.
-            natural *= 1.0 - 0.28 * smoothstep(0.7, 1.0, depthDown);
-            soil = mix(soil, natural, 0.85);
-            soil = mix(soil, vec3(0.52, 0.36, 0.22), 1.0 - smoothstep(0.0, 0.045, nestRim));` : ''}` : ''}
+            soil = mix(soil, vec3(0.52, 0.36, 0.22), 1.0 - smoothstep(0.0, 0.045, nestRim));
+            ` : ''}` : ''}
             diffuseColor.rgb *= mix(mix(soil, grit, charcoal), gravel, vPebble);`)
           .replace('#include <color_fragment>', '')
       }
