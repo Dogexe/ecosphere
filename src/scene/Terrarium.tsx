@@ -247,8 +247,8 @@ function FungalPatch({ patch }: { patch: SoilPatch }) {
       if (groundShape.poured && isPondPosition(patch.x + x, patch.z + z)) return null
       return <group key={index} position={[x, groundShape.offset(patch.x + x, patch.z + z), z]}>
         {naturalLook
-          // Natural look: the low-poly Kenney mushroom with a warm orange cap, as in the owner's reference.
-          ? <OrganismAsset file="natural-mushroom" shape={{ length: (0.45 + (index * 37 % 5) * 0.1) * grown, base: 0, measure: 'max' }} health={1} fallback={null} />
+          // Natural look: a cluster of soft orange-tan caps (Quaternius Mushroom_Common, CC0, adapted by scripts/adapt_log_mushroom.py), as in the owner's reference.
+          ? <OrganismAsset file="natural-mushroom" shape={{ length: (0.68 + (index * 37 % 5) * 0.14) * grown, base: 0, measure: 'max' }} health={1} fallback={null} />
           : drawnLook
           ? <Suspense fallback={null}><DrawnMushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} /></Suspense>
           : <Mushroom height={(0.5 + (index * 37 % 5) * 0.11) * grown} cap={(0.2 + (index * 23 % 4) * 0.05) * grown} lean={((index * 17 % 5) - 2) * 0.06} variant={index + patch.id} />}

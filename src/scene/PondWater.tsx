@@ -47,7 +47,7 @@ export function waterLook(pond: Pond) {
   const brown = Math.min(0.7, pond.organic / 30)
   const stale = Math.max(0, Math.min(1, 0.6 - pond.oxygen / Math.max(1, pond.water)))
   // Natural look: clear teal water like the owner's reference; paper look keeps the deeper pond green.
-  const tint = new Color(naturalLook ? '#3f9a96' : '#3d6b62').lerp(new Color('#5f8a33'), green).lerp(new Color('#7a5a2c'), brown).lerp(new Color('#7c8378'), stale * 0.5)
+  const tint = new Color(naturalLook ? '#4aa6aa' : '#3d6b62').lerp(new Color('#5f8a33'), green).lerp(new Color('#7a5a2c'), brown).lerp(new Color('#7c8378'), stale * 0.5)
   const cloud = Math.min(1, green * 0.75 + brown * 0.5 + stale * 0.4)
   return { tint, cloud, level: surface - Math.max(0, (60 - pond.water) / 60) * deep * 0.8 }
 }
@@ -255,7 +255,7 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     meniscus.setAttribute('color', new BufferAttribute(new Float32Array((wallSamples + 1) * 2 * 4), 4))
     meniscus.setIndex(order)
     const meniscusMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: DoubleSide, toneMapped: false })
-    return { side, sideMaterial, meniscus, meniscusMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: naturalLook ? 0.09 : 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: naturalLook ? 0.16 : 0.3, clearcoat: naturalLook ? 0.04 : 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.008, 0.008), depthWrite: false }), { userData: { realistic: true } }) }
+    return { side, sideMaterial, meniscus, meniscusMaterial, geometry, ripples, material: Object.assign(new MeshPhysicalMaterial({ vertexColors: true, transparent: true, roughness: naturalLook ? 0.16 : 0.03, metalness: 0, ior: 1.333, reflectivity: 0.3, specularIntensity: naturalLook ? 0.07 : 0.3, clearcoat: naturalLook ? 0.04 : 0.1, clearcoatRoughness: 0.08, normalMap: ripples, normalScale: new Vector2(0.008, 0.008), depthWrite: false }), { userData: { realistic: true } }) }
   }, [M])
   // Around the jar wall: the bed height at the glass and whether pond water reaches it there.
   const rim = useMemo(() => {
@@ -288,7 +288,9 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     const position = parts.geometry.getAttribute('position') as BufferAttribute, colours = parts.geometry.getAttribute('color') as BufferAttribute
     const deep = new Color(look.tint).multiplyScalar(0.55)
     // Deep water: the same hue, darker and richer (a grey-blue read as haze to Codex).
-    const abyss = new Color(look.tint).multiplyScalar(0.62).lerp(new Color('#1d6a5a'), 0.35)
+    // Natural look (owner's reference, 2026-11-11): clear aqua water, the bed and animals visible, so the deep
+    // water only cools toward blue-teal instead of darkening to murk.
+    const abyss = naturalLook ? new Color(look.tint).multiplyScalar(0.8).lerp(new Color('#2c7f8a'), 0.4) : new Color(look.tint).multiplyScalar(0.62).lerp(new Color('#1d6a5a'), 0.35)
     const { beds, near } = bedding
     for (let j = 0; j < M; j += 1) for (let i = 0; i < M; i += 1) {
       const v = j * M + i, gx = -R + i * step, gz = -R + j * step
@@ -308,7 +310,7 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
           // pond read murky and flat). Murk from the sim (algae, silt, stale water) still clouds it.
           const shade = smooth(0, deepest * 0.9 || 0.6, depth)
           colour.copy(look.tint).lerp(abyss, shade)
-          colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.015 + shade * 0.42 + look.cloud * 0.55) * shore)
+          colours.setXYZW(v, colour.r, colour.g, colour.b, Math.min(0.92, 0.012 + shade * 0.26 + look.cloud * 0.55) * shore)
         } else {
           const shade = Math.min(1, Math.max(0, depth) / 1.2)
           colour.copy(look.tint).lerp(deep, shade)

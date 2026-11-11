@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { CanvasTexture, Color, DoubleSide, Group, LatheGeometry, Mesh, MeshStandardMaterial, PlaneGeometry, Shape, ShapeGeometry, SRGBColorSpace, TubeGeometry, Vector2, Vector3, CatmullRomCurve3 } from 'three'
 import type { BufferGeometry } from 'three'
 import { plantModelScale } from './scale'
+import { naturalLook } from './PaperCritter'
 
 /*
  * Mushrooms, floating pads, hairgrass and fallen leaves for the paper look
@@ -121,7 +122,8 @@ function pads() {
   geometry.computeVertexNormals()
   const texture = paint(256, (context, size) => {
     const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
-    gradient.addColorStop(0, '#5f7d35'); gradient.addColorStop(1, '#46622a')
+    // Natural look: the fresher lime-green pads of the owner's reference (2026-11-11).
+    if (naturalLook) { gradient.addColorStop(0, '#79a63c'); gradient.addColorStop(1, '#5a8a2e') } else { gradient.addColorStop(0, '#5f7d35'); gradient.addColorStop(1, '#46622a') }
     context.fillStyle = gradient; context.fillRect(0, 0, size, size)
     // Arcing veins from the stalk.
     context.strokeStyle = 'rgba(190,210,140,0.35)'; context.lineWidth = 1.4
@@ -148,7 +150,7 @@ function leafMaterial(kind: string, health: number, make: () => MeshStandardMate
 /** A floating rosette of five leaves, spread and height matched to the lily kind. */
 export function FloatingRosette({ health, seed: id }: { health: number; seed: number }) {
   const parts = pads()
-  const material = leafMaterial('pad', health, () => new MeshStandardMaterial({ map: parts.texture, roughness: 0.28, side: DoubleSide }))
+  const material = leafMaterial('pad', health, () => new MeshStandardMaterial({ map: parts.texture, roughness: naturalLook ? 0.62 : 0.28, side: DoubleSide }))
   const leaves = useMemo(() => Array.from({ length: 5 }, (_, i) => {
     const angle = i / 5 * Math.PI * 2 + id * 0.7, size = 0.15 + ((id * 13 + i * 7) % 5) * 0.012
     return { x: Math.cos(angle) * size * 0.9, z: Math.sin(angle) * size * 0.9, turn: -angle - Math.PI / 2, size }

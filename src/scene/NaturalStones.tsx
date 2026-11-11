@@ -19,7 +19,7 @@ const pebbleNodes = ['pebble1', 'pebble2', 'pebble3', 'pebble4', 'pebble5']
 
 let dry: MeshStandardMaterial | null = null, wet: MeshStandardMaterial | null = null
 function stoneMaterial(isWet = false) {
-  if (isWet) return wet ??= new MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0, color: new Color(0.74, 0.76, 0.7) })
+  if (isWet) return wet ??= new MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0, color: new Color(0.62, 0.66, 0.6) })
   return dry ??= new MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 })
 }
 
