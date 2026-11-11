@@ -95,8 +95,9 @@ Source author does not endorse ECOSPHERE. Source gait reused as a simplified fee
 
 Natural look (2026-11-07):
 - "Clover" by Quaternius, CC0, via Poly Pizza (https://poly.pizza/m/u5SOgBFiut).
-- "Mushroom" by jeremy, CC BY 3.0, via Poly Pizza (https://poly.pizza/m/2DAaKHD48ZP).
-- "Log with Fungus" by sirkitree, CC BY 3.0, via Poly Pizza (https://poly.pizza/m/32czhZtc7oY).
+- natural-mushroom.glb: "Mushroom_Common" from Stylized Nature MegaKit by Quaternius, CC0, recoloured with vertex colours (scripts/adapt_log_mushroom.py). (Earlier builds used "Mushroom" by jeremy, CC BY 3.0, via Poly Pizza, https://poly.pizza/m/2DAaKHD48ZP.)
+- "Log with Fungus" by sirkitree, CC BY 3.0, via Poly Pizza (https://poly.pizza/m/32czhZtc7oY). Modified: bevelled edges and new vertex colours (scripts/adapt_log_mushroom.py).
+- natural-rocks.glb: Rock_Medium_1-3 and Pebble_Round_1-5 from Stylized Nature MegaKit by Quaternius, CC0, adapted (scripts/adapt_rocks.py).
 - "Fern" by Quaternius, CC0, via Poly Pizza (https://poly.pizza/m/jqcanvH7D6).
 - moss-tuft-1..4.glb: original models made for ECOSPHERE (scripts/build_moss_tufts.py); no third-party geometry.
 - moss-tuft-1..4.glb: original models made for ECOSPHERE (scripts/build_moss_tufts.py); no third-party geometry.
