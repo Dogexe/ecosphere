@@ -22,6 +22,7 @@ import { LayeredGround, smoothGround } from './LayeredGround'
 import defaultJar from '../sim/defaultJar.json'
 import { terrainGeometry } from './terrainGeometry'
 import { Fern, MossSprigs, MossyStone, paintify, polyHaven, ScannedProp, useTextureSet } from './semiReal'
+import { NaturalPebbles, NaturalStone, rockNodes } from './NaturalStones'
 import type { Ground } from './semiReal'
 
 /*
@@ -255,9 +256,9 @@ function Dressing({ ground = flat, keepOut, shore, moss }: { ground?: Ground; ke
     return [{ x: cushion.x, y: ground(cushion.x, cushion.z), z: cushion.z, radius, height: radius * (index % 3 ? 0.38 : 0.6) }]
   }), [ground, keepOut]) // eslint-disable-line react-hooks/exhaustive-deps
   return <>
-    {dry(2.55, -1.35) && (naturalLook ? <MossOnProp seed={37} density={10} width={0.3} {...on(2.55, -1.35)}><MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} moss={false} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />)}
-    {dry(-2.55, -1.9) && (naturalLook ? <MossOnProp seed={78} density={10} width={0.3} {...on(-2.55, -1.9)}><MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} moss={false} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />)}
-    {dry(0.6, 3.05) && (naturalLook ? <MossOnProp seed={71} density={10} width={0.3} {...on(0.6, 3.05)}><MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} moss={false} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />)}
+    {dry(2.55, -1.35) && (naturalLook ? <MossOnProp seed={37} density={10} width={0.3} {...on(2.55, -1.35)}><NaturalStone node="rock1" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock01" x={2.55} z={-1.35} width={1.5} turn={0.9} ground={ground} />)}
+    {dry(-2.55, -1.9) && (naturalLook ? <MossOnProp seed={78} density={10} width={0.3} {...on(-2.55, -1.9)}><NaturalStone node="rock3" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock03" x={-2.55} z={-1.9} width={1.0} turn={2.2} ground={ground} />)}
+    {dry(0.6, 3.05) && (naturalLook ? <MossOnProp seed={71} density={10} width={0.3} {...on(0.6, 3.05)}><NaturalStone node="rock2" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} /></MossOnProp> : <MossyStone node="rock_moss_set_01_rock05" x={0.6} z={3.05} width={0.8} turn={-0.6} ground={ground} />)}
     {/* Drawn moss cushions (image 12, Codex image_gen 2026-11-07) replace the sprig scatter Codex flagged every round. */}
     {/* Moss cushions made the woodlouse's way: the painted cushion wrapped on a 3D dome from its outline. */}
     {/* Natural look: the moss is a fuzzy carpet on the ground (MossCarpet) as in the owner's reference. */}
@@ -267,7 +268,8 @@ function Dressing({ ground = flat, keepOut, shore, moss }: { ground?: Ground; ke
     {/* Drawn curled dry leaves on the front bank, the shelter a woodlouse uses in concept image 12. */}
     {!naturalLook && dry(2.1, 2.25) && <group position={[2.1, ground(2.1, 2.25) - 0.03, 2.25]}><DrawnCurledLeaf length={2.0} turn={-0.25} /></group>}
     {!naturalLook && dry(1.7, -0.2) && <group position={[1.7, ground(1.7, -0.2) - 0.03, -0.2]}><DrawnCurledLeaf length={1.0} turn={0.4} /></group>}
-    {dry(-1.2, -2.6) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />}
+    {/* Natural look: fallen leaves are low-poly 3D litter from the sim (NaturalLitter), not this photo scan. */}
+    {!naturalLook && dry(-1.2, -2.6) && <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={-1.2} z={-2.6} length={0.8} turn={-0.9} ground={ground} />}
     {naturalLook
       // A low-poly hollow log with fungus (sirkitree, CC BY 3.0, via Poly Pizza) lying among the plants, as in the owner's reference.
       ? dry(-0.9, -0.55) && <MossOnProp seed={7} density={9} width={0.3} {...on(-0.9, -0.55)}><group position={[-0.9, ground(-0.9, -0.55) - 0.08, -0.55]} rotation={[0, 0.35, 0]}><OrganismAsset file="natural-hollow-log" shape={{ length: 3.2, base: 0 }} health={1} fallback={null} /></group></MossOnProp>
@@ -277,6 +279,7 @@ function Dressing({ ground = flat, keepOut, shore, moss }: { ground?: Ground; ke
 
 /** A stone or piece of wood the player set while building the jar. */
 export function DecorPiece({ item, index, ground }: { item: Decor; index: number; ground: Ground }) {
+  if (naturalLook && item.kind === 'stone') return <NaturalStone node={rockNodes[index % rockNodes.length]} x={item.x} z={item.z} width={item.size} turn={item.turn} ground={ground} sink={0.2} />
   return item.kind === 'stone'
     ? <MossyStone node={`rock_moss_set_01_rock0${index % 6 + 1}`} x={item.x} z={item.z} width={item.size} turn={item.turn} ground={ground} moss={false} />
     : <ScannedProp file="dry_branches_medium_01/dry_branches_medium_01_1k.gltf" node="dry_branches_medium_01_a" x={item.x} z={item.z} length={item.size} turn={item.turn} ground={ground} />
@@ -383,6 +386,8 @@ function Pebbles({ water, ground }: { water: PondShape; ground: Ground }) {
     }
     return found
   }, [water])
+  const natural = useMemo(() => spots.map((spot) => ({ x: spot.x, z: spot.z, size: spot.size, turn: spot.turn, wet: spot.wet, lift: spot.wet ? -0.04 : 0.01 })), [spots])
+  if (naturalLook) return <NaturalPebbles spots={natural} ground={ground} />
   return <>{spots.map((spot, n) => <ScannedProp key={n} file={stones} node={spot.node} x={spot.x} z={spot.z} length={spot.size} turn={spot.turn} ground={ground} lift={spot.wet ? -0.04 : 0.01} wet={spot.wet} />)}</>
 }
 

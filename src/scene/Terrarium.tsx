@@ -23,6 +23,7 @@ const watercolorLook = (() => { try { return new URLSearchParams(window.location
 /** Phones and tablets draw at most 1.25 device pixels per CSS pixel: most of the GPU time goes on pixels. */
 const coarsePointer = (() => { try { return window.matchMedia('(pointer: coarse)').matches } catch { return false } })()
 import { JarSetting } from './JarSetting'
+import { NaturalLitter } from './NaturalLitter'
 import { PondWater } from './PondWater'
 import { modelUnavailable, OrganismAsset, PlantAsset } from './OrganismAsset'
 import { worldPickRadius, animalTargetPixels } from './picking'
@@ -206,7 +207,7 @@ function Terrain({ pond, soil, selectedSoil, onGroundClick, onPondClick, underwa
           </mesh>}
         </group>
       ))}
-      {soil.map((patch) => <LitterPatch key={`litter-${patch.id}`} patch={patch} />)}
+      {naturalLook ? <NaturalLitter soil={soil} /> : soil.map((patch) => <LitterPatch key={`litter-${patch.id}`} patch={patch} />)}
 
       {/* A poured jar draws its own pond, shaped by where the water stands. */}
       {!(paperLook && substrate?.pool) && <PondWater pond={pond} underwater={underwater} swimmers={swimmers} onPondClick={onPondClick} />}
