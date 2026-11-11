@@ -8,6 +8,9 @@ import type { DecorKind, Pourable, SavedSubstrate, Substrate } from './sim/subst
 import { pondDepth } from './sim/pondShape'
 import { layerColours, updateLayered, useLayerMaterials, useLayeredGeometry } from './scene/LayeredGround'
 import { DecorPiece } from './scene/JarSetting'
+import { SoilGravel } from './scene/LayeredGround'
+import { pebbleColour, pebbleGeometries, pebbleMaterial, pebbleShapes } from './scene/GravelPebbles'
+import { naturalLook } from './scene/PaperCritter'
 
 /*
  * Building the jar: the first thing a new world asks for. Pour gravel,
@@ -35,7 +38,7 @@ const grainColour: Record<Pourable, Color> = { gravel: layerColours.gravel, char
 /** Depth (per cell) each grain adds where it lands; tuned so a layer takes about 15 s of pouring (a cell is ~3.7 mm across). */
 const perGrain: Record<Pourable, number> = { gravel: 0.6, charcoal: 0.2, soil: 0.6, water: 0.25 }
 const MAX_GRAINS = 900
-type Grain = { alive: boolean; x: number; y: number; z: number; vx: number; vy: number; vz: number; material: Pourable }
+type Grain = { alive: boolean; x: number; y: number; z: number; vx: number; vy: number; vz: number; material: Pourable; spin: number; size: number; shape: number; tint: Color }
 
 type SurfaceEvents = { onPointerDown: (event: ThreeEvent<PointerEvent>) => void; onPointerMove: (event: ThreeEvent<PointerEvent>) => void }
 
@@ -43,7 +46,9 @@ type SurfaceEvents = { onPointerDown: (event: ThreeEvent<PointerEvent>) => void;
 const BRIM = 8
 
 function Pouring({ state, material, pouring, aim, onChange, events }: { state: Substrate; material: Pourable | null; pouring: React.MutableRefObject<boolean>; aim: React.MutableRefObject<Vector3>; onChange: () => void; events: SurfaceEvents }) {
-  const grains = useMemo<Grain[]>(() => Array.from({ length: MAX_GRAINS }, () => ({ alive: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, material: 'soil' })), [])
+  const grains = useMemo<Grain[]>(() => Array.from({ length: MAX_GRAINS }, () => ({ alive: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, material: 'soil', spin: 0, size: 0, shape: 0, tint: new Color() })), [])
+  // Natural look: gravel pours as tumbling low-poly pebbles (owner 2026-11-08: it must fall as stones).
+  const stones = useRef<(InstancedMesh | null)[]>([])
   const mesh = useRef<InstancedMesh>(null)
   const geometry = useLayeredGeometry()
   const materials = useLayerMaterials()
@@ -59,10 +64,12 @@ function Pouring({ state, material, pouring, aim, onChange, events }: { state: S
         // A grain still in the air when its slot is reused lands where it is: nothing poured is lost.
         if (item.alive && Math.hypot(item.x, item.z) < R - 0.1) deposit(state, item.material, item.x, item.z, perGrain[item.material])
         const angle = Math.random() * Math.PI * 2, spread = Math.sqrt(Math.random()) * 0.35
-        Object.assign(item, { alive: true, x: aim.current.x + Math.cos(angle) * spread, y: 9, z: aim.current.z + Math.sin(angle) * spread, vx: (Math.random() - 0.5) * 0.3, vy: -6, vz: (Math.random() - 0.5) * 0.3, material })
+        Object.assign(item, { alive: true, x: aim.current.x + Math.cos(angle) * spread, y: 9, z: aim.current.z + Math.sin(angle) * spread, vx: (Math.random() - 0.5) * 0.3, vy: -6, vz: (Math.random() - 0.5) * 0.3, material, spin: Math.random() * 6.283, size: 0.09 + Math.random() * Math.random() * 0.16, shape: Math.floor(Math.random() * pebbleShapes) })
+        if (material === 'gravel') pebbleColour(Math.random, item.tint)
       }
     }
     let count = 0
+    const stoneCounts = new Array(pebbleShapes).fill(0)
     for (const item of grains) {
       if (!item.alive) continue
       item.vy -= 22 * dt
@@ -70,6 +77,16 @@ function Pouring({ state, material, pouring, aim, onChange, events }: { state: S
       if (item.y <= heightAt(state, item.x, item.z)) {
         item.alive = false
         if (Math.hypot(item.x, item.z) < R - 0.1) deposit(state, item.material, item.x, item.z, perGrain[item.material])
+        continue
+      }
+      if (naturalLook && item.material === 'gravel') {
+        const stone = stones.current[item.shape]
+        if (stone) {
+          item.spin += dt * 7
+          dummy.position.set(item.x, item.y, item.z); dummy.rotation.set(item.spin, item.spin * 0.7 + item.shape, item.spin * 0.4); dummy.scale.setScalar(item.size * 2); dummy.updateMatrix()
+          const n = stoneCounts[item.shape]++
+          stone.setMatrixAt(n, dummy.matrix); stone.setColorAt(n, item.tint)
+        }
         continue
       }
       dummy.position.set(item.x, item.y, item.z)
@@ -80,6 +97,7 @@ function Pouring({ state, material, pouring, aim, onChange, events }: { state: S
       mesh.current!.setColorAt(count, grainColour[item.material])
       count += 1
     }
+    stones.current.forEach((stone, k) => { if (!stone) return; stone.count = stoneCounts[k]; stone.instanceMatrix.needsUpdate = true; if (stone.instanceColor) stone.instanceColor.needsUpdate = true })
     mesh.current!.count = count
     mesh.current!.instanceMatrix.needsUpdate = true
     if (mesh.current!.instanceColor) mesh.current!.instanceColor.needsUpdate = true
@@ -97,6 +115,9 @@ function Pouring({ state, material, pouring, aim, onChange, events }: { state: S
     <mesh geometry={geometry.surface} material={materials.surface} receiveShadow castShadow {...events} />
     <mesh geometry={geometry.walls} material={materials.walls} />
     <mesh geometry={geometry.puddles} material={materials.puddles} raycast={() => undefined} renderOrder={2} />
+    {naturalLook && pebbleGeometries().map((shape, k) => <instancedMesh key={k} ref={(m) => { stones.current[k] = m }} args={[shape, pebbleMaterial(), MAX_GRAINS]} frustumCulled={false} castShadow raycast={() => undefined} />)}
+    {/* The gravel as stones: packed against the glass and lying loose on top while it is exposed. */}
+    {naturalLook && <SoilGravel geometry={geometry} state={state} />}
   </group>
 }
 

@@ -4,6 +4,7 @@ import { BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, Dyna
 import { cellX, index, inside, substrateSize, topAt, topLayer, wetness } from '../sim/substrate'
 import type { Substrate } from '../sim/substrate'
 import { wallRadius } from './soilRoots'
+import { SubstrateGravel } from './GravelPebbles'
 import type { RootSegment } from './soilRoots'
 import { polyHaven, useTextureSet } from './semiReal'
 import { naturalLook } from './PaperCritter'
@@ -110,7 +111,7 @@ export function useLayeredGeometry() {
     walls.setAttribute('below', new BufferAttribute(new Float32Array(ring * bands * 6), 1).setUsage(DynamicDrawUsage))
     const puddles = new PlaneGeometry(2 * R, 2 * R, M - 1, M - 1).rotateX(-Math.PI / 2)
     puddles.setAttribute('color', new BufferAttribute(new Float32Array(M * M * 4), 4))
-    return { surface, walls, puddles, ring, cells: new Float32Array(N * N * 5) }
+    return { surface, walls, puddles, ring, cells: new Float32Array(N * N * 5), gravelLine: new Float32Array(ring) }
   }, [])
 }
 
@@ -200,7 +201,7 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
   const soften = (values: number[], reach: number) => values.map((_, i) => { let sum = 0; for (let d = -reach; d <= reach; d += 1) sum += values[(i + d + values.length) % values.length]; return sum / (2 * reach + 1) })
   const reach = Math.max(2, Math.round(geometry.ring / 64))
   const gravelLine = soften(soften(ring.map((e) => e.g), reach), reach), charcoalLine = soften(soften(ring.map((e) => e.g + e.c), reach), reach)
-  ring.forEach((e, i) => { const top = e.g + e.c + e.s; e.g = Math.min(gravelLine[i], top); e.c = Math.max(0, Math.min(charcoalLine[i], top) - e.g); e.s = Math.max(0, top - e.g - e.c) })
+  ring.forEach((e, i) => { const top = e.g + e.c + e.s; e.g = Math.min(gravelLine[i], top); e.c = Math.max(0, Math.min(charcoalLine[i], top) - e.g); e.s = Math.max(0, top - e.g - e.c); geometry.gravelLine[i] = e.g })
   for (let step = 0; step < geometry.ring; step += 1) {
     const a = ring[step], b = ring[(step + 1) % geometry.ring]
     const ua = step / geometry.ring, ub = (step + 1) / geometry.ring
@@ -442,7 +443,8 @@ export function useLayerMaterials() {
               vec3 rust = mix(vec3(0.21, 0.13, 0.08), vec3(0.28, 0.18, 0.11), pebTone);
               vec3 pebColour = pebKind < 0.45 ? tan : pebKind < 0.8 ? grey : rust;
               pebColour *= 0.72 + 0.4 * clamp(pebLit, -0.4, 1.0);
-              gravel = mix(vec3(0.09, 0.075, 0.06), pebColour, inPeb);
+              // Behind the 3D pebbles (GravelPebbles.tsx): deeper, shaded gravel and dark gaps.
+              gravel = mix(vec3(0.07, 0.058, 0.047), pebColour * 0.62, inPeb);
             }
             soil = mix(soil, vec3(0.52, 0.36, 0.22), 1.0 - smoothstep(0.0, 0.045, nestRim));
             ` : ''}` : ''}
@@ -459,6 +461,12 @@ export function useLayerMaterials() {
 }
 
 /** Static drawing of a built substrate, raised by `floor`. */
+/** The 3D gravel pebbles (GravelPebbles.tsx) for this substrate: against the glass, and loose on exposed gravel. */
+export function SoilGravel({ geometry, state, shape }: { geometry: ReturnType<typeof useLayeredGeometry>; state: Substrate; shape?: GroundShape['shape'] }) {
+  const makeGround = () => { const field = smoothTops(state); return (x: number, z: number) => { const h = sampleField(field, x, z); return shape ? shape(x, z, h) : h } }
+  return <SubstrateGravel state={state} line={geometry.gravelLine} wallRadius={R + 0.02} glassGap={0.1} soil={layerColours.soil} makeGround={makeGround} />
+}
+
 export function LayeredGround({ state, floor, shape, poolScale, onClick, carpet = false, moss, mossKey }: { state: Substrate; floor: number; shape?: GroundShape['shape']; poolScale?: GroundShape['poolScale']; onClick?: boolean; carpet?: boolean; moss?: MossState; mossKey?: string }) {
   const geometry = useLayeredGeometry()
   const materials = useLayerMaterials()
@@ -468,5 +476,6 @@ export function LayeredGround({ state, floor, shape, poolScale, onClick, carpet 
     <mesh geometry={geometry.walls} material={materials.walls} raycast={() => undefined} />
     <mesh geometry={geometry.puddles} material={materials.puddles} raycast={() => undefined} renderOrder={2} />
     {carpet && <MossCarpet geometry={geometry.surface} floor={floor} state={moss} stateKey={mossKey} />}
+    {naturalLook && <SoilGravel geometry={geometry} state={state} shape={shape} />}
   </group>
 }

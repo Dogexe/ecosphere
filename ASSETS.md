@@ -136,6 +136,10 @@ Owner's new direction (Stylized 3D Naturalism / Soft Organic Low-poly). From Pol
 - `natural-hollow-log.glb`: "Log with Fungus" by sirkitree, CC BY 3.0 (https://poly.pizza/m/32czhZtc7oY). Credit required; decor only, not a sim object.
 The broadleaf (Fittonia), violets and fern reuse the painted leaves as thin 3D leaves without ink outlines; moss is the modelled 3D moss tufts below.
 
+## Gravel pebbles (2026-11-08)
+
+No new file: eight low-poly pebble shapes generated in `src/scene/GravelPebbles.tsx` by deforming the existing pour-grain icosahedron (seeded vertex push, flatten/stretch/chip). Reason: the only existing stone asset, Poly Haven namaqualand_stones_01 (CC0), is a photoscan of ~2k triangles per stone, off-style for soft low-poly and too heavy for ~2,000 instances.
+
 ## Moss tufts (2026-11-08)
 
 `moss-tuft-1..4.glb`: own work, modelled in Blender by `scripts/build_moss_tufts.py` after an asset search (Poly Pizza Quaternius Bush/Bushes CC0 read as shrubs at macro zoom; Sketchfab moss clumps need a login; record in `artifacts/moss-asset/SEARCH.md`). Each holds `lod0` (11-21k tris) and `lod1` (2.9-3.9k tris): a soil plinth under 4-6 overlapping rounded lobes covered by dense short moss shoots (7-9 small narrow leaves set in a spiral up each stem, low leaves spreading, tip leaves clasped into a closed point so no open flower-like centre; grouped into sprays with a shared lean; shading follows the cushion). Flat radial sprays and then leaf puffs were tried first and read as flowers, vertex colours, no textures. Drawn through instanced meshes with per-instance LOD (`src/scene/MossTuftAsset.tsx`); browning and cover follow the sim's soil moss moisture fit (`mossLook`). Visual only; hitboxes unchanged.
