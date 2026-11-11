@@ -146,7 +146,10 @@ varying float vPebble;
 varying float vFlat;
 varying float vBelow;
 float soilHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float soilJag(float x, float seed) { float i = floor(x); return mix(soilHash(vec2(i, seed)), soilHash(vec2(i + 1.0, seed)), fract(x)) * 2.0 - 1.0; }`).replace("void main() {",`void main() {
+float soilJag(float x, float seed) { float i = floor(x); return mix(soilHash(vec2(i, seed)), soilHash(vec2(i + 1.0, seed)), fract(x)) * 2.0 - 1.0; }
+float soilNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(soilHash(i), soilHash(i + vec2(1.0, 0.0)), f.x), mix(soilHash(i + vec2(0.0, 1.0)), soilHash(i + vec2(1.0, 1.0)), f.x), f.y); }
+// One crumb per cell where the cell hash is under density: a six-sided rounded lump with a lit upper rim (owner reference 2026-11-11).
+vec3 soilCrumbs(vec3 natural, vec2 cc, float density, float fade) { vec2 cid = floor(cc), cf = fract(cc) - 0.5; float ch = soilHash(cid + 17.0); if (ch > density || fade <= 0.0) return natural; float ca = soilHash(cid + 9.1) * 3.1416; vec2 cp = (cf - 0.22 * (vec2(soilHash(cid + 1.3), soilHash(cid + 2.9)) - 0.5)) * vec2(1.0, 0.75 + 0.5 * soilHash(cid + 4.4)); float hexD = max(abs(dot(cp, vec2(cos(ca), sin(ca)))), max(abs(dot(cp, vec2(cos(ca + 1.0472), sin(ca + 1.0472)))), abs(dot(cp, vec2(cos(ca + 2.0944), sin(ca + 2.0944)))))); float crumbR = 0.12 + 0.2 * soilHash(cid + 5.3); float crumb = (1.0 - smoothstep(crumbR - 0.03, crumbR + 0.03, hexD)) * fade; float tone = soilHash(cid + 7.7); float rim = smoothstep(crumbR * 0.45, crumbR, hexD) * dot(normalize(cp + 1e-4), vec2(-0.35, 0.94)); vec3 lump = (tone < 0.8 ? natural * (0.5 + 0.35 * tone) : natural * 1.3 + vec3(0.012, 0.009, 0.006)) * (1.0 + 0.45 * rim); return mix(natural, lump, crumb * (0.45 + 0.45 * soilHash(cid + 3.9))); }`).replace("void main() {",`void main() {
   ${a<.2?`
   // Nest windows (walls only): measure in the glass's own unrolled coordinates (arc length, height).
   float nestRim = 1e3;
@@ -218,6 +221,21 @@ normal = normalize(mix(nonPerturbedNormal, normal, vFlat));`).replace("#include 
               natural = mix(natural, vec3(0.15, 0.083, 0.042), step(b2, below));
               natural = mix(natural, vec3(0.172, 0.1, 0.052), step(b3, below));
               natural *= (0.92 + 0.13 * facet) * (0.94 + 0.08 * soilJag(wp.x * 0.6 + wp.y * 0.9, 29.0));
+              // Owner's reference (2026-11-11): darker, richer topsoil that reads crumbly. Deepen the tone
+              // a step and scatter small faceted crumbs (one fine cell lookup): dark humus lumps and a few
+              // pale grit grains, fewer with depth as the soil gets sandier and denser.
+              natural *= 0.82;
+              // Broad uneven patches of umber, warm ochre and reddish brown inside each layer.
+              float patchN = soilNoise(wp * 2.6 + vec2(3.1, 7.7));
+              natural *= mix(vec3(0.8, 0.76, 0.74), vec3(1.14, 1.02, 0.88), patchN);
+              // Crumbs gather in clusters (multiscale noise) and leave bare stretches between them.
+              float cluster = smoothstep(0.38, 0.78, soilNoise(wp * 4.2 + vec2(11.0, 5.0)) * 0.75 + facet * 0.25);
+              // Two fixed crumb sizes (fine grains and larger lumps); cells never warp, so no streaks.
+              // Two fixed crumb sizes (fine grains, larger lumps), fewer with depth. Derivatives are taken here,
+              // outside any branch; a loop holding fwidth/continue cost ~0.6 ms on ANGLE/D3D11 even when empty.
+              float crumbPx = length(fwidth(wp)), thin = 1.0 - 0.4 * smoothstep(0.1, 0.9, below);
+              natural = soilCrumbs(natural, wp / 0.04, (0.06 + 0.55 * cluster) * thin, 1.0 - smoothstep(0.25, 0.6, crumbPx / 0.04));
+              natural = soilCrumbs(natural, wp / 0.085 + 31.7, (0.02 + 0.3 * cluster) * thin, 1.0 - smoothstep(0.25, 0.6, crumbPx / 0.085));
               // Broad leaf-litter fragments tucked under the moss edge, on a coarser facet grid.
               vec2 lk = sk * 0.55; vec2 li = floor(lk), lf = fract(lk);
               float leafBit = soilHash(li + (lf.x > lf.y ? vec2(0.21, 0.63) : vec2(0.0)) + 41.0);
