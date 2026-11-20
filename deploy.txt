@@ -1,1 +1,1 @@
-Built from claude/project-thread-t793yy 5e16d8a (field goals + early care warnings + systems rebalance on top of 580c313)
+Built from claude/project-thread-t793yy 2b73350 (hands-on care + field goals + early care warnings + systems rebalance on top of 580c313)
