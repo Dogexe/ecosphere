@@ -65,7 +65,8 @@ test('a birth requires food and reserve energy and splits the parent reserve', (
   const born = stepWorld(prepared)
   assert.equal(born.creatures.length, 2)
   assert.ok(born.plants[0].biomass < initial.plants[0].biomass - 0.3)
-  assert.ok(born.creatures[0].energy + born.creatures[1].energy < 95.864)
+  // One bite of soft leaf is worth 20 energy a unit since the closed-jar pass (was 12), so the pair ends a little above 95.
+  assert.ok(born.creatures[0].energy + born.creatures[1].energy < 96.5)
   assert.ok(born.creatures[0].energy + born.creatures[1].energy > 94.58)
   assert.equal(stepWorld({ ...prepared, creatures: [{ ...parent, energy: 40 }] }).creatures.length, 1)
   assert.equal(stepWorld({ ...prepared, plants: initial.plants.map((plant) => ({ ...plant, biomass: 0.35 })) }).creatures.length, 1)
@@ -149,7 +150,10 @@ test('plants sharing one patch compete for local nutrients', () => {
   const first = { id: 0, kind: 'clover', x: -1.7, z: -1.7, biomass: 2, capacity: 8 }
   const shared = advance({ ...base, plants: [first, { ...first, id: 1, x: -1.6, z: -1.6 }] }, 80)
   const separate = advance({ ...base, plants: [first, { ...first, id: 1, x: 1.7, z: 1.7 }] }, 80)
-  assert.ok(separate.plants[1].biomass > shared.plants[1].biomass + 0.08)
+  // Plants flower from 55% cover since the closed-jar pass, so a well-fed clover may already have spent
+  // part of itself on a seedling: count the second plant together with its offspring.
+  const line = (world) => world.plants.filter((plant) => plant.id === 1 || plant.parentId === 1).reduce((sum, plant) => sum + plant.biomass, 0)
+  assert.ok(line(separate) > line(shared) + 0.08)
   assert.ok(shared.soil[0].nutrients < separate.soil[0].nutrients)
 })
 
@@ -177,7 +181,8 @@ test('introduced life joins the ecology without mutating the original world', ()
   const grown = advance(planted, 20)
   assert.equal(planted.plants.length, 1)
   assert.ok(grown.plants[0].biomass > planted.plants[0].biomass)
-  const occupied = introduceLife(planted, 'grazer', 0.5, -0.5)
+  // Grazers leave a plant below about a third of its cover alone (grazingRefuge), so feed them a grown clover.
+  const occupied = introduceLife({ ...planted, plants: planted.plants.map((plant) => ({ ...plant, biomass: plant.capacity * 0.8 })) }, 'grazer', 0.5, -0.5)
   assert.ok(advance(occupied, 20).grazed > 0)
   assert.deepEqual(initial, snapshot)
   assert.equal(introduceLife(planted, 'fern', 0.5, -0.5), planted)

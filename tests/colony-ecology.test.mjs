@@ -73,7 +73,8 @@ test('absent edible food and absent nurses cannot create new workers; death expo
   poor.colony.ledger.exported += exported; poor.colony.food = 0; poor.colony.queen.gut = 0
   poor.colony.workers.forEach((ant) => { ant.gut = 0 })
   const nextId = poor.colony.nextAntId
-  for (let i = 0; i < 1300; i++) {
+  // A resting queen's upkeep was halved (closed-jar pass, 2026-11-20), so she now outlasts about 107 days unfed.
+  for (let i = 0; i < 2800; i++) {
     const result = step(poor); poor = result.world
     assert.ok(!result.events.some((event) => event.action === 'birth'))
     near(antMaterialError(poor.colony), 0)

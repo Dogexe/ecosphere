@@ -185,3 +185,14 @@ Benchmark: the untouched starter jar. Before this pass the open jar was dead of 
 - **Grass is a 3-year perennial**; starter plants have mixed ages.
 
 Result (tests/balance.test.mjs): the sealed starter keeps moss, fern, Calathea, frogbit, breeding woodlice, snails, shrimp and a queen-led colony for a year with CO2 around 1,000-20,000 ppm and O2 above 18%; an open starter watered every four days stays green; an untouched open jar still dries out within a month. Limits: violets (annual) rarely re-establish in the crowded sealed jar; caterpillars still die of age without completing metamorphosis; the colony's queen is close to starving by the end of the year; units remain relative.
+
+## Closed-jar pass — 2026-11-20
+
+Rules added so a sealed starter jar keeps all its kinds for three model years:
+
+- **Resting eggs.** Water fleas leave ephippia that survive drying and hatch when conditions return (https://en.wikipedia.org/wiki/Ephippium); springtail eggs wait in damp soil (https://en.wikipedia.org/wiki/Springtail). Hatching needs food at the spot (algae 0.45 for fleas; fungi 0.6 and damp litter for springtails; a leafy host at half cover for caterpillars).
+- **Soil seed bank.** Land plant seed stays viable for years and comes up when a gap opens (https://en.wikipedia.org/wiki/Soil_seed_bank); germination needs damp soil (water 25) and litter.
+- **Refuges from grazing.** Daphnia filtering falls off at low algae density (Lampert 1987, Daphnia feeding, Mem. Ist. Ital. Idrobiol. 45); grazers and herbivores leave a remnant, and plants defend damaged tissue (Karban & Baldwin 1997, Induced Responses to Herbivory). Springtail grazing stimulates fungal regrowth (https://pubmed.ncbi.nlm.nih.gov/16175795/).
+- **Aquatic carbon.** Submerged and floating plants use bicarbonate and CO2-concentrating mechanisms when dissolved CO2 is low (Maberly & Gontero 2017, J Exp Bot 68:3797, https://doi.org/10.1093/jxb/erx201).
+- **Woodlouse sperm storage.** Female isopods store sperm and produce several broods from one mating (Moreau & Rigaud 2003, Behavioral Ecology).
+- **Ants scavenge.** Harvester ants take dead insects as well as seeds (https://en.wikipedia.org/wiki/Red_harvester_ant).

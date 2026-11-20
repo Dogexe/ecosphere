@@ -1,5 +1,20 @@
 # ECOSPHERE development progress
 
+## Closed-jar pass — 2026-11-20
+
+Owner asked: make the sealed system sustainable and add more kinds of life. Benchmark is the untouched starter jar, sealed. Before this pass it lost its moss in about a week, its water fleas and springtails in about 15 days, its pond crew in about two months and its ant colony within a year. It now keeps every kind it starts with for three model years in all six probe seeds (tests/closed-jar.test.mjs, one seed, about 4 s).
+
+- More life in the starter jar: 3 springtails on the soil and 3 water fleas in the pond (8 animal kinds, 7 plant kinds).
+- Resting eggs and a soil seed bank (`src/sim/dormancy.ts`): dying fleas, springtails and land plants, and caterpillars that reach the end of larval life, leave dormant eggs or seed (at most 4 per kind, stored as optional `world.dormant`). When a kind falls below 2 and its food is back, one egg hatches or one seed comes up per day, its body paid from food at the spot.
+- Food refuges: grazers leave 35% of a plant, fleas leave 0.3 algae, snails and shrimp leave a 0.4 film, springtails leave 1.0 fungi, so no grazer eats its food to zero.
+- Woodlice store sperm for 4 broods (optional `life.stored`), so a lone female can still raise young; siblings may pair; young are released at the refuge.
+- Ants scavenge the remains of small animals as well as seeds (goal kind `'remains'`), keep a worker force of at least 6 and lay replacement workers before the old ones age out.
+- Pond plants in a sealed jar keep at least 70% of their carbon fit (bicarbonate use), aquatic plants judge moisture by pond water, violets flower at 55% cover and need less nitrogen, trees cost half the upkeep.
+
+Save format: three optional fields (`world.dormant`, woodlouse `life.stored`, ant goal kind `'remains'`); old saves load unchanged. 296 tests pass.
+
+Limits: a beetle or a fish in the starter jar still wipes out its prey (a jar this small holds no lasting predator); the ant colony usually lasts about 2.6-3 years before it runs down; in about 1 seed in 6 the woodlice die out in year 3.
+
 ## Time pace (plan item 5) — 2026-11-20
 
 Speeds are now Ⅱ, 1×, 3× and a new 10× fast-forward (two model hours per 96 ms tick, events kept; a 60-day seal runs in about 70 s on the PC). Animals animate at no more than 3× so fast-forward does not look frantic. Fast time (3× and 10×) pauses itself when a care warning turns urgent ("Time paused: …"), except for a single hungry animal, so a jar is never lost unseen; at 1× the warning is a toast as before. The care forecast refreshes every 12 model hours at 10× (6 otherwise). Speed buttons explain their pace on hover. Time away stays one model hour per real hour (owner-approved). The "well-kept notebook" goal now asks for 30 pages: a fresh starter jar finds 20 within a few model days.

@@ -16,9 +16,12 @@ export function plantStage(plant: Plant): 'seed' | 'germinating' | 'seedling' | 
   return 'mature'
 }
 
+/** Cover at which a mature plant flowers and sets seed. A sealed jar is CO2-limited by day, so its plants settle
+ *  near half their open-jar size; at 70% they never flowered and aged out without young (2026-11-20). */
+export const floweringCover = 0.55
 export function plantFlowering(plant: Plant) {
   const stage = plantStage(plant)
-  return (stage === 'mature' || stage === 'senescent') && plant.biomass / plant.capacity >= 0.7
+  return (stage === 'mature' || stage === 'senescent') && plant.biomass / plant.capacity >= floweringCover
 }
 
 export interface WoodlouseLife {
@@ -31,6 +34,8 @@ export interface WoodlouseLife {
   brood: number
   gut: number
   parentId: number | null
+  /** Broods a mated female can still raise from stored sperm, with no male (2026-11-20). */
+  stored?: number
   activity: 'foraging' | 'feeding' | 'resting' | 'courting' | 'brooding' | 'rehydrating' | 'fleeing'
 }
 
@@ -46,15 +51,19 @@ export const mateSearchRadius = 8
 export function woodlouseMate(world: World, creature: Creature): Creature | null {
   const life = woodlouseLife(creature)
   if (creature.stage === 'juvenile' || life.mass < 0.2 || life.hydration < 45 || life.brood > 0 || creature.energy < mateEnergy) return null
+  // A female still carrying stored sperm has no need to court; she feeds up and broods alone (2026-11-20).
+  if (life.sex === 'female' && (life.stored ?? 0) > 0) return null
   let best: Creature | null = null
   // Woodlice gather in shared damp shelters by scent (aggregation pheromones), so a
   // ready pair finds each other anywhere in a small jar (2026-11-20; was 4.5 units,
   // which left two litter pockets 4.9 units apart unpaired for life).
+  // Brothers and sisters may pair: captive woodlouse cultures founded from a few animals breed on
+  // for generations, and in a sealed jar the only male is often a son (2026-11-20; sibling pairs were barred).
   let distance = mateSearchRadius
   for (const other of world.creatures) {
     if (other.kind !== 'woodlouse' || other.id === creature.id || other.stage === 'juvenile' || other.energy < mateEnergy) continue
     const candidate = woodlouseLife(other)
-    if (candidate.sex === life.sex || candidate.mass < 0.2 || candidate.hydration < 45 || candidate.brood > 0 || candidate.parentId === creature.id || life.parentId === other.id || (life.parentId !== null && life.parentId === candidate.parentId)) continue
+    if (candidate.sex === life.sex || (candidate.sex === 'female' && (candidate.stored ?? 0) > 0) || candidate.mass < 0.2 || candidate.hydration < 45 || candidate.brood > 0 || candidate.parentId === creature.id || life.parentId === other.id) continue
     const next = Math.hypot(other.x - creature.x, other.z - creature.z)
     if (next < distance) { best = other; distance = next }
   }

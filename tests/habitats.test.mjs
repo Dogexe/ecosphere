@@ -102,7 +102,10 @@ test('starter food webs diverge under a defined common tending policy without sp
     const meadow = run('meadow')
     assert.notDeepEqual(woodland.soil.map((patch) => patch.fungi), meadow.soil.map((patch) => patch.fungi))
     assert.ok(meadow.grazed > woodland.grazed * 2)
-    assert.ok(meadow.plants.reduce((sum, plant) => sum + plant.biomass, 0) > woodland.plants.reduce((sum, plant) => sum + plant.biomass, 0))
+    // The sunny meadow grows more, standing plus eaten: since the closed-jar pass its caterpillars breed and
+    // crop it harder, so standing biomass alone no longer has to exceed the shaded woodland's.
+    const produced = (world) => world.plants.reduce((sum, plant) => sum + plant.biomass, 0) + world.grazed
+    assert.ok(produced(meadow) > produced(woodland))
     assert.ok(woodland.creatures.some((creature) => creature.kind === 'woodlouse'))
     assert.deepEqual(woodland, run('woodland'))
     assert.deepEqual(parseSave(serializeSave(meadow)), meadow)

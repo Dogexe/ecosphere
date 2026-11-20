@@ -46,6 +46,8 @@ test('constant mode retains the twelve explicit living-jar-correction trajectori
     // Regenerated 2026-11-20 for the systems rebalance: logistic plant growth with
     // per-tissue upkeep, sourced light classes, recycled minerals in open jars,
     // pond-bank seepage, algae inoculum, woodlouse mating range and ant lifespans.
+    // Regenerated 2026-11-20 (closed-jar pass): resting eggs and seed bank, fungal and algal refuges,
+    // grazer refuge, woodlouse sperm storage and sibling pairs, ant upkeep and pond-plant water.
     let world = createHabitatWorld(item.habitat, item.seed)
     for (let i = 0; i < 240; i++) world = stepWorld(world)
     assert.equal(createHash('sha256').update(JSON.stringify(world)).digest('hex'), item.sha256)
@@ -122,6 +124,8 @@ test('accepted small-capacity plants cannot consume resources for biomass discar
 
 test('diurnal grazers and beetles rest at night but severe hunger and threats override rest', () => {
   let base = isolated('clover')
+  // A grown clover: grazers leave plants below about a third of their cover alone (grazingRefuge, 2026-11-20).
+  base = { ...base, plants: base.plants.map((plant) => ({ ...plant, biomass: 5 })) }
   base = introduceLife(base, 'grazer', 1.7, 1.7)
   const grazer = base.creatures[0]
   const night = simulateStep(phase(base, 0))
@@ -188,15 +192,16 @@ test('rest still costs reserve and a natural cycling woodland can brood young th
   const resting = stepWorld(empty).creatures[0]
   near(58 - resting.energy, 0.42 * rateAt(environmentAt(empty).temperatureC) * 0.5)
   let world = beginDaylitWorld(createHabitatWorld('woodland', 2217))
-  let childId = null, paired = false
+  let paired = false
+  const born = []
   for (let step = 0; step < 360; step++) {
     const next = simulateStep(world); world = next.world
     paired ||= next.events.some((e) => e.type === 'mating')
-    const born = next.events.find((e) => e.type === 'birth' && e.kind === 'woodlouse')
-    if (born) childId = born.id
+    born.push(...next.events.filter((e) => e.type === 'birth' && e.kind === 'woodlouse').map((e) => e.id))
   }
-  assert.ok(paired && childId !== null)
-  const child = world.creatures.find((c) => c.id === childId)
+  assert.ok(paired && born.length > 0)
+  // Follow the youngest one that has grown up: not every juvenile reaches adulthood.
+  const child = [...born].reverse().map((id) => world.creatures.find((c) => c.id === id)).find((c) => c?.stage === 'adult')
   assert.equal(child.kind, 'woodlouse'); assert.equal(child.stage, 'adult')
   assert.ok(child.life.mass >= 0.2 && child.life.parentId !== null)
   assert.ok(world.plants.length > 0)

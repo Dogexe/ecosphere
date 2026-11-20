@@ -82,9 +82,10 @@ export function parseColony(value: unknown, plants: Plant[], soil: SoilPatch[]):
     if (caste === 'queen' && ant.goal !== null) throw damaged()
     if (ant.goal !== null) {
       const target = object(ant.goal), id = num(target, 'id', 0, 1e9, true)
+      // A remains goal is checked against the remains at the next step (clearMissingAntGoals).
       if (target.kind === 'plant' ? !plants.some((plant) => plant.id === id && ['clover', 'bloom', 'grass'].includes(plant.kind))
-        : target.kind !== 'chamber' || !nodes.some((node) => node.id === id)) throw damaged()
-      goal = { kind: target.kind as 'plant' | 'chamber', id }
+        : target.kind !== 'remains' && (target.kind !== 'chamber' || !nodes.some((node) => node.id === id))) throw damaged()
+      goal = { kind: target.kind as 'plant' | 'chamber' | 'remains', id }
     }
     const result: Ant = { id: num(ant, 'id', caste === 'queen' ? 0 : 1, caste === 'queen' ? 0 : 1e9, true), caste,
       stage: ant.stage as Ant['stage'], age: num(ant, 'age', 0, 1e9, true),

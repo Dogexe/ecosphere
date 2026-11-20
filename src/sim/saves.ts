@@ -1,5 +1,6 @@
 import { creatureCounts, creatureLimits, isCreatureKind, isLand } from './ecosystem.ts'
 import type { Creature, Plant, PlantKind, SoilPatch, World } from './ecosystem'
+import { dormantCap, dormantKinds, type DormantBank, type DormantKind } from './dormancy.ts'
 import { defaultClimate, defaultPond, isAquatic, isPondPosition, maturity, setPondShape } from './pond.ts'
 import { woodlouseLife } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
@@ -110,7 +111,7 @@ function parseWorld(text: string, settle: boolean): World {
       let life = woodlouseLife(result)
       if (lifeSource) {
         if (!['male', 'female'].includes(lifeSource.sex as string) || !['foraging', 'feeding', 'resting', 'courting', 'brooding', 'rehydrating', 'fleeing'].includes(lifeSource.activity as string)) throw damaged()
-        life = { mass: number(lifeSource, 'mass', 0.001, 0.220001), hydration: number(lifeSource, 'hydration', 0, 100), sex: lifeSource.sex as 'male' | 'female', partnerId: optionalId(lifeSource, 'partnerId'), courtship: number(lifeSource, 'courtship', 0, 1e9, true), gestation: number(lifeSource, 'gestation', 0, 24, true), brood: number(lifeSource, 'brood', 0, 0.110001), gut: lifeSource.gut === undefined ? 0 : number(lifeSource, 'gut', 0, 0.130001), parentId: optionalId(lifeSource, 'parentId'), activity: lifeSource.activity as WoodlouseLife['activity'] }
+        life = { mass: number(lifeSource, 'mass', 0.001, 0.220001), hydration: number(lifeSource, 'hydration', 0, 100), sex: lifeSource.sex as 'male' | 'female', partnerId: optionalId(lifeSource, 'partnerId'), courtship: number(lifeSource, 'courtship', 0, 1e9, true), gestation: number(lifeSource, 'gestation', 0, 24, true), brood: number(lifeSource, 'brood', 0, 0.110001), gut: lifeSource.gut === undefined ? 0 : number(lifeSource, 'gut', 0, 0.130001), parentId: optionalId(lifeSource, 'parentId'), ...(lifeSource.stored === undefined ? {} : { stored: number(lifeSource, 'stored', 0, 10, true) }), activity: lifeSource.activity as WoodlouseLife['activity'] }
         if (life.partnerId === result.id || (life.sex === 'male' && life.brood > 0)) throw damaged()
       }
       ;(result as Creature).life = life
@@ -173,9 +174,19 @@ function parseWorld(text: string, settle: boolean): World {
     sealed = { since: number(seal, 'since', 0, tick, true), goalDays: number(seal, 'goalDays', 1, 365, true), vapor: number(seal, 'vapor', -1e-6, 1e6), co2: optional('co2', startingCO2, -1e3, 1e6), o2: optional('o2', startingO2, -1e3, 1e6), airings: optional('airings', 0, 0, 1e6, true) }
     if (climate.rainfall !== 0) throw damaged()
   }
+  // Resting eggs and the soil seed bank (closed-jar pass, 2026-11-20); older saves have none.
+  let dormant: DormantBank | null = null
+  if (source.dormant !== undefined && source.dormant !== null) {
+    const bank = record(source.dormant)
+    dormant = {}
+    for (const kind of Object.keys(bank)) {
+      if (!(dormantKinds as readonly string[]).includes(kind)) throw damaged()
+      dormant[kind as DormantKind] = number(bank, kind, 0, dormantCap, true)
+    }
+  }
   return {
     tick, seed: number(source, 'seed', 0, 4294967295, true),
     light: number(source, 'light', 0.15, 1), grazed: number(source, 'grazed', 0, 1e12),
-    water: mean('water'), nutrients: mean('nutrients'), organic: mean('organic'), soil, plants, creatures, climate, pond, remains, nextCreatureId: storedNextCreatureId, nextPlantId: storedNextPlantId, ...(colony ? { colony } : {}), ...(sealed ? { sealed } : {}), ...(substrate ? { substrate } : {}),
+    water: mean('water'), nutrients: mean('nutrients'), organic: mean('organic'), soil, plants, creatures, climate, pond, remains, nextCreatureId: storedNextCreatureId, nextPlantId: storedNextPlantId, ...(colony ? { colony } : {}), ...(sealed ? { sealed } : {}), ...(substrate ? { substrate } : {}), ...(dormant ? { dormant } : {}),
   }
 }

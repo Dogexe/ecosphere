@@ -22,7 +22,7 @@ export const swimmingClearance = (kind: string) => kind === 'fish' ? 0.24 : kind
 export const isSwimmingPosition = (kind: string, x: number, z: number) => Number.isFinite(x) && Number.isFinite(z) && (poured() ? pondShape().signedDistance(x, z) + swimmingClearance(kind) <= 1e-9 : Math.hypot(x - pondCenter.x, z - pondCenter.z) + swimmingClearance(kind) <= pondCenter.radius + 1e-9)
 
 /** The middle of the open water and how far a swimmer can wander from it. */
-const pondMiddle = () => poured() ? pondShape().center : pondCenter
+export const pondMiddle = () => poured() ? pondShape().center : pondCenter
 const wander = (reach: number) => poured() ? Math.min(reach, pondShape().inner * 0.8) : reach
 
 function boundSwimmer(kind: string, x: number, z: number) {
@@ -49,6 +49,17 @@ function swim(creature: Creature, x: number, z: number, stride: number) {
 }
 
 /** Trace of algae that always remains in wet pond water as cells and spores. */
+/** Room in the pond for each animal (closed-jar pass, 2026-11-20; was flea 6, snail 4, shrimp 4). */
+export const pondLimits = { flea: 12, fish: 2, snail: 6, shrimp: 6 } as const
+/** Algae in open water and crevices the bed grazers cannot reach (closed-jar pass, 2026-11-20). */
+/** Biofilm left on stones and glass that snails and shrimp cannot scrape off. Above the fleas' threshold: the
+ *  pond crew lives mostly on detritus and lily litter, leaving the open-water algae to the fleas (2026-11-20). */
+export const algaeRefuge = 0.4
+/** Energy a snail or shrimp gets from a unit of film or detritus: small animals, many meals in a unit (2026-11-20: 16 -> 36). */
+const benthicYield = 36
+/** Algae a water flea's filtering cannot profitably reach (Daphnia threshold food concentration). */
+export const fleaRefuge = 0.3
+const fleaYield = 60
 export const algaeInoculum = 0.05
 
 /** Potential algal growth this hour before any CO2 limit. */
@@ -86,7 +97,7 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
     const oxygenFit = Math.min(1, pond.oxygen / Math.max(1, pond.water) / 0.35)
     // Snails and shrimp are slow, small grazers that can go a week or more between
     // good meals; their upkeep is well below the free-swimming flea's (2026-11-20).
-    const maintenance = (creature.kind === 'fish' ? 0.18 : isBenthic(creature.kind) ? 0.06 : 0.15) * rate
+    const maintenance = (creature.kind === 'fish' ? 0.18 : isBenthic(creature.kind) ? 0.06 : 0.1) * rate
     const stress = (1 - oxygenFit) * 1.3 + (1 - wet) * 2
     const resting = scheduledRest({ tick, climate }, { ...creature, energy: creature.energy - maintenance - stress })
     let energy = creature.energy - maintenance * (resting ? 0.5 : 1) - stress
@@ -110,11 +121,16 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
       Object.assign(creature, swim(creature, threat ? creature.x + (creature.x - threat.x) * 2 : pondMiddle().x + Math.sin(heading) * wander(0.65), threat ? creature.z + (creature.z - threat.z) * 2 : pondMiddle().z + Math.cos(heading) * wander(0.65), threat ? 0.095 : 0.04))
       creature.energy -= 0.025
       if (!threat) {
-        const bite = Math.min(pond.algae, 0.035 * wet * pond.algae / (pond.algae + 1), (100 - creature.energy) / 18)
+        // A filter feeder clears cells faster than it can find them once they thin out: below the refuge
+        // the water is too dilute to pay for the filtering, so algae always recover (closed-jar pass, 2026-11-20).
+        const cells = Math.max(0, pond.algae - fleaRefuge)
+        // A water flea weighs a few micrograms, so a unit of algae is many meals (2026-11-20: 18 -> 60;
+        // Daphnia eat roughly their own carbon mass a day, Lampert 1987).
+        const bite = Math.min(cells, 0.035 * wet * cells / (cells + 1), (100 - creature.energy) / fleaYield)
         pond.algae -= bite
         pond.organic += bite * 0.2
         pond.nutrients += bite * 0.15
-        creature.energy += bite * 18
+        creature.energy += bite * fleaYield
         if (bite > 0) events.push({ type: 'feeding', id: creature.id, kind: 'flea', source: 'algae', amount: bite })
       }
       if (creature.energy <= 0) {
@@ -134,8 +150,11 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
     const heading = grazer.heading + (seed / 4294967296 - 0.5) * (shrimp ? 1.2 : 0.5)
     Object.assign(grazer, swim(grazer, grazer.x + Math.sin(heading) * 0.4, grazer.z + Math.cos(heading) * 0.4, shrimp ? 0.03 : 0.008))
     grazer.energy -= shrimp ? 0.02 : 0.01
-    const hunger = (100 - grazer.energy) / 16
-    const algae = Math.min(pond.algae, 0.02 * wet * pond.algae / (pond.algae + 1), hunger)
+    const hunger = (100 - grazer.energy) / benthicYield
+    // They scrape the film on stones and glass, not the algae floating in open water that the fleas filter,
+    // so they take only part of the pond's algae (closed-jar pass, 2026-11-20; was 0.02, which starved every flea).
+    const film = Math.max(0, pond.algae - algaeRefuge)
+    const algae = Math.min(film, 0.012 * wet * film / (film + 1), hunger)
     const detritus = Math.min(pond.organic, 0.02 * wet * pond.organic / (pond.organic + 2), hunger - algae)
     pond.algae -= algae
     pond.organic -= detritus
@@ -143,7 +162,7 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
     // Most of what they eat comes back as droppings and dissolved nutrients for the algae.
     pond.organic += eaten * 0.3
     pond.nutrients += eaten * 0.25
-    grazer.energy = Math.min(100, grazer.energy + eaten * 16)
+    grazer.energy = Math.min(100, grazer.energy + eaten * benthicYield)
     if (eaten > 0) events.push({ type: 'feeding', id: grazer.id, kind: grazer.kind, source: algae >= detritus ? 'algae' : 'litter', amount: eaten })
   }
   for (const fish of survivors.filter((animal) => animal.kind === 'fish')) {
@@ -174,18 +193,20 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
     }
   }
   for (const parent of survivors) {
-    if (consumed.has(parent.id) || parent.energy < 82 || parent.stage === 'juvenile' || pond.water < 25 || scheduledRest({ tick, climate }, parent)) continue
+    // Water fleas brood parthenogenetic clutches every few days whenever food is above their threshold,
+    // instead of waiting for a surplus as the bigger animals do (Lampert 1987; closed-jar pass, 2026-11-20).
+    if (consumed.has(parent.id) || parent.energy < (parent.kind === 'flea' ? 60 : 82) || parent.stage === 'juvenile' || pond.water < 25 || scheduledRest({ tick, climate }, parent)) continue
     if (parent.kind === 'flea') {
-      if (countsFlea >= 6 || pond.algae < 0.2) continue
+      if (countsFlea >= pondLimits.flea || pond.algae < fleaRefuge + 0.08) continue
       pond.algae -= 0.04
       countsFlea += 1
     } else if (isBenthic(parent.kind)) {
       // Snails are hermaphrodites and shrimp need a mate, but either way it takes two adults.
       const kind = parent.kind as 'snail' | 'shrimp'
-      if (benthic[kind] >= (kind === 'snail' ? 4 : 4) || survivors.filter((animal) => animal.kind === kind && animal.stage !== 'juvenile').length < 2 || pond.algae + pond.organic < 1) continue
+      if (benthic[kind] >= pondLimits[kind] || survivors.filter((animal) => animal.kind === kind && animal.stage !== 'juvenile').length < 2 || pond.algae + pond.organic < 1) continue
       benthic[kind] += 1
     } else {
-      if (countsFish >= 2 || (parent.materialReserve ?? 0) < 0.24) continue
+      if (countsFish >= pondLimits.fish || (parent.materialReserve ?? 0) < 0.24) continue
       parent.materialReserve = (parent.materialReserve ?? 0) - 0.24
       countsFish += 1
     }

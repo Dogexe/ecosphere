@@ -39,6 +39,15 @@ const pondCrew: ['snail' | 'shrimp', number, number][] = [
   ['snail', -0.6, 2.15],
 ]
 
+const microFauna: ['springtail' | 'flea', number, number][] = [
+  ['springtail', -1.9, -0.9],
+  ['springtail', 1.3, -1.2],
+  ['springtail', 2.3, 0.2],
+  ['flea', -1.0, 1.7],
+  ['flea', -1.6, 1.6],
+  ['flea', -0.8, 2.0],
+]
+
 /** Bright indirect light, as terrarium growers recommend for a jar on a windowsill (2026-11-20). */
 export const starterLight = 0.55
 
@@ -53,6 +62,17 @@ export function withStarterGarden(world: World): World {
     planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * (plant.kind === 'tree' ? 0.8 : 0.85), age: 90 + (index * 7 % 16) * 24 * 9, development: 90 }] }
   }
   for (const [kind, x, z] of pondCrew) planted = introduceLife(planted, kind, x, z)
+  // Soil and water micro-fauna that keep a closed jar cycling (closed-jar pass, 2026-11-20):
+  // springtails graze the soil fungi; water fleas graze algae and feed nothing bigger here.
+  // A tiny animal goes in at the nearest free spot around its mark, so all of them arrive.
+  for (const [kind, x, z] of microFauna) {
+    search: for (let ring = 0; ring < 5; ring += 1) {
+      for (let n = 0; n < (ring ? 8 : 1); n += 1) {
+        const next = introduceLife(planted, kind, x + Math.cos(n * Math.PI / 4) * ring * 0.18, z + Math.sin(n * Math.PI / 4) * ring * 0.18)
+        if (next !== planted) { planted = next; break search }
+      }
+    }
+  }
   // A seed-harvester colony on the front-right bank (owner's reference, 2026-11-07): its nest is shown in cutaway
   // through the glass in the natural look. Placed through the normal rules, so it is skipped if the spot is unsuitable.
   planted = introduceColony(planted, 1.8, 2.0)

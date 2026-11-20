@@ -1,6 +1,6 @@
 import type { Plant, SoilPatch, World } from './ecosystem'
 import { isLand, isLandSegment, walkOnLand } from './land.ts'
-import { addRemains, plantStage } from './life.ts'
+import { addRemains, plantStage, type Remains } from './life.ts'
 import { environmentAt } from './climate.ts'
 import { rateAt } from './pond.ts'
 import { excavationSite, nestCrowded, planExcavation, workExcavation } from './excavation.ts'
@@ -15,7 +15,7 @@ export type Ant = {
   id: number; caste: 'queen' | 'worker'; stage: 'teneral' | 'adult'; age: number
   body: number; gut: number; energy: number; hydration: number; carried: number
   activity: 'foraging' | 'carrying' | 'entering' | 'depositing' | 'feeding' | 'nursing' | 'resting' | 'brooding' | 'rehydrating' | 'excavating'
-  goal: { kind: 'plant' | 'chamber'; id: number } | null
+  goal: { kind: 'plant' | 'chamber' | 'remains'; id: number } | null
   location: AntLocation
 }
 export type AntBrood = { id: number; count: number; stage: 'egg' | 'larva' | 'pupa'; age: number; material: number; parentId: number }
@@ -189,13 +189,21 @@ export function introduceColony(world: World, x: number, z: number): World {
 }
 
 /** Hourly upkeep of the sedentary queen. */
-export const queenUpkeep = 0.07
+/** What a forager carries home in one trip, about a third of her own mass. */
+export const seedLoad = 0.012
+/**
+ * A colony raises only as many workers as its foraging ground keeps fed: about one per seed plant
+ * in reach plus a small core (2026-11-20). Without this a sealed jar's colony boomed to 16 workers
+ * on a good month, stripped every seed head and starved.
+ */
+export const foragingWorkforce = (plants: readonly Plant[]) => Math.max(6, 3 + Math.floor(plants.filter((plant) => ['clover', 'grass', 'bloom'].includes(plant.kind)).length / 3))
+export const queenUpkeep = 0.035
 /** Pogonomyrmex queens live for decades (Johnson 2001; up to ~30 y); the game caps at 10 years. */
 export const queenLifespan = 87600
-/** Harvester workers live months indoors; foragers far less in the wild. Six months here (was 50 days). */
-export const workerLifespan = 4380
+/** Harvester workers live months to a year or more in a formicarium; foragers far less in the wild. A year here (2026-11-20; was six months). */
+export const workerLifespan = 8760
 /** Cover above which a seed plant carries ripe seed for harvester ants. */
-export const seedCover = 0.55
+export const seedCover = 0.35
 
 export function seedMaterialAvailable(plant: Plant): number {
   if (!['clover', 'grass', 'bloom'].includes(plant.kind) || !['mature', 'senescent'].includes(plantStage(plant))) return 0
@@ -209,8 +217,19 @@ export function antFoodSources(plants: Plant[], x: number, z: number): Plant[] {
   return plants.filter((plant) => seedMaterialAvailable(plant) > 0.00001 && Math.hypot(plant.x - x, plant.z - z) <= 2.8)
 }
 
-export function clearMissingAntGoals(colony: AntColony, plants: Plant[]): AntColony {
-  const valid = (ant: Ant) => ant.goal?.kind !== 'plant' || plants.some((plant) => plant.id === ant.goal!.id)
+/**
+ * Small animals that died on land: harvester ants also carry insect remains home
+ * (Pogonomyrmex and Messor workers take dead arthropods alongside seeds), so a jar's
+ * woodlice, springtails and caterpillars feed the colony when seed is short (2026-11-20).
+ */
+export function antScavengeSources(remains: readonly Remains[], x: number, z: number): Remains[] {
+  return remains.filter((item) => scavengeKinds.has(item.kind) && item.patchId !== 4 && item.material >= 0.002 && Math.hypot(item.x - x, item.z - z) <= 2.8)
+}
+const scavengeKinds = new Set(['grazer', 'woodlouse', 'springtail', 'beetle'])
+
+export function clearMissingAntGoals(colony: AntColony, plants: Plant[], remains: readonly Remains[] = []): AntColony {
+  const valid = (ant: Ant) => ant.goal?.kind === 'plant' ? plants.some((plant) => plant.id === ant.goal!.id)
+    : ant.goal?.kind === 'remains' ? remains.some((item) => item.id === ant.goal!.id && item.material >= 0.002) : true
   if (colony.workers.every(valid)) return colony
   return { ...colony, workers: colony.workers.map((ant) => valid(ant) ? ant : { ...ant, goal: null }) }
 }
@@ -225,7 +244,7 @@ export function exportColony(world: World): { world: World; exported: number; le
 
 export function stepAntColony(world: World, forcing = environmentAt(world)): { world: World; events: AntEvent[] } {
   if (!world.colony) return { world, events: [] }
-  const source = clearMissingAntGoals(world.colony, world.plants)
+  const source = clearMissingAntGoals(world.colony, world.plants, world.remains ?? [])
   const colony: AntColony = { ...source, queen: source.queen ? copyAnt(source.queen) : null,
     workers: source.workers.map(copyAnt), brood: source.brood.map((cohort) => ({ ...cohort })), ledger: { ...source.ledger },
     ...(source.construction ? { construction: { ...source.construction, job: source.construction.job ? { ...source.construction.job, target: { ...source.construction.job.target } } : null } } : {}) }
@@ -265,7 +284,9 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
     const localRate = ant.location.kind === 'nest' ? rate : rateAt(forcing.temperatureC)
     // A queen sits still in her chamber: her upkeep is a resting worker's, not 0.17 (2026-11-20),
     // so a provisioned queen outlasts lean weeks as real harvester queens do.
-    ant.energy -= (ant.caste === 'queen' ? queenUpkeep : ant.activity === 'resting' ? 0.06 : 0.12) * localRate
+    // A worker weighs a few milligrams and burns a few percent of that a day; at 0.12 an hour she used 12%
+    // of her body a day and a jar's seed could never feed six of them (closed-jar pass, 2026-11-20).
+    ant.energy -= (ant.caste === 'queen' ? queenUpkeep : ant.activity === 'resting' ? 0.03 : 0.06) * localRate
     const digested = Math.min(ant.gut, (ant.caste === 'queen' ? 0.0006 : 0.0008) * localRate, Math.max(0, (90 - ant.energy) / 600))
     ant.gut -= digested; ant.energy += digested * 600
     colony.ledger.metabolized += digested * 0.55
@@ -325,13 +346,21 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
         }
       } else {
         ant.activity = 'foraging'
-        let target = ant.goal?.kind === 'plant' ? plants.find((plant) => plant.id === ant.goal!.id && seedMaterialAvailable(plant) > 0.00001) : undefined
-        target ??= antFoodSources(plants, position.x, position.z)
-          .sort((a, b) => Math.hypot(a.x - position.x, a.z - position.z) - Math.hypot(b.x - position.x, b.z - position.z) || a.id - b.id)[0]
-        ant.goal = target ? { kind: 'plant', id: target.id } : null
-        if (target && Math.hypot(target.x - position.x, target.z - position.z) <= 0.12) {
-          const amount = Math.min(0.012 - ant.carried, seedMaterialAvailable(target))
-          target.biomass -= amount; ant.carried += amount; colony.ledger.harvested += amount
+        type Find = { kind: 'plant'; item: Plant } | { kind: 'remains'; item: Remains }
+        const distanceTo = (find: Find) => Math.hypot(find.item.x - position.x, find.item.z - position.z)
+        const kept = ant.goal?.kind === 'plant' ? plants.find((plant) => plant.id === ant.goal!.id && seedMaterialAvailable(plant) > 0.00001)
+          : undefined
+        const keptRemains = ant.goal?.kind === 'remains' ? remains.find((item) => item.id === ant.goal!.id && item.material >= 0.002) : undefined
+        const found: Find | undefined = kept ? { kind: 'plant', item: kept } : keptRemains ? { kind: 'remains', item: keptRemains }
+          : [...antFoodSources(plants, position.x, position.z).map((item): Find => ({ kind: 'plant', item })), ...antScavengeSources(remains, position.x, position.z).map((item): Find => ({ kind: 'remains', item }))]
+            .sort((a, b) => distanceTo(a) - distanceTo(b) || a.item.id - b.item.id)[0]
+        const target = found?.item
+        ant.goal = found ? { kind: found.kind, id: found.item.id } : null
+        if (found && target && distanceTo(found) <= 0.12) {
+          const amount = Math.min(seedLoad - ant.carried, found.kind === 'plant' ? seedMaterialAvailable(found.item) : found.item.material)
+          if (found.kind === 'plant') found.item.biomass -= amount
+          else found.item.material -= amount
+          ant.carried += amount; colony.ledger.harvested += amount
           ant.activity = 'carrying'; ant.goal = { kind: 'chamber', id: entry }
           if (amount > 0) events.push({ type: 'ant', action: 'harvest', id: ant.id, amount })
         } else {
@@ -453,10 +482,15 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
   // A strong queen may fund a single replacement egg from her own gut even
   // when food moves through the nest faster than it accumulates in storage.
   // Incoming carried food is a signal, not a reservation or a body grant.
-  const replacement = queen && colony.brood.length === 0 && queen.energy >= 70 && queen.gut >= 0.015
-    && colony.workers.filter(readyToCare).length >= 3 && colony.food + colony.workers.reduce((sum, ant) => sum + ant.carried, 0) >= 0.006
+  // Only to keep a small workforce: replacement eggs used to grow the colony past what its seeds
+  // could feed until the queen starved (closed-jar pass, 2026-11-20).
+  // Workers near the end of their lives do not count: the queen raises their successors in time,
+  // instead of losing the whole workforce in the same month (2026-11-20).
+  const lasting = colony.workers.filter((ant) => ant.age < workerLifespan * 0.8).length
+  const replacement = queen && colony.brood.length === 0 && lasting < 6 && queen.energy >= 70 && queen.gut >= 0.012
+    && colony.workers.filter(readyToCare).length >= 2 && colony.food + colony.workers.reduce((sum, ant) => sum + ant.carried, 0) >= 0.006
   if (queen && queen.age % 18 === 0 && queen.energy >= 50 && queen.gut >= 0.005 && (colony.food >= 0.06 + committedFood || replacement)
-    && colony.brood.length < antLimits.cohorts && colony.workers.length + colony.brood.reduce((sum, cohort) => sum + cohort.count, 0) < antLimits.workers) {
+    && colony.brood.length < antLimits.cohorts && colony.workers.length < antLimits.workers && lasting + colony.brood.reduce((sum, cohort) => sum + cohort.count, 0) < foragingWorkforce(plants)) {
     queen.gut -= 0.005; queen.energy -= 3
     soilReturn(0.00075, 0, queenChamber.x, queenChamber.z); colony.ledger.metabolized += 0.00025
     colony.brood.push({ id: colony.nextBroodId++, count: 1, stage: 'egg', age: 0, material: 0.004, parentId: queen.id })

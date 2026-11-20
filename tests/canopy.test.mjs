@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWorld, creatureCounts, introduceLife, lightAt, placementIssue, simulateStep, stepWorld } from '../src/sim/ecosystem.ts'
+import { createWorld, creatureCounts, creatureLimits, fungalRegrowth, introduceLife, lightAt, placementIssue, simulateStep, springtailYield, stepWorld } from '../src/sim/ecosystem.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
@@ -40,8 +40,10 @@ test('springtails consume fungi, not plants or litter; bites partition fungal ma
   const bite = result.events.find((event) => event.type === 'feeding')
   assert.equal(bite.source, 'fungi')
   assert.deepEqual(result.world.plants, control.plants)
-  near(control.soil[1].fungi - result.world.soil[1].fungi, bite.amount)
-  near(result.world.soil[1].organic - control.soil[1].organic, bite.amount * 0.25)
+  // Grazed mycelium regrows part of the bite at once from the litter it sits in (2026-11-20).
+  const regrowth = bite.amount * fungalRegrowth
+  near(control.soil[1].fungi - result.world.soil[1].fungi, bite.amount - regrowth)
+  near(result.world.soil[1].organic - control.soil[1].organic, bite.amount * 0.25 - regrowth)
   // The respired 45% keeps its minerals, which return evenly to the four pockets (2026-11-20),
   // along with a little of the springtail's own upkeep, so the local gain is a bounded range.
   const released = result.world.soil[1].nutrients - control.soil[1].nutrients
@@ -55,8 +57,8 @@ test('springtail births fund body material from fungi and split reserves', () =>
   const control = stepWorld({ ...initial, creatures: [] })
   const bite = result.events.find((event) => event.type === 'feeding')
   assert.equal(result.world.creatures.length, 2)
-  near(control.soil[1].fungi - result.world.soil[1].fungi, bite.amount + 0.08)
-  near(result.world.creatures.reduce((sum, animal) => sum + animal.energy, 0), 95 - 0.2 + bite.amount * 22)
+  near(control.soil[1].fungi - result.world.soil[1].fungi, bite.amount * (1 - fungalRegrowth) + 0.08)
+  near(result.world.creatures.reduce((sum, animal) => sum + animal.energy, 0), 95 - 0.08 + bite.amount * springtailYield)
   assert.ok(result.events.some((event) => event.type === 'birth' && event.kind === 'springtail'))
 })
 
@@ -73,9 +75,9 @@ test('dryness/absent fungi cannot sustain springtails and deaths return local bo
 
 test('springtails have their own cap and can enter the predator food web', () => {
   let world = habitat()
-  for (const [x, z] of [[0, -2], [1, -2], [2, -2], [0, 2.6], [1, 2], [2, 2]]) world = introduceLife(world, 'springtail', x, z)
-  assert.equal(creatureCounts(world.creatures).springtail, 6)
-  assert.match(placementIssue(world, 'springtail', 0, -1), /6 springtails/)
+  for (let x = -2.5; x <= 2.5; x += 0.5) for (let z = -2.5; z <= 2.5; z += 0.5) world = introduceLife(world, 'springtail', x, z)
+  assert.equal(creatureCounts(world.creatures).springtail, creatureLimits.springtail)
+  assert.match(placementIssue(world, 'springtail', 0, -1), new RegExp(`${creatureLimits.springtail} springtails`))
   const caught = simulateStep({ ...habitat(), creatures: [springtail, { id: 1, kind: 'beetle', x: 1.65, z: -1.7, heading: 0, energy: 55 }] })
   const meal = caught.events.find((event) => event.type === 'predation')
   assert.equal(meal.preyKind, 'springtail')

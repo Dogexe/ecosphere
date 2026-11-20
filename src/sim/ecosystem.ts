@@ -1,4 +1,4 @@
-import { algaeGrowth, defaultClimate, defaultPond, isAquatic, isPondPosition, isSwimmingPosition, lifespan, maturity, pondShape, rateAt, setPondShape, stepPond } from './pond.ts'
+import { pondLimits, algaeGrowth, defaultClimate, defaultPond, isAquatic, isPondPosition, isSwimmingPosition, lifespan, maturity, pondShape, rateAt, setPondShape, stepPond } from './pond.ts'
 import type { Climate, Pond } from './pond'
 import { addRemains, bodyStock, decayRemains, developmentRate, plantFlowering, plantLifetime, plantStage, woodlouseLife, woodlouseMate } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
@@ -7,6 +7,7 @@ import { isLand, walkOnLand } from './land.ts'
 import type { AntColony } from './colony'
 import { clearMissingAntGoals, stepAntColony } from './colony.ts'
 import type { AntEvent } from './colony'
+import { hatchRestingEggs, layRestingEggs, type DormantBank } from './dormancy.ts'
 import { carbonFit, carbonShare, closeJar, mineralShare, oxygenFit } from './seal.ts'
 import type { SavedSubstrate } from './substrate.ts'
 import { dryingFactor } from './substrate.ts'
@@ -75,6 +76,8 @@ export interface World {
   nextPlantId?: number
   /** Misting leaves the air humid until this tick (tending.ts, 2026-11-20). */
   mistUntil?: number
+  /** Resting eggs of fleas and springtails waiting in sediment and soil (dormancy.ts, 2026-11-20). */
+  dormant?: DormantBank
 }
 
 export type Intervention = { type: 'water' } | { type: 'compost' } | { type: 'light' | 'temperature' | 'rain' | 'day-night'; value: number } | { type: 'pond-water' | 'pond-organic' | 'pond-nutrients' }
@@ -94,8 +97,27 @@ export type StepResult = { world: World; events: SimulationEvent[] }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 /** Pond plants may hold at most this many of the 32 plant slots through their own spread. */
-export const aquaticPlantLimit = 10
-export const creatureLimits = { grazer: 7, woodlouse: 4, beetle: 2, springtail: 6, flea: 6, fish: 2, snail: 4, shrimp: 4 } as const
+export const aquaticPlantLimit = 6
+/** Most plants of one land kind the jar's own spread will make (closed-jar pass, 2026-11-20). */
+/** Energy a springtail gets from a unit of fungi: it is tiny (bodyMaterial 0.08), so a unit is many meals. */
+export const springtailYield = 40
+/** Share of a springtail's bite that the grazed mycelium regrows at once from its litter. */
+export const fungalRegrowth = 0.6
+/** Hyphae deep inside litter fragments, out of a springtail's reach, so grazing never strips a patch bare. */
+const fungalRefuge = 1.0
+/** Spores in the soil: decay always has at least this much fungus to start from where it is damp. */
+const fungalInoculum = 0.1
+/** Extra broods a female raises from one mating's stored sperm. */
+const storedBroods = 4
+/** Share of a plant's cover that grazers leave (see the grazer's bite). */
+export const grazingRefuge = 0.35
+export const plantKindLimit = 5
+/** A tree shades a quarter of the jar: the jar raises only one at a time from its own seed. */
+const kindLimit = (kind: PlantKind) => kind === "tree" ? 1 : plantKindLimit
+/** Plants that live one season and carry on by seed. */
+const annuals = new Set<PlantKind>(['bloom'])
+// Room for a breeding population, not a cohort that ages out together (closed-jar pass, 2026-11-20; woodlice were 4, snails and shrimp 4).
+export const creatureLimits = { grazer: 7, woodlouse: 8, beetle: 2, springtail: 10, ...pondLimits } as const
 /** Fraction of soil litter that bacteria mineralise per model hour at full moisture and 22 C. */
 export const bacterialDecay = 0.0008
 /** Energy a woodlouse gains per unit of litter it digests. */
@@ -217,7 +239,7 @@ const plantTraits: Record<PlantKind, {
 }> = {
   clover: { moisture: 0.45, moistureRange: 0.7, light: 0.62, lightRange: 0.8, nutrientNeed: 45, growth: 0.21, palatability: 1, dispersal: 1.1, spread: 0.035 },
   fern: { moisture: 0.72, moistureRange: 0.75, light: 0.42, lightRange: 0.75, nutrientNeed: 58, growth: 0.22, palatability: 0.18, dispersal: 1.35, spread: 0.015 },
-  bloom: { moisture: 0.62, moistureRange: 0.7, light: 0.58, lightRange: 0.72, nutrientNeed: 72, growth: 0.29, palatability: 0.72, dispersal: 1.65, spread: 0.025 },
+  bloom: { moisture: 0.62, moistureRange: 0.7, light: 0.58, lightRange: 0.72, nutrientNeed: 55, growth: 0.29, palatability: 0.72, dispersal: 1.65, spread: 0.025 },
   moss: { moisture: 0.82, moistureRange: 0.57, light: 0.32, lightRange: 0.68, nutrientNeed: 24, growth: 0.13, palatability: 0.04, dispersal: 0.85, spread: 0.025 },
   grass: { moisture: 0.5, moistureRange: 0.68, light: 0.78, lightRange: 0.66, nutrientNeed: 38, growth: 0.25, palatability: 0.94, dispersal: 0.95, spread: 0.045 },
   tree: { moisture: 0.64, moistureRange: 0.75, light: 0.48, lightRange: 0.85, nutrientNeed: 64, growth: 0.18, palatability: 0.015, dispersal: 1.75, spread: 0.008 },
@@ -272,6 +294,9 @@ const plantPatch = (world: World, plant: Plant) => isAquatic(plant.kind) ? pondP
 /** How well a soil water level suits a plant kind (0..1): the moisture term of its habitat fit. Read-only. */
 export function plantMoisture(kind: PlantKind, water: number) {
   const traits = plantTraits[kind]
+  // A pond plant stands in water: it is never short of it while the pond is a few centimetres deep (2026-11-20;
+  // its pond level used to be read like soil moisture, so a sealed jar's lilies stayed 'dry' and never flowered).
+  if (isAquatic(kind)) return clamp((water - 5) / 30, 0, 1)
   return clamp((water - 2) / 20, 0, 1) * suitability(water / 100, traits.moisture, traits.moistureRange)
 }
 
@@ -311,6 +336,9 @@ export function habitatFit(world: World, plant: Plant): number {
 export const plantRgr = (kind: PlantKind) => plantTraits[kind].growth * 4 / plantCapacity[kind]
 /** Upkeep per unit biomass per hour in ideal conditions, and the extra when water or light fall short. */
 export const plantUpkeep = { base: 0.004, dry: 0.02, dark: 0.012, senescent: 0.03 }
+/** Most of a woody plant's mass is wood that barely respires, so it pays about half an herb's upkeep per unit
+ *  (2026-11-20; at full upkeep a sealed jar's tree starved within weeks once daytime CO2 ran low). */
+const woodyUpkeep = 0.5
 
 function plantFlux(plant: Plant, patch: SoilPatch, light: number, temperature = 22, photosynthesis = 1, cycling = false, carbon = 1, sealed = false, humid = sealed) {
   const conditions = plantConditions(plant, patch, light, humid)
@@ -324,7 +352,7 @@ function plantFlux(plant: Plant, patch: SoilPatch, light: number, temperature = 
   const potential = plantRgr(plant.kind) * conditionFit(conditions, warmth) * photosynthesis * carbon * plant.biomass * (1 - plant.biomass / plant.capacity)
   const growth = stage === 'seed' || stage === 'germinating' ? 0 : Math.max(0, Math.min(potential, patch.water / 0.12, patch.nutrients / 0.65))
   const upkeep = plantUpkeep.base + plantUpkeep.dry * (1 - conditions.moisture) + plantUpkeep.dark * (1 - conditions.sunlight) + (stage === 'senescent' ? plantUpkeep.senescent : 0)
-  const loss = stage === 'seed' || stage === 'germinating' ? 0.002 : upkeep * plant.biomass + (sealed ? rotLoss(plant, patch) : 0)
+  const loss = stage === 'seed' || stage === 'germinating' ? 0.002 : upkeep * plant.biomass * (plant.kind === 'tree' ? woodyUpkeep : 1) + (sealed ? rotLoss(plant, patch) : 0)
   return { growth: cycling ? Math.min(growth, Math.max(0, plant.capacity - plant.biomass + loss)) : growth, loss }
 }
 
@@ -374,15 +402,15 @@ function fungusTarget(soil: SoilPatch[], creature: Creature): SoilPatch | null {
   let best: SoilPatch | null = null
   let score = 0
   for (const patch of soil) {
-    if (patch.fungi < 0.025) continue
-    const next = litterMoisture(patch) * patch.fungi / (patch.fungi + 0.4) / (0.3 + Math.hypot(patch.x - creature.x, patch.z - creature.z))
+    if (patch.fungi < fungalRefuge + 0.025) continue
+    const next = litterMoisture(patch) * (patch.fungi - fungalRefuge) / (patch.fungi + 0.4) / (0.3 + Math.hypot(patch.x - creature.x, patch.z - creature.z))
     if (next > score) { best = patch; score = next }
   }
   return best
 }
 
 function grazerTarget(plants: Plant[], creature: Creature): Plant | null {
-  return plants.filter((plant) => plant.biomass > 0.55 && !isAquatic(plant.kind)).reduce<Plant | null>((nearest, plant) => {
+  return plants.filter((plant) => plant.biomass > Math.max(0.55, plant.capacity * grazingRefuge + 0.05) && !isAquatic(plant.kind) && plantTraits[plant.kind].palatability > 0.1).reduce<Plant | null>((nearest, plant) => {
     if (!nearest) return plant
     const distance = ((plant.x - creature.x) ** 2 + (plant.z - creature.z) ** 2) / plantTraits[plant.kind].palatability
     const previous = ((nearest.x - creature.x) ** 2 + (nearest.z - creature.z) ** 2) / plantTraits[nearest.kind].palatability
@@ -586,7 +614,9 @@ export function simulateStep(world: World): StepResult {
   const boundBeforeDecay = soilBound()
   for (const patch of soil) {
     const moisture = clamp((patch.water - 8) / 38, 0, 1) * suitability(patch.water / 100, 0.72, 0.85)
-    const decomposed = Math.min(patch.organic, 0.055 * patch.fungi * patch.organic / (patch.organic + 8) * moisture * rate * breath)
+    // Spores are in every crumb of soil, so damp litter is always being colonised again even where
+    // the mycelium was grazed away (2026-11-20: a trace inoculum, like the pond's algae).
+    const decomposed = Math.min(patch.organic, 0.055 * Math.max(patch.fungi, fungalInoculum) * patch.organic / (patch.organic + 8) * moisture * rate * breath)
     patch.organic -= decomposed
     patch.nutrients += decomposed * 0.72
     patch.fungi += decomposed * 0.18
@@ -615,6 +645,7 @@ export function simulateStep(world: World): StepResult {
     carbon = fit * (potential > 0 ? Math.min(1, (Math.max(0, world.sealed.co2) + breathed * 0.5) / potential) : 1)
 
   }
+  const selfSown: Plant[] = []
   const plants = world.plants.map((plant): Plant | null => {
     const patch = isAquatic(plant.kind) ? aquaticSoil : nearestSoil(soil, plant.x, plant.z)
     const age = (plant.age ?? 90) + 1
@@ -639,8 +670,12 @@ export function simulateStep(world: World): StepResult {
       patch.organic += -actualChange * 0.42
     }
     if (biomass <= 0.35 || age >= plantLifetime[plant.kind]) {
-      addRemains(remains, plant.kind, plant.x, plant.z, biomass * 0.42, patch.id)
+      // An annual that set seed sows itself where it stood: its seed was in the soil all along (seed bank).
+      // The seedling's material comes from the dying plant (closed-jar pass, 2026-11-20).
+      const sows = age >= plantLifetime[plant.kind] && annuals.has(plant.kind) && biomass >= 0.55 + 0.35
+      addRemains(remains, plant.kind, plant.x, plant.z, (biomass - (sows ? 0.55 : 0)) * 0.42, patch.id)
       events.push({ type: 'death', id: plant.id, kind: plant.kind, reason: age >= plantLifetime[plant.kind] ? 'age' : 'decline' })
+      if (sows) selfSown.push({ ...plant, id: -1, biomass: 0.55, age: 0, development: 0, parentId: plant.id, lastReproduction: -1 })
       return null
     }
     return { ...developed, biomass }
@@ -652,7 +687,7 @@ export function simulateStep(world: World): StepResult {
     if (kind === 'beetle' || isAquatic(kind)) continue
     const local = nearestSoil(soil, creature.x, creature.z)
     // Thin jar air (low O2) makes every hour costlier to breathe through.
-    const maintenance = (kind === 'woodlouse' ? 0.24 + (1 - litterMoisture(local)) * 0.45 : kind === 'springtail' ? 0.2 + (1 - litterMoisture(local)) * 0.65 : 0.42) * rate * (1 + 2 * (1 - breath))
+    const maintenance = (kind === 'woodlouse' ? 0.24 + (1 - litterMoisture(local)) * 0.45 : kind === 'springtail' ? 0.08 + (1 - litterMoisture(local)) * 0.5 : 0.42) * rate * (1 + 2 * (1 - breath))
     const resting = scheduledRest(world, { ...creature, energy: creature.energy - maintenance }) && !predatorThreat(world, creature)
     let energy = creature.energy - maintenance * (resting ? 0.5 : 1)
     if (kind === 'woodlouse') {
@@ -711,11 +746,16 @@ export function simulateStep(world: World): StepResult {
       let { x, z, heading } = creature
       if (target && Math.hypot(target.x - x, target.z - z) <= 0.24) {
         heading = Math.atan2(target.x - x, target.z - z)
-        const bite = Math.min(target.fungi, 0.025 * litterMoisture(target), (100 - energy) / 22)
+        const bite = Math.min(Math.max(0, target.fungi - fungalRefuge), 0.025 * litterMoisture(target), (100 - energy) / springtailYield)
         target.fungi -= bite
+        // Light grazing keeps hyphae growing: the grazed mycelium regrows from the litter it sits in
+        // (compensatory growth; PubMed 16175795), so a few springtails never use up a patch.
+        const regrowth = Math.min(target.organic * 0.02, bite * fungalRegrowth)
+        target.organic -= regrowth
+        target.fungi += regrowth
         target.organic += bite * 0.25
         target.nutrients += bite * 0.3
-        energy += bite * 22
+        energy += bite * springtailYield
         if (bite > 0) events.push({ type: 'feeding', id: creature.id, kind, source: 'fungi', amount: bite })
       } else {
         let turn: number
@@ -793,10 +833,14 @@ export function simulateStep(world: World): StepResult {
         ;({ x, z, heading } = moved)
         energy -= moved.distance * 0.8
       } else {
-        const bite = Math.min(0.072 * plantTraits[target.kind].palatability, target.biomass - 0.48)
+        // A caterpillar eats several times its own mass over its larval life; at 0.072 it lost energy every day it lived (2026-11-20).
+        // Soft leaves are digested well (2026-11-20: 12 -> 20 energy a unit), so a fed larva reaches breeding condition in days.
+        // A plant cut back past a third of its cover is left alone: what remains is tough, defended growth
+        // (induced defences; Karban & Baldwin 1997), so caterpillars cannot eat a jar's violets to the last leaf.
+        const bite = Math.min(0.12 * plantTraits[target.kind].palatability, target.biomass - Math.max(0.48, target.capacity * grazingRefuge))
         if (bite > 0) {
           target.biomass -= bite
-          energy = clamp(energy + bite * 12, 0, 100)
+          energy = clamp(energy + bite * 20, 0, 100)
           grazed += bite
           nearestSoil(soil, x, z).organic += bite * 0.12 // waste returns locally
           events.push({ type: 'feeding', id: creature.id, kind, source: 'plant', amount: bite })
@@ -895,11 +939,18 @@ export function simulateStep(world: World): StepResult {
         const energy = mother.energy * 0.22
         mother.energy -= energy
         life.brood = Math.max(0, life.brood - 0.055)
-        const position = walkOnLand(mother, mother.x + Math.sin(nextId * 2.4), mother.z + Math.cos(nextId * 2.4), 0.18)
+        // The young walk out into the litter refuge itself, where they can feed at once (2026-11-20:
+        // they used to land just outside the feeding reach and starve walking back in).
+        const position = walkOnLand(mother, refuge.x + Math.sin(nextId * 2.4) * 0.15, refuge.z + Math.cos(nextId * 2.4) * 0.15, 0.4)
         const child: Creature = { id: nextId++, kind: 'woodlouse', x: position.x, z: position.z, heading: position.heading, energy, age: 0, stage: 'juvenile', materialReserve: 0 }
         const hydration = Math.min(70, life.hydration)
         life.hydration = Math.max(0, life.hydration - hydration * 0.055 / life.mass)
-        child.life = { ...woodlouseLife(child), mass: 0.055, hydration, parentId: mother.id }
+        // Each brood holds both sexes (dozens of young in a real brood pouch); the jar keeps the one or two
+        // that fit, so the young it keeps are of whichever sex the jar has fewer of.
+        const adults = [...survivors, ...newborns].filter((other) => other.kind === 'woodlouse' && other.id !== child.id)
+        const males = adults.filter((other) => woodlouseLife(other).sex === 'male').length
+        const sex = males * 2 < adults.length ? 'male' as const : males * 2 > adults.length ? 'female' as const : woodlouseLife(child).sex
+        child.life = { ...woodlouseLife(child), mass: 0.055, hydration, parentId: mother.id, sex }
         newborns.push(child)
         populations.woodlouse += 1
         events.push({ type: 'birth', id: child.id, kind: 'woodlouse', parentId: mother.id })
@@ -910,6 +961,19 @@ export function simulateStep(world: World): StepResult {
     const father = woodlouseMate({ ...world, creatures: survivors.filter((creature) => !paired.has(creature.id)) }, mother)
     if (!father || scheduledRest(world, father) || Math.hypot(father.x - mother.x, father.z - mother.z) > 0.3 || predatorThreat(world, mother)) {
       life.partnerId = null; life.courtship = 0
+      // A mated female keeps sperm and can brood again without a male (Armadillidium vulgare;
+      // Moreau & Rigaud 2003), so a jar whose last male died still raises a generation or two.
+      const nursery = nearestSoil(soil, mother.x, mother.z)
+      if (!father && (life.stored ?? 0) > 0 && populations.woodlouse < creatureLimits.woodlouse && mother.stage !== 'juvenile' && life.mass >= 0.2 && life.hydration >= 45 && mother.energy >= 70
+        && !predatorThreat(world, mother) && nursery.organic >= 0.11 + 0.05 && litterMoisture(nursery) >= 0.45) {
+        const brood = Math.min(2, creatureLimits.woodlouse - populations.woodlouse) * 0.055
+        nursery.organic -= brood
+        life.brood = brood
+        life.gestation = 24
+        life.stored = (life.stored ?? 0) - 1
+        life.activity = 'brooding'
+        mother.energy -= 8
+      }
       continue
     }
     life.courtship = life.partnerId === father.id ? life.courtship + 1 : 1
@@ -930,6 +994,7 @@ export function simulateStep(world: World): StepResult {
       life.courtship = 0; life.partnerId = null; life.activity = 'brooding'
       father.life!.courtship = 0; father.life!.partnerId = null; father.life!.activity = 'resting'
       mother.energy -= 8; father.energy -= 8
+      life.stored = storedBroods
       events.push({ type: 'mating', kind: 'woodlouse', motherId: mother.id, fatherId: father.id })
     }
   }
@@ -939,7 +1004,7 @@ export function simulateStep(world: World): StepResult {
     if (populations[kind] >= creatureLimits[kind] || creature.energy < 82 || creature.stage === 'juvenile' || predatorThreat(world, creature) || scheduledRest(world, creature)) continue
     if (kind === 'springtail') {
       const nursery = fungusTarget(soil, creature)
-      if (!nursery || litterMoisture(nursery) < 0.6 || nursery.fungi < bodyMaterial.springtail + 0.2 || Math.hypot(nursery.x - creature.x, nursery.z - creature.z) > 0.3) continue
+      if (!nursery || litterMoisture(nursery) < 0.6 || nursery.fungi < bodyMaterial.springtail + fungalRefuge + 0.1 || Math.hypot(nursery.x - creature.x, nursery.z - creature.z) > 0.3) continue
       nursery.fungi -= bodyMaterial.springtail
     } else {
       const nursery = plants.find((plant) => plantTraits[plant.kind].palatability > 0.5 && plant.biomass > 1.35 && Math.hypot(plant.x - creature.x, plant.z - creature.z) < 0.32)
@@ -974,9 +1039,14 @@ export function simulateStep(world: World): StepResult {
     // The pond surface is small: floating and rooted pond plants fill at most a third of the jar's plant slots,
     // so a spreading frogbit mat cannot crowd every land seedling out (2026-11-20).
     if (isAquatic(parent.kind) && [...plants, ...seedlings].filter((plant) => isAquatic(plant.kind)).length >= aquaticPlantLimit) continue
+    // Conspecific crowding: seedlings near many of their own kind meet its pests and pathogens
+    // (Janzen-Connell; Comita et al. 2014), so no land plant fills more than a quarter of the jar (2026-11-20).
+    if (!isAquatic(parent.kind) && [...plants, ...seedlings].filter((plant) => plant.kind === parent.kind).length >= kindLimit(parent.kind)) continue
     const traits = plantTraits[parent.kind]
     const conditions = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, parent.x, parent.z), plantLight(world, parent), humidAir(world))
-    if (conditionFit(conditions) < 0.45) continue
+    // A plant just holding its own still sets a little seed (2026-11-20; was 0.45, which a sun-loving grass in a
+    // windowsill jar never reached, so it aged out without young).
+    if (conditionFit(conditions) < 0.38) continue
     let chance: number
     ;[seed, chance] = random(seed)
     if (chance > traits.spread) continue
@@ -998,19 +1068,31 @@ export function simulateStep(world: World): StepResult {
     events.push({ type: 'birth', id: nextPlantId - 1, kind: parent.kind, parentId: parent.id })
   }
 
+  for (const sown of selfSown) {
+    if (plants.length + seedlings.length >= 32) break
+    seedlings.push({ ...sown, id: nextPlantId++ })
+    events.push({ type: 'birth', id: nextPlantId - 1, kind: sown.kind, parentId: sown.parentId ?? -1 })
+  }
+
   // Sun and the open air remove water from every equal-area patch.
   // A narrower neck loses less (jar shapes, 2026-11-20); a sealed jar's vapour comes back as condensation.
   const drying = dryingFactor(world.substrate?.glass)
   for (const patch of soil) patch.water = Math.max(0, patch.water - (0.08 + lightAt({ ...world, plants }, patch.x, patch.z) * 0.10) * rate * drying)
   pond = { ...pond, water: aquaticSoil.water, nutrients: aquaticSoil.nutrients, organic: aquaticSoil.organic }
-  const aquatic = stepPond(pond, world.creatures.filter((creature) => isAquatic(creature.kind)), environment.light, { ...climate, temperatureC: temperature }, seed, nextId, world.tick, carbon, breath)
+  // Pond algae also draw on the water's dissolved bicarbonate, a far larger store than the jar air's CO2,
+  // so a sealed jar's midday CO2 dip slows them less than leaves (Maberly & Gontero 2017, J Exp Bot 68:3797).
+  const pondCarbon = world.sealed ? Math.max(carbon, Math.min(1, carbonFit(world)) * 0.7) : carbon
+  const aquatic = stepPond(pond, world.creatures.filter((creature) => isAquatic(creature.kind)), environment.light, { ...climate, temperatureC: temperature }, seed, nextId, world.tick, pondCarbon, breath)
   events.push(...aquatic.events)
   for (const body of aquatic.bodies) depositBody(body)
 
   const residents = resolveWoodlouseContacts([...survivors, ...hunters.filter((hunter) => hunter.energy > 0), ...newborns, ...aquatic.creatures])
   const nextWorld = withSoil({ ...world, tick: world.tick + 1, seed: aquatic.seed, pond: aquatic.pond, remains, nextCreatureId: aquatic.nextId, nextPlantId, grazed, plants: [...plants, ...seedlings], creatures: residents }, soil)
   const ants = stepAntColony(nextWorld, environment)
-  return { world: closeJar(opening, ants.world), events: [...events, ...ants.events] }
+  // Fleas and springtails that die leave resting eggs; the eggs hatch when food returns (dormancy.ts).
+  const dormant = layRestingEggs(world.dormant, events)
+  const hatched = hatchRestingEggs(Object.keys(dormant).length ? { ...ants.world, dormant } : ants.world)
+  return { world: closeJar(opening, hatched.world), events: [...events, ...ants.events, ...hatched.events] }
 }
 
 export function stepWorld(world: World): World {

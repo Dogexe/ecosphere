@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWorld, creatureCounts, creatureIsFeeding, introduceLife, intervene, isLand, stepWorld } from '../src/sim/ecosystem.ts'
+import { createWorld, creatureCounts, creatureIsFeeding, creatureLimits, introduceLife, intervene, isLand, stepWorld } from '../src/sim/ecosystem.ts'
 
 function habitat({ water = 75, organic = 12, energy = 40 } = {}) {
   const base = createWorld()
@@ -88,8 +88,8 @@ test('each animal role has its own cap', () => {
   const grazers = Array.from({ length: 7 }, (_, id) => ({ id, kind: 'grazer', x: 1, z: -1, energy: 50, heading: 0 }))
   const introduced = introduceLife({ ...base, creatures: grazers }, 'woodlouse', -1.4, 2.5)
   assert.deepEqual(creatureCounts(introduced.creatures), { grazer: 7, woodlouse: 1, beetle: 0, springtail: 0, flea: 0, fish: 0, snail: 0, shrimp: 0 })
-  const full = { ...base, creatures: Array.from({ length: 4 }, (_, id) => ({ ...base.creatures[0], id, energy: 95 })) }
-  assert.equal(stepWorld(full).creatures.length, 4)
+  const full = { ...base, creatures: Array.from({ length: creatureLimits.woodlouse }, (_, id) => ({ ...base.creatures[0], id, energy: 95 })) }
+  assert.equal(stepWorld(full).creatures.length, creatureLimits.woodlouse)
   assert.equal(introduceLife(full, 'woodlouse', 1.7, -1.7), full)
 })
 

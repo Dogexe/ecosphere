@@ -48,7 +48,8 @@ test('senescence ends in material-backed remains which decay gradually in the sa
   const plant = { ...base.plants[0], age: plantLifetime[base.plants[0].kind] - 1 }
   assert.equal(plantStage(plant), 'senescent')
   const result = simulateStep({ ...base, plants: [plant], creatures: [] })
-  assert.equal(result.world.plants.length, 0)
+  // An annual that dies of age with seed set sows itself where it stood (closed-jar pass, 2026-11-20).
+  assert.equal(result.world.plants.filter((item) => item.id === plant.id).length, 0)
   assert.ok(result.events.some((e) => e.type === 'death' && e.reason === 'age'))
   const remains = result.world.remains
   assert.equal(remains.length, 1)
@@ -110,17 +111,22 @@ test('courtship requires a pair, gestation delays birth, and offspring carry fun
 
 test('the playable forest start supports an observable brooded generation growing into adulthood', () => {
   let world = createHabitatWorld('woodland', 2217)
-  let childId = null
+  const born = []
   for (let i = 0; i < 70; i++) {
     const result = simulateStep(world)
-    const birth = result.events.find((event) => event.type === 'birth' && event.kind === 'woodlouse')
-    if (birth) { childId = birth.id; assert.equal(result.world.creatures.find((c) => c.id === childId).stage, 'juvenile') }
+    for (const birth of result.events.filter((event) => event.type === 'birth' && event.kind === 'woodlouse')) {
+      born.push(birth.id); assert.equal(result.world.creatures.find((c) => c.id === birth.id).stage, 'juvenile')
+    }
     world = result.world
   }
-  assert.notEqual(childId, null)
+  assert.ok(born.length > 0)
+  // Follow a young one that lives on: not every juvenile in a jar reaches adulthood.
+  const later = advance(world, 170)
+  const childId = born.find((id) => later.creatures.some((c) => c.id === id))
+  assert.notEqual(childId, undefined)
   const young = world.creatures.find((c) => c.id === childId)
   assert.ok(young.life.mass < 0.2)
-  const adult = advance(world, 170).creatures.find((c) => c.id === childId)
+  const adult = later.creatures.find((c) => c.id === childId)
   assert.equal(adult.stage, 'adult')
   assert.ok(adult.life.mass > young.life.mass)
   assert.notEqual(adult.life.parentId, null)

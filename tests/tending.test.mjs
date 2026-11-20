@@ -21,7 +21,7 @@ const organic = (world) => world.soil.reduce((sum, patch) => sum + patch.organic
 const biomass = (world) => world.plants.reduce((sum, plant) => sum + plant.biomass, 0)
 
 test('misting wets the surface a little and keeps the air humid for a few hours, which moss drinks', () => {
-  const dry = run(starter(), 10 * 24)
+  const dry = run(starter(), 7 * 24)
   const misted = mist(dry)
   assert.ok(misted.water > dry.water && misted.water - dry.water <= 4.01)
   assert.ok(humidAir(misted) && !humidAir(dry))
@@ -46,7 +46,8 @@ test('a cutting moves part of a healthy plant into a rooted young plant of the s
   const grown = run(starter(), 5 * 24)
   const parent = grown.plants.find((item) => !['moss', 'lily', 'reed'].includes(item.kind) && canTakeCutting(item))
   assert.ok(parent)
-  assert.equal(takeCutting(grown, parent.id).plants.length, grown.plants.length, 'a full jar (32 plants) has no room')
+  const full = { ...grown, plants: [...grown.plants, ...Array.from({ length: Math.max(0, 32 - grown.plants.length) }, (_, n) => ({ ...grown.plants[0], id: 1000 + n }))] }
+  assert.equal(takeCutting(full, parent.id).plants.length, full.plants.length, 'a full jar (32 plants) has no room')
   const world = { ...grown, plants: grown.plants.filter((item, n) => item.id === parent.id || n < 20) }
   const next = takeCutting(world, parent.id)
   assert.equal(next.plants.length, world.plants.length + 1)
