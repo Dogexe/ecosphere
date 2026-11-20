@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { entryDay, entryTime, pageById, pages, progress } from './sim/notebook'
 import type { Notebook, PageKind } from './sim/notebook'
+import { goals, unlockName } from './sim/goals'
+import type { GoalLog } from './sim/goals'
 
-type Props = { open: boolean; notebook: Notebook; focusPage: string | null; onClose: () => void; onWrite: (text: string) => void }
+type Props = { open: boolean; notebook: Notebook; goalLog?: GoalLog; focusPage: string | null; onClose: () => void; onWrite: (text: string) => void }
 
 const sections: { kind: PageKind; title: string }[] = [
   { kind: 'species', title: 'Who lives here' },
@@ -15,9 +17,9 @@ const dateLabel = (at: number) => new Date(at).toLocaleDateString(undefined, { w
  * The field notebook: every page is something the player actually saw in the
  * jar, with a real-world note and its sources. Blank pages say where to look.
  */
-export function FieldNotebook({ open, notebook, focusPage, onClose, onWrite }: Props) {
+export function FieldNotebook({ open, notebook, goalLog = {}, focusPage, onClose, onWrite }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [tab, setTab] = useState<'pages' | 'journal'>('pages')
+  const [tab, setTab] = useState<'pages' | 'goals' | 'journal'>('pages')
   const [page, setPage] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
 
@@ -38,6 +40,7 @@ export function FieldNotebook({ open, notebook, focusPage, onClose, onWrite }: P
         <div className="experiment-heading"><span className="eyebrow">FIELD NOTEBOOK · {total.found} OF {total.total} PAGES</span><form method="dialog"><button className="dialog-close" type="submit" aria-label="Close">×</button></form></div>
         <div className="notebook-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={tab === 'pages'} className={tab === 'pages' ? 'active' : ''} onClick={() => { setTab('pages'); setPage(null) }}>Pages</button>
+          <button type="button" role="tab" aria-selected={tab === 'goals'} className={tab === 'goals' ? 'active' : ''} onClick={() => setTab('goals')}>Goals {goals.filter((goal) => goalLog[goal.id]).length}/{goals.length}</button>
           <button type="button" role="tab" aria-selected={tab === 'journal'} className={tab === 'journal' ? 'active' : ''} onClick={() => setTab('journal')}>Journal</button>
         </div>
 
@@ -76,6 +79,22 @@ export function FieldNotebook({ open, notebook, focusPage, onClose, onWrite }: P
               </section>
             )
           })}
+        </>}
+
+        {tab === 'goals' && <>
+          <h2 id="notebook-title">Field goals.</h2>
+          <p className="experiment-intro">Things worth seeing, in an order that teaches the jar. Each one gives you an odd object for the soil or a new shape of glass. Like the notebook, they stay yours across jars.</p>
+          <ol className="goal-list">
+            {goals.map((goal, index) => {
+              const done = goalLog[goal.id]
+              const next = !done && goals.slice(0, index).every((item) => goalLog[item.id])
+              return <li key={goal.id} className={done ? 'done' : next ? 'next' : ''}>
+                <span className="goal-mark" aria-hidden="true">{done ? '✓' : index + 1}</span>
+                <span><strong>{goal.title}</strong><small>{done ? `Reached on ${dateLabel(done.at)}, day ${Math.floor(done.tick / 24) + 1} of that jar.` : goal.hint}</small></span>
+                <span className="goal-unlock">{done ? 'Unlocked' : 'Unlocks'}<b>{unlockName(goal.unlock)}</b></span>
+              </li>
+            })}
+          </ol>
         </>}
 
         {tab === 'journal' && <>

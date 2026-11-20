@@ -783,3 +783,36 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .mode-rail button.active { background: #f6efdc; color: #23402c; }
 .mode-rail button:disabled { opacity: 0.45; cursor: default; }
 @media (max-width: 760px) { .mode-rail { top: auto; bottom: 12px; left: 50%; transform: translateX(-50%); flex-direction: row; } .mode-rail button { min-width: 0; padding: 0 14px; } }
+
+/* Field goals and odd objects (systems pass item 3, 2026-11-20). */
+.goal-line { display: grid; gap: 2px; width: 100%; margin: 14px 0 0; padding: 9px 11px; border: 1px dashed #d6c39d; border-radius: 10px; background: rgba(255, 250, 238, .6); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.goal-line span { color: #9a7b45; font-size: 9px; letter-spacing: .14em; font-weight: 600; }
+.goal-line strong { font-size: 12.5px; }
+.goal-line small { font-size: 10.5px; line-height: 1.4; opacity: .8; }
+.goal-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.goal-list li { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid #e4d7bd; border-radius: 10px; background: #fbf6ea; opacity: .62; }
+.goal-list li.next { opacity: 1; border-color: #d6a24f; }
+.goal-list li.done { opacity: 1; background: #f1f5e9; border-color: #c9d8b6; }
+.goal-list li > span:nth-child(2) { display: grid; gap: 2px; }
+.goal-list strong { font-size: 13px; }
+.goal-list small { font-size: 11px; line-height: 1.4; color: #85705a; }
+.goal-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #efe3c8; color: #85705a; font-size: 12px; font-weight: 700; }
+.goal-list li.done .goal-mark { background: #6e8b5c; color: #fff; }
+.goal-unlock { display: grid; justify-items: end; gap: 1px; font-size: 9.5px; letter-spacing: .06em; color: #9a7b45; text-transform: uppercase; }
+.goal-unlock b { font-size: 11.5px; letter-spacing: 0; text-transform: none; color: #4b3a2a; }
+@media (max-width: 560px) { .goal-list li { grid-template-columns: 26px 1fr; } .goal-unlock { grid-column: 2; justify-items: start; } }
+.nursery-subhead { margin-top: 16px; }
+.object-icon { flex: none; display: block; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 12%, #c9bba0 13% 100%); }
+.object-icon.stone { background: radial-gradient(circle at 35% 30%, #d9d4ca 0 15%, #8f8a80 60%, #6c675f 100%); border-radius: 46% 54% 50% 50%; }
+.object-icon.log { border-radius: 6px; background: linear-gradient(90deg, #7a5536, #a57a52 50%, #7a5536); transform: rotate(-30deg) scaleY(.45); }
+.object-icon.marble { background: radial-gradient(circle at 34% 30%, #fff 0 10%, rgba(214, 238, 236, .9) 11% 40%, #4b93b8 41% 52%, #e2a13c 53% 62%, rgba(206, 232, 228, .9) 63%); box-shadow: inset 0 0 0 1px rgba(80, 120, 120, .3); }
+.object-icon.shell { background: repeating-radial-gradient(circle at 60% 55%, #e8d79a 0 3px, #5a3a22 3px 5px); border-radius: 55% 45% 50% 50%; }
+.object-icon.acorn { border-radius: 50% 50% 46% 46% / 40% 40% 60% 60%; background: linear-gradient(180deg, #7a6646 0 34%, #a8743a 35%); }
+.object-icon.leaf { border-radius: 0 70% 0 70%; background: linear-gradient(135deg, #b8864a, #8c5f32); }
+.object-icon.crystal { border-radius: 2px; clip-path: polygon(50% 0, 82% 22%, 82% 100%, 18% 100%, 18% 22%); background: linear-gradient(90deg, #e7edf3, #fff 45%, #c9d3dc); }
+.glass-picker { margin: 18px 0 6px; }
+.glass-picker > p { margin: 4px 0 10px; font-size: 12px; opacity: .8; }
+.glass-picker .recipe-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.glass-picker button { display: grid; gap: 2px; text-align: left; }
+.glass-picker button small { font-size: 10px; font-weight: 400; opacity: .75; }
+.glass-picker button.active { outline: 2px solid #6e8b5c; }

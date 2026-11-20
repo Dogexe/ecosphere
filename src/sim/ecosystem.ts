@@ -9,6 +9,7 @@ import { clearMissingAntGoals, stepAntColony } from './colony.ts'
 import type { AntEvent } from './colony'
 import { carbonFit, carbonShare, closeJar, mineralShare, oxygenFit } from './seal.ts'
 import type { SavedSubstrate } from './substrate.ts'
+import { dryingFactor } from './substrate.ts'
 import type { Seal } from './seal'
 export { isLand } from './land.ts'
 export type PlantKind = 'clover' | 'fern' | 'bloom' | 'moss' | 'grass' | 'tree' | 'lily' | 'reed'
@@ -993,7 +994,9 @@ export function simulateStep(world: World): StepResult {
   }
 
   // Sun and the open air remove water from every equal-area patch.
-  for (const patch of soil) patch.water = Math.max(0, patch.water - (0.08 + lightAt({ ...world, plants }, patch.x, patch.z) * 0.10) * rate)
+  // A narrower neck loses less (jar shapes, 2026-11-20); a sealed jar's vapour comes back as condensation.
+  const drying = dryingFactor(world.substrate?.glass)
+  for (const patch of soil) patch.water = Math.max(0, patch.water - (0.08 + lightAt({ ...world, plants }, patch.x, patch.z) * 0.10) * rate * drying)
   pond = { ...pond, water: aquaticSoil.water, nutrients: aquaticSoil.nutrients, organic: aquaticSoil.organic }
   const aquatic = stepPond(pond, world.creatures.filter((creature) => isAquatic(creature.kind)), environment.light, { ...climate, temperatureC: temperature }, seed, nextId, world.tick, carbon, breath)
   events.push(...aquatic.events)

@@ -1,5 +1,14 @@
 # ECOSPHERE development progress
 
+## Field goals and unlocks (plan item 3) — 2026-11-20
+
+The notebook now has direction. `src/sim/goals.ts` holds eight field goals in an order that teaches the jar (a week of green, woodlice pair up, first flowers, a new woodlouse, a sealed jar reaching its goal, the ants dig a chamber, 20 notebook pages, two months sealed). They are read from the notebook and the jar, stored with the notebook (key `ecosphere.notebook`, field `goals`, so they stay with the player across jars), and each unlocks something:
+
+- Odd objects for the soil (`src/scene/OddObjects.tsx`, procedural real geometry at the 19 mm scale, no new assets): a 16 mm glass marble, an empty banded wood-snail shell (Cepaea), an oak acorn in its cup, a fallen leaf (existing Poly Haven scan), a quartz point cluster. Placed from Introduce life → Odd objects in any open poured jar (tap again to take out; max 20) and from the jar builder.
+- Glass shapes (`JarSetting.tsx` glassForms): bubble bowl, apothecary jar, wide bowl, chosen in Environment → The glass. All keep the squat jar's footprint and lower wall, so soil and pond are untouched. Open jars dry through the opening: drying = 0.4 + 0.6 × opening area (bubble 0.67, apothecary 0.76, squat 1, wide 1.15); stored as `substrate.glass`.
+
+The overview shows the next goal and opens the notebook's new Goals tab. Reaching a goal writes a journal line and a toast. 290 tests pass (5 new in tests/goals.test.mjs).
+
 ## Early care warnings (plan item 2) — 2026-11-20
 
 The jar now says what is about to go wrong while there is still time. `src/sim/care.ts` runs the unchanged simulation 48 model hours ahead on a copy, with no player action, and reports what would die or fail (ageing out excluded), why (drying, waterlogged, too dim/bright, cold/hot, poor soil, stale sealed air, pond drying or out of oxygen, too little food for animals or the colony) and the one action that answers it. The field notes show up to three warnings under the headline (urgent = loss within 24 h), each with a one-tap action (Add water, Add compost, Refill the pond, Add pond litter, Move into shade, Give more light, Lift the lid, Open the seal, Adjust warmth); tapping the text selects the plant or animal. A new urgent warning also shows as a toast while time runs. On phones the collapsed sheet shows the top warning. The forecast refreshes every 6 model hours or when water, light, the pond, the seal or the population change (about 10-30 ms).

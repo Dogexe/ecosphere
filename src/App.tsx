@@ -34,8 +34,11 @@ import { AwayPanel } from './AwayPanel'
 import { FieldNotebook } from './FieldNotebook'
 import { observe, pageById, progress, readNotebook, writeEntry, writeNotebook } from './sim/notebook'
 import type { Notebook } from './sim/notebook'
-import { applySoilInput, beetleIsHunting, dominantLimit, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
+import { applySoilInput, isLand, beetleIsHunting, dominantLimit, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
 import { adviceText, careForecast } from './sim/care'
+import { decodeGoals, glassNames, objectNames, openGoals, reachGoals, unlockName, unlockedGlass, unlockedObjects } from './sim/goals'
+import { oddObjectSize } from './scene/OddObjects'
+import type { DecorKind, JarShape } from './sim/substrate'
 import type { CareAdvice, CareAlert } from './sim/care'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
 
@@ -136,7 +139,7 @@ export function App() {
   const [nurseryOpen, setNurseryOpen] = useState(false)
   // Cozy phone HUD: field notes sit in a pull-up sheet over the jar.
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [tool, setTool] = useState<Lifeform | 'colony' | null>(null)
+  const [tool, setTool] = useState<Lifeform | 'colony' | `object:${DecorKind}` | null>(null)
   const [experimentsOpen, setExperimentsOpen] = useState(false)
   const [observatoryOpen, setObservatoryOpen] = useState(false)
   const [sealOpen, setSealOpen] = useState(false)
@@ -347,9 +350,18 @@ export function App() {
   // The notebook reads every step the player sees; it never changes the world.
   useEffect(() => {
     if (awayRun.current) return
-    const result = observe(notebookRef.current, session.world, session.events, Date.now())
-    note(result.notebook)
-    if (result.found.length) { setFreshPage(result.found[result.found.length - 1]); setNotice(`New notebook page: ${pageById.get(result.found[result.found.length - 1])!.title}`) }
+    const now = Date.now()
+    const result = observe(notebookRef.current, session.world, session.events, now)
+    // Field goals read the notebook and the jar; reaching one unlocks an odd object or a glass shape.
+    const goals = reachGoals(decodeGoals(result.notebook.goals), result.notebook, session.world, now)
+    let next = result.notebook
+    if (goals.reached.length) {
+      next = { ...next, goals: goals.log }
+      for (const goal of goals.reached) next = writeEntry(next, session.world, 'jar', `Goal reached: ${goal.title}. Unlocked: ${unlockName(goal.unlock)}.`, now)
+    }
+    note(next)
+    if (goals.reached.length) { const goal = goals.reached[goals.reached.length - 1]; setNotice(`Goal reached: ${goal.title}. Unlocked: ${unlockName(goal.unlock)}${goal.unlock.kind === 'object' ? ' (in Introduce life)' : ' (in Environment)'}.`) }
+    else if (result.found.length) { setFreshPage(result.found[result.found.length - 1]); setNotice(`New notebook page: ${pageById.get(result.found[result.found.length - 1])!.title}`) }
   }, [session])
 
   function care(advice: CareAdvice) {
@@ -422,7 +434,7 @@ export function App() {
     setNurseryOpen(false); setTool(null); setUnderwater(false); setUnderground(true)
   }
 
-  function chooseTool(kind: Lifeform | 'colony') {
+  function chooseTool(kind: Lifeform | 'colony' | `object:${DecorKind}`) {
     setTool(kind)
     if (window.matchMedia('(max-width: 760px)').matches) {
       scene.current?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
@@ -439,9 +451,26 @@ export function App() {
       setNotice(antFoodSources(world.plants, x, z).length ? 'The colony arrives near a seed-bearing patch. Look inside, then press 1× to begin.' : 'The colony arrives with initial stores, but no seed-bearing patch is nearby yet. Inspect its food patches before starting.')
       return
     }
-    const issue = placementIssue(world, tool, x, z)
+    if (tool.startsWith('object:')) {
+      const kind = tool.slice(7) as DecorKind
+      if (!world.substrate) { setNotice('Objects can be set in a poured jar.'); return }
+      const decor = world.substrate.decor
+      const hit = decor.findIndex((item) => Math.hypot(item.x - x, item.z - z) < Math.max(0.3, item.size * 0.5))
+      if (hit >= 0) {
+        setWorld((current) => current.substrate ? { ...current, substrate: { ...current.substrate, decor: current.substrate.decor.filter((_, n) => n !== hit) } } : current)
+        setNotice(`You took the ${objectNames[decor[hit].kind].name.toLowerCase()} out.`); return
+      }
+      if (!isLand(x, z) || Math.hypot(x, z) > 3.35) { setNotice('Choose open ground inside the rim.'); return }
+      if (decor.length >= 20) { setNotice('The jar is full of objects. Tap one to take it out first.'); return }
+      const size = kind === 'stone' ? 0.8 + ((decor.length * 37) % 7) / 10 : kind === 'log' ? 1.4 : oddObjectSize[kind] ?? 1
+      setWorld((current) => current.substrate ? { ...current, substrate: { ...current.substrate, decor: [...current.substrate.decor, { kind, x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100, size, turn: Math.round(((decor.length * 2.39) % (Math.PI * 2)) * 100) / 100 }] } } : current)
+      setNotice(`${objectNames[kind].name} set in the soil. Tap it again with the same tool to take it out.`)
+      return
+    }
+    const life = tool as Lifeform
+    const issue = placementIssue(world, life, x, z)
     if (issue) { setNotice(issue); return }
-    setWorld((current) => introduceLife(current, tool, x, z))
+    setWorld((current) => introduceLife(current, life, x, z))
     setNotice(tool === 'grazer' ? 'A forager arrives, ready to explore.' : tool === 'woodlouse' ? 'A woodlouse arrives to forage in fallen leaves.' : tool === 'beetle' ? 'A ground beetle arrives. Nearby prey will keep their distance.' : tool === 'springtail' ? 'A springtail arrives. It needs living fungi and moist ground.' : tool === 'fish' ? 'A fish arrives. It needs oxygen and water fleas to hunt.' : tool === 'flea' ? 'A water flea arrives. Algae supply its meals.' : tool === 'snail' ? 'A ramshorn snail glides onto the pond bed to graze algae and detritus.' : tool === 'shrimp' ? 'A cherry shrimp settles on the pond bed and starts picking at the biofilm.' : 'A propagule settles here. Moisture and suitable conditions let it develop.')
   }
 
@@ -507,6 +536,9 @@ export function App() {
 
   const status = statusFor(world)
   const pond = world.pond ?? defaultPond()
+  const goalLog = decodeGoals(notebook.goals)
+  const objects = unlockedObjects(goalLog)
+  const nextGoal = openGoals(goalLog, 1)[0]
   // Early warnings: a 48 h look-ahead on a copy of the jar, refreshed every 6 model hours
   // or as soon as the player changes something it depends on (systems pass, 2026-11-20).
   const careKey = `${Math.floor(world.tick / 6)}|${Math.round(world.water)}|${Math.round(world.nutrients)}|${world.light.toFixed(2)}|${Math.round(pond.water)}|${Math.round(pond.organic)}|${world.plants.length}|${world.creatures.length}|${world.sealed ? world.sealed.airings : 'open'}|${world.climate?.temperatureC ?? 22}`
@@ -613,7 +645,13 @@ export function App() {
               ))}
               {!underwater && <button className={`nursery-card ${tool === 'colony' ? 'chosen' : ''}`} type="button" aria-pressed={tool === 'colony'} disabled={!!world.colony} onClick={() => chooseTool('colony')}><span className="colony-symbol" aria-hidden="true">♧</span><span><strong>Ant colony</strong><small>Queen · seed harvesters</small></span></button>}
             </div>
-            <p className="nursery-help">Choose a lifeform, then tap {underwater || tool && tool !== 'colony' && isAquatic(tool) ? 'open water' : 'open ground'}. Its new life follows the conditions here.</p>
+            {!underwater && world.substrate && <>
+              <div className="panel-kicker nursery-subhead">ODD OBJECTS · {objects.length - 2} OF 5 FOUND</div>
+              <div className="nursery-grid" role="group" aria-label="Choose an object to set in the soil">
+                {objects.map((kind) => <button key={kind} className={`nursery-card ${tool === `object:${kind}` ? 'chosen' : ''}`} type="button" aria-pressed={tool === `object:${kind}`} disabled={sealed} onClick={() => chooseTool(`object:${kind}`)}><span className={`object-icon ${kind}`} aria-hidden="true" /><span><strong>{objectNames[kind].name}</strong><small>{objectNames[kind].note}</small></span></button>)}
+              </div>
+            </>}
+            <p className="nursery-help">{tool?.startsWith('object:') ? 'Tap open ground to set it down; tap a placed object to take it out. Field goals unlock more.' : <>Choose a lifeform, then tap {underwater || tool && tool !== 'colony' && isAquatic(tool as Lifeform) ? 'open water' : 'open ground'}. Its new life follows the conditions here.</>}</p>
             <button className="back-link" onClick={toggleNursery} type="button">← Back to observing</button>
           </div>
         ) : focusedRemains ? <RemainsPanel remains={focusedRemains} onBack={() => { clearSelection(); setSelectedColony(!!world.colony && underground) }} /> : selectedColony && world.colony ? <ColonyPanel sealed={sealed}
@@ -709,6 +747,7 @@ export function App() {
               <Meter label="Leaf cover" value={plantVitality} display={`${plantVitality}%`} />
               <Meter label="Soil nutrients" value={world.nutrients} display={`${Math.round(world.nutrients)} units`} tone="gold" />
             </div>
+            {nextGoal && <button className="goal-line" type="button" onClick={() => { setNotebookFocus(null); setNotebookOpen(true) }}><span>NEXT GOAL</span><strong>{nextGoal.title}</strong><small>{nextGoal.hint} Unlocks: {unlockName(nextGoal.unlock)}.</small></button>}
             <div className="panel-foot"><span><b>{populations.grazer + populations.flea}</b> grazers · <b>{populations.woodlouse + populations.springtail}</b> recyclers</span><span><b>{populations.beetle + populations.fish}</b> hunters</span></div>
             {world.creatures.length > 0 && <button className="back-link" type="button" onClick={() => { const resident = world.creatures.find((creature) => creature.stage === 'juvenile') ?? world.creatures[0]; setSelectedCreature(resident.id); setFollowCreature(resident.id) }}>Watch an animal →</button>}
           </>
@@ -745,13 +784,13 @@ export function App() {
       {catchingUp && <div className="away-catchup" role="status" aria-live="polite"><div><span className="eyebrow">WELCOME BACK</span><strong>The jar is catching up on the time you were away…</strong><div className="seal-progress"><i className="running" style={{ width: `${Math.round(catchingUp.done / catchingUp.total * 100)}%` }} /></div></div></div>}
       <AwayPanel report={awayReport} onClose={() => setAwayReport(null)} onWatch={() => { setAwayReport(null); setSpeed(1) }} onObserve={() => { setAwayReport(null); setObservatoryOpen(true) }} />
       <SealPanel open={sealOpen} world={world} onClose={() => setSealOpen(false)} onSeal={(goalDays) => { setWorld((current) => sealWorld(current, goalDays)); setSealOpen(false); setNurseryOpen(false); setTool(null); setNotice(`Sealed for ${goalDays} days. Press 1× or 3× to let time run.`) }} onUnseal={() => { setWorld((current) => unsealWorld(current)); setSealOpen(false); setNotice('The seal is open. You can tend the world again.') }} onAir={() => { setWorld((current) => airJar(current)); setNotice('You lifted the lid for a moment. Fresh room air is inside; the seal is back on.') }} onObserve={() => { setSealOpen(false); setObservatoryOpen(true) }} />
-      <FieldNotebook open={notebookOpen} notebook={notebook} focusPage={notebookFocus} onClose={() => { setNotebookOpen(false); setNotebookFocus(null) }} onWrite={(text) => note(writeEntry(notebookRef.current, world, 'note', text))} />
+      <FieldNotebook open={notebookOpen} notebook={notebook} goalLog={goalLog} focusPage={notebookFocus} onClose={() => { setNotebookOpen(false); setNotebookFocus(null) }} onWrite={(text) => note(writeEntry(notebookRef.current, world, 'note', text))} />
       <Observatory open={observatoryOpen} history={history} onClose={() => setObservatoryOpen(false)} />
       <ExperimentBook open={experimentsOpen} world={world} onClose={() => setExperimentsOpen(false)} onLoad={restore} />
       <WorldStart open={worldStartOpen} onClose={() => setWorldStartOpen(false)} onBegin={(start, seed) => begin(start, seed)} onBuild={paperLook ? () => { setWorldStartOpen(false); setSpeed(0); setBuilding(true) } : undefined} onKeep={() => { setWorldStartOpen(false); setExperimentsOpen(true) }} />
       <SoilMixture open={mixtureOpen} patchId={selectedSoil} onClose={() => setMixtureOpen(false)} onApply={mix} />
-      {building && <JarBuilder onFinish={beginBuilt} onCancel={() => setBuilding(false)} />}
-      <Environment open={environmentOpen} world={world} sealed={sealed} onClose={() => setEnvironmentOpen(false)} onAct={(action) => { setWorld((current) => intervene(current, action)) }} />
+      {building && <JarBuilder objects={objects} onFinish={beginBuilt} onCancel={() => setBuilding(false)} />}
+      <Environment open={environmentOpen} world={world} sealed={sealed} glassShapes={unlockedGlass(goalLog)} onGlass={(glass: JarShape) => { setWorld((current) => current.substrate ? { ...current, substrate: { ...current.substrate, glass: glass === 'squat' ? undefined : glass } } : current); setNotice(`Your jar is now a ${glassNames[glass].name.toLowerCase()}.`) }} onClose={() => setEnvironmentOpen(false)} onAct={(action) => { setWorld((current) => intervene(current, action)) }} />
     </main>
   )
 }

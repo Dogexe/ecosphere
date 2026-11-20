@@ -6,8 +6,9 @@ import { nearestSoil, plantMoisture } from '../sim/ecosystem'
 import type { SoilPatch } from '../sim/ecosystem'
 import { environmentScale, groundShape } from './scale'
 import { cellX, inside, layerDepths, loadSubstrate, substrateSize, topAt } from '../sim/substrate'
-import type { Decor, SavedSubstrate } from '../sim/substrate'
+import type { Decor, JarShape, SavedSubstrate } from '../sim/substrate'
 import { isPresetJar } from '../sim/substrate'
+import { OddObject } from './OddObjects'
 import { maskShape } from '../sim/pondShape'
 import type { PondShape } from '../sim/pondShape'
 import type { Pond } from '../sim/pond'
@@ -52,13 +53,23 @@ const gravelBottom = charcoalBottom - jarLayers.gravel
  * neck.
  */
 const wall = R + 0.12
-const belly = 0
-const bellyTop = top + 2.0
-const neck = top + 3.1
-const neckRadius = R * 0.93
-const glassTop = neck + 0.35
+/**
+ * Other glass shapes the field goals unlock (2026-11-20). All keep the squat jar's
+ * footprint and straight lower wall, so the ground and pond fit unchanged; they
+ * differ above the soil: a round bubble bowl with a small mouth, a tall apothecary
+ * jar, a low wide-mouthed bowl.
+ */
+type GlassForm = { belly: number; bellyTop: number; neck: number; neckRadius: number; glassTop: number }
+const form = (belly: number, bellyTop: number, neck: number, neckRadius: number): GlassForm => ({ belly, bellyTop: top + bellyTop, neck: top + neck, neckRadius, glassTop: top + neck + 0.35 })
+const glassForms: Record<JarShape, GlassForm> = {
+  squat: form(0, 2.0, 3.1, R * 0.93),
+  globe: form(0.45, 1.4, 4.1, R * 0.62),
+  apothecary: form(0, 3.3, 4.3, R * 0.72),
+  wide: form(0, 2.2, 2.75, wall - 0.03),
+}
 /** The glass radius at height y. */
-export function glassRadiusAt(y: number) {
+export function glassRadiusAt(y: number, shape: JarShape = 'squat') {
+  const { belly, bellyTop, neck, neckRadius } = glassForms[shape]
   if (y <= bellyTop) return wall + belly * MathUtils.smoothstep(y, top + 0.1, bellyTop)
   if (y >= neck) return neckRadius
   const t = (y - bellyTop) / (neck - bellyTop)
@@ -98,12 +109,13 @@ const condensationFilm = new ShaderMaterial({
       gl_FragColor = vec4(colour, alpha);
     }`,
 })
-function jarGeometry(bottom: number) {
+function jarGeometry(bottom: number, shape: JarShape) {
+  const { glassTop } = glassForms[shape]
   const points: Vector2[] = []
   const steps = 48
   for (let n = 0; n <= steps; n += 1) {
     const y = bottom + (glassTop - bottom) * n / steps
-    points.push(new Vector2(glassRadiusAt(y), y))
+    points.push(new Vector2(glassRadiusAt(y, shape), y))
   }
   return new LatheGeometry(points, 128)
 }
@@ -169,8 +181,9 @@ const contactShadow = (() => {
   context.fillStyle = gradient; context.fillRect(0, 0, 128, 128)
   return new MeshBasicMaterial({ map: new CanvasTexture(canvas), transparent: true, depthWrite: false })
 })()
-function Glass({ bottom = gravelBottom, sealed = false, mist = 0 }: { bottom?: number; sealed?: boolean; mist?: number }) {
-  const geometry = useMemo(() => jarGeometry(bottom - 0.35), [bottom])
+function Glass({ bottom = gravelBottom, sealed = false, mist = 0, shape = 'squat' }: { bottom?: number; sealed?: boolean; mist?: number; shape?: JarShape }) {
+  const geometry = useMemo(() => jarGeometry(bottom - 0.35, shape), [bottom, shape])
+  const { neckRadius, glassTop } = glassForms[shape]
   const lid = neckRadius + 0.16
   return <group>
     {/* A thick glass base the jar stands on (image 12): a green-tinted slab whose edge catches the light. */}
@@ -279,6 +292,8 @@ function Dressing({ ground = flat, keepOut, shore, moss }: { ground?: Ground; ke
 
 /** A stone or piece of wood the player set while building the jar. */
 export function DecorPiece({ item, index, ground }: { item: Decor; index: number; ground: Ground }) {
+  if (item.kind === 'leaf') return <ScannedProp file={leaf} node="dry_quiver_leaf_a" x={item.x} z={item.z} length={item.size} turn={item.turn} ground={ground} />
+  if (item.kind !== 'stone' && item.kind !== 'log') return <OddObject kind={item.kind} x={item.x} z={item.z} size={item.size} turn={item.turn} ground={ground} />
   if (naturalLook && item.kind === 'stone') return <NaturalStone node={rockNodes[index % rockNodes.length]} x={item.x} z={item.z} width={item.size} turn={item.turn} ground={ground} sink={0.2} />
   return item.kind === 'stone'
     ? <MossyStone node={`rock_moss_set_01_rock0${index % 6 + 1}`} x={item.x} z={item.z} width={item.size} turn={item.turn} ground={ground} moss={false} />
@@ -310,6 +325,8 @@ function usePoolScale(soil: SoilPatch[]) {
 
 function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog = 0, sealed = false }: { substrate: SavedSubstrate; soil: SoilPatch[]; dressed: boolean; pond?: Pond; underwater?: boolean; onPondClick?: (x: number, z: number) => void; fog?: number; sealed?: boolean }) {
   const state = useMemo(() => loadSubstrate(substrate), [substrate])
+  const glassShape = state.glass ?? 'squat'
+  const radiusAt = useMemo(() => (y: number) => glassRadiusAt(y, glassShape), [glassShape])
   // A jar poured since ponds follow the water has its pond where the water stands; older built jars keep the dug round one.
   const water = useMemo(() => substrate.pool ? maskShape(substrate) : null, [substrate])
   const hasPond = !!water && (water.volume ?? 0) > 0
@@ -358,8 +375,8 @@ function BuiltJar({ substrate, soil, dressed, pond, underwater, onPondClick, fog
     {dressed && !naturalLook && <Suspense fallback={null}><MossSprigs x={0} z={0} radius={1} count={rim.length * 3} ground={ground} spots={rim} scale={1.1} /></Suspense>}
     {dressed && water && hasPond && <Suspense fallback={null}><Pebbles water={water} ground={ground} /></Suspense>}
     <Suspense fallback={null}><Sill bottom={floor} /></Suspense>
-    <Glass bottom={floor} sealed={sealed} mist={underwater ? 0 : mist} />
-    {mist > 0.2 && !underwater && <GlassDroplets fog={mist} radiusAt={glassRadiusAt} top={neck - 0.3} ground={ground} />}
+    <Glass bottom={floor} sealed={sealed} mist={underwater ? 0 : mist} shape={glassShape} />
+    {mist > 0.2 && !underwater && <GlassDroplets fog={mist} radiusAt={radiusAt} top={glassForms[glassShape].neck - 0.3} ground={ground} />}
   </>
 }
 

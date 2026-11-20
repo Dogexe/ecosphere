@@ -2,9 +2,12 @@ import { useEffect, useRef } from 'react'
 import type { Intervention, World } from './sim/ecosystem'
 import { defaultClimate, defaultPond } from './sim/pond'
 import { environmentAt } from './sim/climate'
+import { glassNames } from './sim/goals'
+import { jarShapes } from './sim/substrate'
+import type { JarShape } from './sim/substrate'
 
-type Props = { open: boolean; world: World; sealed?: boolean; onClose: () => void; onAct: (action: Intervention) => void }
-export function Environment({ open, world, sealed = false, onClose, onAct }: Props) {
+type Props = { open: boolean; world: World; sealed?: boolean; onClose: () => void; onAct: (action: Intervention) => void; glassShapes?: JarShape[]; onGlass?: (shape: JarShape) => void }
+export function Environment({ open, world, sealed = false, onClose, onAct, glassShapes = ['squat'], onGlass }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => { if (open) dialog.current?.showModal(); else dialog.current?.close() }, [open])
   const climate = world.climate ?? defaultClimate()
@@ -24,6 +27,14 @@ export function Environment({ open, world, sealed = false, onClose, onAct }: Pro
       </div>
       <div className="pond-readout"><strong>Your pond</strong><span>{Math.round(pond.water)} water · {pond.algae.toFixed(1)} algae · {Math.round(oxygen)}% oxygen</span><p>{oxygen < 30 ? 'Oxygen is scarce. Organic breakdown and animal respiration consume it.' : environment.cycling && environment.solar === 0 ? 'Darkness pauses photosynthetic oxygen supply. Respiration and decay continue; air exchange can still replenish some oxygen.' : 'Algae and plants supply oxygen. Too much decaying matter can put animals under pressure.'}</p></div>
       <div className="recipe-buttons pond-inputs"><button type="button" disabled={sealed} onClick={() => onAct({ type: 'pond-water' })}>Refill pond +18</button><button type="button" disabled={sealed} onClick={() => onAct({ type: 'pond-nutrients' })}>Nutrients +8</button><button type="button" disabled={sealed} onClick={() => onAct({ type: 'pond-organic' })}>Organic +12</button></div>
+      {world.substrate && onGlass && <div className="glass-picker">
+        <strong>The glass</strong>
+        <p>{sealed ? 'Open the seal to move the jar into new glass.' : 'Same soil and pond, new glass above them. A narrower neck keeps an open jar damp for longer.'}</p>
+        <div className="recipe-buttons">{jarShapes.map((shape) => {
+          const have = glassShapes.includes(shape), on = (world.substrate?.glass ?? 'squat') === shape
+          return <button key={shape} type="button" aria-pressed={on} className={on ? 'active' : ''} disabled={sealed || !have || on} title={have ? glassNames[shape].note : 'Reach a field goal to unlock'} onClick={() => onGlass(shape)}>{have ? glassNames[shape].name : 'Locked'}<small>{have ? glassNames[shape].note : 'A field goal unlocks it'}</small></button>
+        })}</div>
+      </div>}
       <p className="storage-note">Relative stocks and simplified oxygen cycling. No calibrated water chemistry or atmospheric carbon budget.</p>
     </div>
   </dialog>

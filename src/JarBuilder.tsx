@@ -8,6 +8,8 @@ import type { DecorKind, Pourable, SavedSubstrate, Substrate } from './sim/subst
 import { pondDepth } from './sim/pondShape'
 import { layerColours, updateLayered, useLayerMaterials, useLayeredGeometry } from './scene/LayeredGround'
 import { DecorPiece } from './scene/JarSetting'
+import { oddObjectSize } from './scene/OddObjects'
+import { objectNames } from './sim/goals'
 import { SoilGravel } from './scene/LayeredGround'
 import { pebbleColour, pebbleGeometries, pebbleMaterial, pebbleShapes } from './scene/GravelPebbles'
 import { naturalLook } from './scene/PaperCritter'
@@ -156,7 +158,7 @@ function Glass() {
   </group>
 }
 
-export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: SavedSubstrate, wetness: Substrate) => void; onCancel: () => void }) {
+export function JarBuilder({ onFinish, onCancel, objects = ['stone', 'log'] }: { onFinish: (substrate: SavedSubstrate, wetness: Substrate) => void; onCancel: () => void; objects?: DecorKind[] }) {
   const state = useMemo(emptySubstrate, [])
   const [step, setStep] = useState<Step>('gravel')
   const [decorKind, setDecorKind] = useState<DecorKind>('stone')
@@ -182,7 +184,7 @@ export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: Saved
     if (Math.hypot(x, z) > R - 0.4 || inPond(x, z)) return
     const hit = state.decor.findIndex((item) => Math.hypot(item.x - x, item.z - z) < item.size * 0.5)
     if (hit >= 0) state.decor.splice(hit, 1)
-    else if (state.decor.length < 12) state.decor.push({ kind: decorKind, x, z, size: decorKind === 'stone' ? 0.8 + ((state.decor.length * 37) % 7) / 10 : 1.4, turn: (state.decor.length * 2.39) % (Math.PI * 2) })
+    else if (state.decor.length < 12) state.decor.push({ kind: decorKind, x, z, size: decorKind === 'stone' ? 0.8 + ((state.decor.length * 37) % 7) / 10 : decorKind === 'log' ? 1.4 : oddObjectSize[decorKind] ?? 1, turn: (state.decor.length * 2.39) % (Math.PI * 2) })
     setTick((value) => value + 1)
   }
   const ground = (x: number, z: number) => heightAt(state, x, z)
@@ -212,7 +214,7 @@ export function JarBuilder({ onFinish, onCancel }: { onFinish: (substrate: Saved
       </div>
       <p>{current.hint}</p>
       {current.range && <div className="builder-depth"><span>{mm(depthOf(step))} mm</span><meter min={0} max={current.range[1] * 1.4} low={current.range[0]} high={current.range[1]} optimum={(current.range[0] + current.range[1]) / 2} value={depthOf(step)} /><small>aim for {mm(current.range[0])}–{mm(current.range[1])} mm</small></div>}
-      {step === 'decor' && <div className="builder-kinds"><button type="button" className={decorKind === 'stone' ? 'on' : ''} onClick={() => setDecorKind('stone')}>Stone</button><button type="button" className={decorKind === 'log' ? 'on' : ''} onClick={() => setDecorKind('log')}>Wood</button><small>{state.decor.length}/12 placed</small></div>}
+      {step === 'decor' && <div className="builder-kinds">{objects.map((kind) => <button key={kind} type="button" className={decorKind === kind ? 'on' : ''} onClick={() => setDecorKind(kind)}>{objectNames[kind].name}</button>)}<small>{state.decor.length}/12 placed</small></div>}
       {step === 'water' && <div className="builder-depth"><span>{Math.round(depths.loose * 100)}% loose</span><small>{pondMl > 0.5 ? `Pond: about ${Math.round(pondMl)} ml standing in the hollows. Where it stands is where your pond will be.` : pools.cover > 0.01 ? `Standing water over ${Math.round(pools.cover * 100)}% of the floor, ${mm(pools.depth / Math.max(pools.cover, 1e-3))} mm deep on average.` : 'Fresh soil settles over the first two or three waterings. Keep pouring into a hollow to make a pond.'}</small></div>}
       <small className="builder-how">Hold on the jar to pour. Turn it with the arrows, two fingers or a right-drag.</small>
       <div className="builder-actions">

@@ -40,7 +40,22 @@ export const substrateCell = (2 * R) / (N - 1)
 export const layerNames = ['gravel', 'charcoal', 'soil'] as const
 export type Layer = typeof layerNames[number]
 export type Pourable = Layer | 'water'
-export type DecorKind = 'stone' | 'log'
+/** Stones and wood from the start; the rest are odd objects the field goals unlock (2026-11-20, see goals.ts). */
+export const decorKinds = ['stone', 'log', 'marble', 'shell', 'acorn', 'leaf', 'crystal'] as const
+export type DecorKind = typeof decorKinds[number]
+/**
+ * The glass above the soil (2026-11-20). Every shape keeps the same footprint, so the
+ * ground, pond and soil pockets are untouched; what changes is the height, the shoulder
+ * and the size of the opening. An open jar loses water through its opening, so a
+ * narrow neck keeps it damp longer (evaporation scales with the open surface, Fick's law).
+ */
+export const jarShapes = ['squat', 'globe', 'apothecary', 'wide'] as const
+export type JarShape = typeof jarShapes[number]
+/** Opening area relative to the squat jar's neck. */
+export const jarOpening: Record<JarShape, number> = { squat: 1, globe: 0.45, apothecary: 0.6, wide: 1.25 }
+/** Share of an open jar's drying that goes through the opening; the rest is taken up by plants and the soil's own surface. */
+export const openingShare = 0.6
+export const dryingFactor = (shape: JarShape | undefined) => 1 - openingShare + openingShare * jarOpening[shape ?? 'squat']
 export type Decor = { kind: DecorKind; x: number; z: number; size: number; turn: number }
 
 export type Substrate = {
@@ -54,6 +69,7 @@ export type Substrate = {
   /** Height of drained water standing in the gravel. */
   table: number
   decor: Decor[]
+  glass?: JarShape
 }
 
 export const holding = 0.5
@@ -286,7 +302,7 @@ export function pocketWetness(state: Substrate) {
 // ---- Saving ----------------------------------------------------------------
 
 /** What a save stores: heights to 0.01 units (0.2 mm), looseness to 0.01. Soil water lives in the sim's soil pockets once the game starts; standing puddles are kept here (only when there are any). */
-export type SavedSubstrate = { size: number; gravel: number[]; charcoal: number[]; soil: number[]; loose: number[]; table: number; decor: Decor[]; pool?: number[]; preset?: 'default' }
+export type SavedSubstrate = { size: number; gravel: number[]; charcoal: number[]; soil: number[]; loose: number[]; table: number; decor: Decor[]; pool?: number[]; preset?: 'default'; glass?: JarShape }
 const round = (value: number) => Math.round(value * 100) / 100
 
 export function saveSubstrate(state: Substrate): SavedSubstrate {
@@ -294,6 +310,7 @@ export function saveSubstrate(state: Substrate): SavedSubstrate {
   const saved: SavedSubstrate = { size: N, gravel: pack(state.gravel), charcoal: pack(state.charcoal), soil: pack(state.soil), loose: pack(state.loose), table: round(state.table), decor: state.decor.map((item) => ({ ...item, x: round(item.x), z: round(item.z), size: round(item.size), turn: round(item.turn) })) }
   // Always stored since the pond follows the standing water; jars built before that have none and keep the round pond.
   saved.pool = pack(state.pool)
+  if (state.glass && state.glass !== 'squat') saved.glass = state.glass
   return saved
 }
 
@@ -324,8 +341,12 @@ export function loadSubstrate(source: unknown): Substrate {
   if (!Array.isArray(saved.decor) || saved.decor.length > 24) throw damaged()
   state.decor = saved.decor.map((value) => {
     const item = value as Record<string, unknown>
-    if (!item || (item.kind !== 'stone' && item.kind !== 'log') || !finite(item.x, -R, R) || !finite(item.z, -R, R) || !finite(item.size, 0.1, 3) || !finite(item.turn, -10, 10)) throw damaged()
-    return { kind: item.kind, x: item.x as number, z: item.z as number, size: item.size as number, turn: item.turn as number }
+    if (!item || !(decorKinds as readonly unknown[]).includes(item.kind) || !finite(item.x, -R, R) || !finite(item.z, -R, R) || !finite(item.size, 0.1, 3) || !finite(item.turn, -10, 10)) throw damaged()
+    return { kind: item.kind as DecorKind, x: item.x as number, z: item.z as number, size: item.size as number, turn: item.turn as number }
   })
+  if (saved.glass !== undefined) {
+    if (!(jarShapes as readonly unknown[]).includes(saved.glass)) throw damaged()
+    state.glass = saved.glass as JarShape
+  }
   return state
 }

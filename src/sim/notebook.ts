@@ -215,7 +215,8 @@ export const pageById = new Map(pages.map((page) => [page.id, page]))
 
 export type Found = { tick: number; at: number; away: boolean }
 export type JournalEntry = { at: number; tick: number; kind: 'found' | 'event' | 'note' | 'away' | 'jar'; text: string; page?: string }
-export type Notebook = { found: Record<string, Found>; journal: JournalEntry[] }
+/** `goals`: field goals reached (goals.ts), kept with the notebook since both belong to the player (2026-11-20). */
+export type Notebook = { found: Record<string, Found>; journal: JournalEntry[]; goals?: Record<string, { at: number; tick: number }> }
 
 export const emptyNotebook = (): Notebook => ({ found: {}, journal: [] })
 
@@ -289,7 +290,7 @@ export function observe(notebook: Notebook, world: World, events: readonly Simul
   if (found.length === 0 && entries.length === 0) return { notebook, found }
   const foundNow = { ...notebook.found }
   for (const id of found) foundNow[id] = { tick: world.tick, at, away }
-  return { notebook: { found: foundNow, journal: withEntries(notebook.journal, entries) }, found }
+  return { notebook: { ...notebook, found: foundNow, journal: withEntries(notebook.journal, entries) }, found }
 }
 
 /** Adds a line the game writes (a new jar, an away summary) or the player's own note. */
@@ -310,7 +311,7 @@ export function progress(notebook: Notebook, kind?: PageKind) {
 // ---------- Storage ----------
 
 export function encodeNotebook(notebook: Notebook) {
-  return JSON.stringify({ version: 1, found: notebook.found, journal: notebook.journal })
+  return JSON.stringify({ version: 1, found: notebook.found, journal: notebook.journal, ...(notebook.goals ? { goals: notebook.goals } : {}) })
 }
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
@@ -321,13 +322,21 @@ export function decodeNotebook(text: string): Notebook {
   let source: unknown
   try { source = JSON.parse(text) } catch { return emptyNotebook() }
   if (!source || typeof source !== 'object' || (source as { version?: unknown }).version !== 1) return emptyNotebook()
-  const raw = source as { found?: unknown; journal?: unknown }
+  const raw = source as { found?: unknown; journal?: unknown; goals?: unknown }
   const notebook = emptyNotebook()
   if (raw.found && typeof raw.found === 'object') {
     for (const [id, value] of Object.entries(raw.found as Record<string, unknown>)) {
       const item = value as Partial<Found> | null
       if (pageById.has(id) && item && finite(item.tick) && finite(item.at)) notebook.found[id] = { tick: item.tick, at: item.at, away: item.away === true }
     }
+  }
+  if (raw.goals && typeof raw.goals === 'object') {
+    const goals: Record<string, { at: number; tick: number }> = {}
+    for (const [id, value] of Object.entries(raw.goals as Record<string, unknown>)) {
+      const item = value as { at?: unknown; tick?: unknown } | null
+      if (id.length <= 40 && item && finite(item.at) && finite(item.tick)) goals[id] = { at: item.at, tick: item.tick }
+    }
+    notebook.goals = goals
   }
   if (Array.isArray(raw.journal)) {
     for (const value of raw.journal.slice(-journalLimit)) {
