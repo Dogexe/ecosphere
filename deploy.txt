@@ -1,1 +1,1 @@
-source 580c313 (claude/project-thread-t24s7y), deployed 2026-11-11T15:10Z
+Built from claude/project-thread-t793yy a953737 (systems rebalance on top of 580c313)
