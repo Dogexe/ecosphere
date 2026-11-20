@@ -337,6 +337,20 @@ export function plantOutlook(world: World, plant: Plant) {
   return { change: clamp(plant.biomass + growth - loss, 0, plant.capacity) - plant.biomass, growth, loss, dark: environment.cycling && environment.solar <= 0, limiting, fit: conditionFit({ moisture, sunlight, fertility }, temperature) * air, localLight: localLight * environment.solar }
 }
 
+/**
+ * Which way a plant's limiting factor is off (2026-11-20, care warnings): too little
+ * or too much water, light or warmth. Nutrients, CO2 and rot only run one way.
+ */
+export function plantStress(world: World, plant: Plant): { limit: PlantLimit; side: 'low' | 'high'; fit: number } {
+  const outlook = plantOutlook(world, plant)
+  const traits = plantTraits[plant.kind]
+  const side = outlook.limiting === 'water' ? (plantPatch(world, plant).water / 100 > traits.moisture ? 'high' : 'low')
+    : outlook.limiting === 'light' ? (plantLight(world, plant) > traits.light ? 'high' : 'low')
+    : outlook.limiting === 'temperature' ? (environmentAt(world).temperatureC > 22 ? 'high' : 'low')
+    : outlook.limiting === 'rot' ? 'high' : 'low'
+  return { limit: outlook.limiting, side, fit: outlook.fit }
+}
+
 const litterMoisture = (patch: SoilPatch) => clamp((patch.water - 10) / 55, 0, 1)
 
 function litterTarget(soil: SoilPatch[], creature: Creature): SoilPatch | null {

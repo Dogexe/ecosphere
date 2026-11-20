@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Terrarium } from './scene/Terrarium'
 import { ExperimentBook } from './ExperimentBook'
 import { Observatory } from './Observatory'
@@ -35,6 +35,8 @@ import { FieldNotebook } from './FieldNotebook'
 import { observe, pageById, progress, readNotebook, writeEntry, writeNotebook } from './sim/notebook'
 import type { Notebook } from './sim/notebook'
 import { applySoilInput, beetleIsHunting, dominantLimit, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
+import { adviceText, careForecast } from './sim/care'
+import type { CareAdvice, CareAlert } from './sim/care'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
 
 type Speed = 0 | 1 | 3
@@ -350,6 +352,19 @@ export function App() {
     if (result.found.length) { setFreshPage(result.found[result.found.length - 1]); setNotice(`New notebook page: ${pageById.get(result.found[result.found.length - 1])!.title}`) }
   }, [session])
 
+  function care(advice: CareAdvice) {
+    if (advice === 'water') act({ type: 'water' }, 'Fresh water soaks into the soil.')
+    else if (advice === 'compost') act({ type: 'compost' }, 'Organic matter begins to decompose.')
+    else if (advice === 'refill-pond') act({ type: 'pond-water' }, 'Fresh water refills the pond.')
+    else if (advice === 'pond-litter') act({ type: 'pond-organic' }, 'Pond litter begins to decompose. Decay uses oxygen.')
+    else if (advice === 'shade' || advice === 'brighten') {
+      setWorld((current) => intervene(current, { type: 'light', value: Math.min(1, Math.max(0.18, current.light + (advice === 'shade' ? -0.15 : 0.15))) }))
+      setNotice(advice === 'shade' ? 'You slid the jar a little further from the window.' : 'You slid the jar a little closer to the window.')
+    } else if (advice === 'air') { setWorld((current) => airJar(current)); setNotice('You lifted the lid for a moment. Fresh room air is inside; the seal is back on.') }
+    else if (advice === 'unseal') { setSpeed(0); setSealOpen(true) }
+    else if (advice === 'climate') { setSpeed(0); setEnvironmentOpen(true) }
+  }
+
   function act(action: Intervention, message: string) {
     setWorld((current) => selectedSoil !== null && (action.type === 'water' || action.type === 'compost') ? interveneAt(current, action.type, selectedSoil) : intervene(current, action))
     setNotice(selectedSoil !== null ? `${action.type === 'water' ? 'Water' : 'Compost'} settles into this patch.` : message)
@@ -492,6 +507,18 @@ export function App() {
 
   const status = statusFor(world)
   const pond = world.pond ?? defaultPond()
+  // Early warnings: a 48 h look-ahead on a copy of the jar, refreshed every 6 model hours
+  // or as soon as the player changes something it depends on (systems pass, 2026-11-20).
+  const careKey = `${Math.floor(world.tick / 6)}|${Math.round(world.water)}|${Math.round(world.nutrients)}|${world.light.toFixed(2)}|${Math.round(pond.water)}|${Math.round(pond.organic)}|${world.plants.length}|${world.creatures.length}|${world.sealed ? world.sealed.airings : 'open'}|${world.climate?.temperatureC ?? 22}`
+  const alerts: CareAlert[] = useMemo(() => stress || building ? [] : careForecast(world), [careKey, building])
+  const announced = useRef(new Set<string>())
+  useEffect(() => {
+    const urgent = alerts.filter((alert) => alert.severity === 'urgent')
+    const fresh = urgent.find((alert) => !announced.current.has(alert.id))
+    announced.current = new Set(urgent.map((alert) => alert.id))
+    if (fresh && speed > 0) setNotice(`${fresh.title}. ${adviceText[fresh.advice] ? `${adviceText[fresh.advice]}?` : ''}`.trim())
+  }, [alerts])
+
   const populations = creatureCounts(world.creatures)
   const residents = underwater ? world.creatures.filter((creature) => isAquatic(creature.kind)) : world.creatures
   const selected = world.plants.find((plant) => plant.id === selectedPlant)
@@ -667,6 +694,14 @@ export function App() {
           <>
             <div className="panel-kicker">RIGHT NOW IN YOUR WORLD</div>
             <h2>{status.label}</h2>
+            {alerts.length > 0 && <div className="care-list" aria-label="Needs attention">
+              {alerts.slice(0, 3).map((alert) => <div className={`care-alert ${alert.severity}`} key={alert.id}>
+                <button className="care-text" type="button" disabled={alert.plants.length + alert.creatures.length === 0} onClick={() => { clearSelection(); if (alert.plants.length) setSelectedPlant(alert.plants[0]); else { setSelectedCreature(alert.creatures[0]); setFollowCreature(alert.creatures[0]) } }}>
+                  <strong>{alert.title}</strong><small>{alert.detail}</small>
+                </button>
+                {adviceText[alert.advice] && alert.advice !== 'hold-water' && <button className="care-action" type="button" onClick={() => care(alert.advice)}>{adviceText[alert.advice]}</button>}
+              </div>)}
+            </div>}
             <p className="overview-note">{status.detail}</p>
             {world.plants.length === 0 && <button className="back-link" type="button" onClick={toggleNursery}>Introduce new producers →</button>}
             <div className="meter-stack">

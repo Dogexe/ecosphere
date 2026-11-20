@@ -1,5 +1,11 @@
 # ECOSPHERE development progress
 
+## Early care warnings (plan item 2) — 2026-11-20
+
+The jar now says what is about to go wrong while there is still time. `src/sim/care.ts` runs the unchanged simulation 48 model hours ahead on a copy, with no player action, and reports what would die or fail (ageing out excluded), why (drying, waterlogged, too dim/bright, cold/hot, poor soil, stale sealed air, pond drying or out of oxygen, too little food for animals or the colony) and the one action that answers it. The field notes show up to three warnings under the headline (urgent = loss within 24 h), each with a one-tap action (Add water, Add compost, Refill the pond, Add pond litter, Move into shade, Give more light, Lift the lid, Open the seal, Adjust warmth); tapping the text selects the plant or animal. A new urgent warning also shows as a toast while time runs. On phones the collapsed sheet shows the top warning. The forecast refreshes every 6 model hours or when water, light, the pond, the seal or the population change (about 10-30 ms).
+
+285 tests pass (6 new in tests/care.test.mjs). Typecheck and build pass.
+
 ## Systems rebalance (plan item 1) — 2026-11-20
 
 Owner asked to return to game systems. Audit: the untouched starter jar died fast (open: drought by day 30; sealed: moss day 7, frogbit day 14, pond crew and ants by day 60, woodlice never bred). Rebalanced the ecology (details and sources in ECOLOGY.md): logistic plant growth with per-tissue upkeep and Liebig fit, sourced light classes (starter at bright indirect 0.55), squared greenhouse heat, ambient-relative CO2, moss drinking humid air, minerals recycled in open jars, pond-bank seepage, algae inoculum, slower pond grazers, seed-setting at flowering, pond plant cap 10, woodlouse mating across the jar, longer-lived harvester queen/workers who feed the queen first, perennial grass, mixed starter ages.
