@@ -1,1 +1,1 @@
-Built from claude/project-thread-t793yy ab21768 (systems pass items 1-5 on top of 580c313)
+claude/project-thread-t793yy b874a0a closed-jar pass 2026-11-20
