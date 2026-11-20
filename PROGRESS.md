@@ -1,5 +1,9 @@
 # ECOSPHERE development progress
 
+## Time pace (plan item 5) — 2026-11-20
+
+Speeds are now Ⅱ, 1×, 3× and a new 10× fast-forward (two model hours per 96 ms tick, events kept; a 60-day seal runs in about 70 s on the PC). Animals animate at no more than 3× so fast-forward does not look frantic. Fast time (3× and 10×) pauses itself when a care warning turns urgent ("Time paused: …"), except for a single hungry animal, so a jar is never lost unseen; at 1× the warning is a toast as before. The care forecast refreshes every 12 model hours at 10× (6 otherwise). Speed buttons explain their pace on hover. Time away stays one model hour per real hour (owner-approved). The "well-kept notebook" goal now asks for 30 pages: a fresh starter jar finds 20 within a few model days.
+
 ## Hands-on care (plan item 4) — 2026-11-20
 
 New care verbs in `src/sim/tending.ts`, none of which work through a sealed lid:

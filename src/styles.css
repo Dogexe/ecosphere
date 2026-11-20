@@ -200,7 +200,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .sun-control input::-moz-range-thumb { width: 12px; height: 12px; border: 3px solid white; border-radius: 50%; background: #dbb669; }
 .range-labels { display: flex; justify-content: space-between; color: #a3b3a3; font-size: 8px; font-weight: 850; letter-spacing: .1em; }
 .time-control { padding-left: 17px; border-left: 1px solid #e4ece0; }
-.speed-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-top: 9px; padding: 3px; border-radius: 10px; background: #eaf1e7; }
+.speed-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: 9px; padding: 3px; border-radius: 10px; background: #eaf1e7; }
 .speed-buttons button { height: 33px; border: 0; border-radius: 8px; background: transparent; color: #89a18c; font-size: 11px; font-weight: 850; }
 .speed-buttons button.active { background: #fff; color: #375b45; box-shadow: 0 2px 7px rgba(58, 92, 65, .1); }
 .speed-buttons button:active { transform: scale(.95); }
@@ -658,6 +658,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
   .cozy .range-labels { display: none; }
   .cozy .speed-buttons { margin-top: 4px; }
   .cozy .speed-buttons button { height: 30px; min-height: 30px; }
+  .cozy .speed-buttons { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .cozy .speed-buttons button { min-width: 0; padding: 0 2px; font-size: 11px; }
   /* Sheet: a peek of the notes (title + meters) sits above the tray; the handle opens the rest. */
   .cozy .pulse-panel {
     position: absolute; z-index: 4; left: 8px; right: 8px; bottom: calc(var(--tray, 168px) + 6px); margin: 0; padding: 4px 15px 12px;
@@ -830,3 +832,5 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .tend-row button:disabled { opacity: .45; cursor: default; }
 /* Phones: the slider does the same job; the spots would push the tray up over the notes. */
 @media (max-width: 760px) { .sill-spots { display: none; } }
+/* Four speeds share the time box on phones (item 5, 2026-11-20). */
+@media (max-width: 760px) { .app-shell .speed-buttons button { min-width: 0; padding: 0 2px; } }

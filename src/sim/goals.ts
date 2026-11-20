@@ -36,8 +36,8 @@ export const goals: Goal[] = [
     reached: seen('sealed-goal') },
   { id: 'new-chamber', title: 'The ants dig in', hint: 'Keep an ant colony fed on seeds until it opens a new chamber.', unlock: { kind: 'object', id: 'leaf' },
     reached: seen('new-chamber') },
-  { id: 'twenty-pages', title: 'A well-kept notebook', hint: 'Fill 20 pages of the field notebook.', unlock: { kind: 'glass', id: 'wide' },
-    reached: (notebook) => progress(notebook).found >= 20 },
+  { id: 'thirty-pages', title: 'A well-kept notebook', hint: 'Fill 30 pages of the field notebook.', unlock: { kind: 'glass', id: 'wide' },
+    reached: (notebook) => progress(notebook).found >= 30 },
   { id: 'sealed-60', title: 'Two months sealed', hint: 'Keep a sealed jar alive for its full 60-day goal.', unlock: { kind: 'object', id: 'crystal' },
     reached: (_, world) => !!world.sealed && world.sealed.goalDays >= 60 && world.tick - world.sealed.since >= 60 * 24 && world.plants.length > 0 },
 ]

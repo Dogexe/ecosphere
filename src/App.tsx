@@ -43,7 +43,13 @@ import type { DecorKind, JarShape } from './sim/substrate'
 import type { CareAdvice, CareAlert } from './sim/care'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
 
-type Speed = 0 | 1 | 3
+/**
+ * Time pace (systems pass item 5, 2026-11-20). 1× is one model hour per 480 ms (a day in about
+ * 12 s); 10× fast-forwards a sealed run (60 days in about 70 s) two steps per frame of the timer.
+ * Fast time stops by itself when a care warning turns urgent, so a jar is never lost unseen.
+ */
+type Speed = 0 | 1 | 3 | 10
+const stepsPerTick = (speed: Speed) => speed === 10 ? 2 : 1
 
 const plantNames: Record<PlantKind, string> = { bloom: 'Meadow bloom', fern: 'Soft fern', clover: 'Clover mound', moss: 'Moss cushion', grass: 'Meadow grass', tree: 'Broadleaf tree', lily: 'Water lily', reed: 'Pond reed' }
 const plantNotes: Record<PlantKind, string> = {
@@ -306,7 +312,12 @@ export function App() {
 
   useEffect(() => {
     if (speed === 0) return
-    const timer = window.setInterval(() => setSession((current) => simulateStep(current.world)), 480 / speed)
+    const steps = stepsPerTick(speed)
+    const timer = window.setInterval(() => setSession((current) => {
+      let result = simulateStep(current.world)
+      for (let n = 1; n < steps; n += 1) { const next = simulateStep(result.world); result = { world: next.world, events: [...result.events, ...next.events] } }
+      return result
+    }), 480 * steps / speed)
     return () => window.clearInterval(timer)
   }, [speed])
 
@@ -542,14 +553,15 @@ export function App() {
   const nextGoal = openGoals(goalLog, 1)[0]
   // Early warnings: a 48 h look-ahead on a copy of the jar, refreshed every 6 model hours
   // or as soon as the player changes something it depends on (systems pass, 2026-11-20).
-  const careKey = `${Math.floor(world.tick / 6)}|${Math.round(world.water)}|${Math.round(world.nutrients)}|${world.light.toFixed(2)}|${Math.round(pond.water)}|${Math.round(pond.organic)}|${world.plants.length}|${world.creatures.length}|${world.sealed ? world.sealed.airings : 'open'}|${world.climate?.temperatureC ?? 22}`
+  const careKey = `${Math.floor(world.tick / (speed >= 10 ? 12 : 6))}|${Math.round(world.water)}|${Math.round(world.nutrients)}|${world.light.toFixed(2)}|${Math.round(pond.water)}|${Math.round(pond.organic)}|${world.plants.length}|${world.creatures.length}|${world.sealed ? world.sealed.airings : 'open'}|${world.climate?.temperatureC ?? 22}`
   const alerts: CareAlert[] = useMemo(() => stress || building ? [] : careForecast(world), [careKey, building])
   const announced = useRef(new Set<string>())
   useEffect(() => {
     const urgent = alerts.filter((alert) => alert.severity === 'urgent')
     const fresh = urgent.find((alert) => !announced.current.has(alert.id))
     announced.current = new Set(urgent.map((alert) => alert.id))
-    if (fresh && speed > 0) setNotice(`${fresh.title}. ${adviceText[fresh.advice] ? `${adviceText[fresh.advice]}?` : ''}`.trim())
+    if (fresh && speed >= 3 && (fresh.id !== 'hungry-animals' || fresh.creatures.length >= 2)) { setSpeed(0); setNotice(`Time paused: ${fresh.title.charAt(0).toLowerCase()}${fresh.title.slice(1)}. See Field notes.`) }
+    else if (fresh && speed > 0) setNotice(`${fresh.title}. ${adviceText[fresh.advice] ? `${adviceText[fresh.advice]}?` : ''}`.trim())
   }, [alerts])
 
   const populations = creatureCounts(world.creatures)
@@ -606,7 +618,7 @@ export function App() {
       <section className="scene-wrap" ref={scene} aria-label="Interactive 3D terrarium">
         <div className="scene-halo" aria-hidden="true" />
         <Terrarium
-          world={world} events={events} worldRevision={worldRevision} followCreature={followCreature} focusPlant={focusPlant} selectedPlant={selectedPlant} selectedCreature={selectedCreature} selectedSoil={selectedSoil} speed={speed} underwater={underwater}
+          world={world} events={events} worldRevision={worldRevision} followCreature={followCreature} focusPlant={focusPlant} selectedPlant={selectedPlant} selectedCreature={selectedCreature} selectedSoil={selectedSoil} speed={Math.min(speed, 3)} underwater={underwater}
           showAntFood={selectedColony && showAntFood} underground={underground} selectedAnt={selectedAnt} followAnt={followAnt} focusBrood={focusBrood} selectedBrood={selectedBrood} onSelectBrood={chooseBrood} focusChamber={focusChamber} focusedRemains={focusedRemains} onSelectRemains={chooseRemains}
           onSelectChamber={(id) => { clearSelection(); setSelectedColony(true); setFocusChamber(id); setUnderwater(false); setUnderground(true) }}
           onSelectAnt={(id) => { clearSelection(); setSelectedColony(true); setSelectedAnt(id) }}
@@ -785,7 +797,7 @@ export function App() {
           <div className="time-control">
             <div className="control-label"><span>Time</span><strong>{speed === 0 ? 'Resting' : 'Flowing'}</strong></div>
             <div className="speed-buttons" role="group" aria-label="Simulation speed">
-              {([0, 1, 3] as const).map((rate) => <button key={rate} className={speed === rate ? 'active' : ''} onClick={() => setSpeed(rate)} aria-pressed={speed === rate} type="button">{rate === 0 ? 'Ⅱ' : `${rate}×`}</button>)}
+              {([0, 1, 3, 10] as const).map((rate) => <button key={rate} className={speed === rate ? 'active' : ''} onClick={() => setSpeed(rate)} aria-pressed={speed === rate} title={rate === 0 ? 'Pause' : rate === 1 ? 'A day in about 12 seconds' : rate === 3 ? 'A day in about 4 seconds' : 'Fast-forward: a day in about a second. Stops when the jar needs you.'} type="button">{rate === 0 ? 'Ⅱ' : `${rate}×`}</button>)}
             </div>
           </div>
         </div>
