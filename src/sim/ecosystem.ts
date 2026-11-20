@@ -1,6 +1,6 @@
 import { algaeGrowth, defaultClimate, defaultPond, isAquatic, isPondPosition, isSwimmingPosition, lifespan, maturity, pondShape, rateAt, setPondShape, stepPond } from './pond.ts'
 import type { Climate, Pond } from './pond'
-import { addRemains, bodyStock, decayRemains, developmentRate, plantLifetime, plantStage, woodlouseLife, woodlouseMate } from './life.ts'
+import { addRemains, bodyStock, decayRemains, developmentRate, plantFlowering, plantLifetime, plantStage, woodlouseLife, woodlouseMate } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
 import { environmentAt, scheduledRest } from './climate.ts'
 import { isLand, walkOnLand } from './land.ts'
@@ -90,9 +90,13 @@ export type SimulationEvent =
 export type StepResult = { world: World; events: SimulationEvent[] }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+/** Pond plants may hold at most this many of the 32 plant slots through their own spread. */
+export const aquaticPlantLimit = 10
 export const creatureLimits = { grazer: 7, woodlouse: 4, beetle: 2, springtail: 6, flea: 6, fish: 2, snail: 4, shrimp: 4 } as const
 /** Fraction of soil litter that bacteria mineralise per model hour at full moisture and 22 C. */
 export const bacterialDecay = 0.0008
+/** Energy a woodlouse gains per unit of litter it digests. */
+export const woodlouseDigestion = 22
 /**
  * Waterlogged soil in a sealed jar, where the water cannot escape, rots
  * land plants' roots: extra hourly loss above 85% soil water.
@@ -193,6 +197,10 @@ export function resolveWoodlouseContacts(creatures: Creature[]): Creature[] {
 
 // Stylized ecological niches. Values are relative model units, not measured
 // species parameters; the shared resource equations below remain the same.
+// Light (2026-11-20): 1 = direct sun on the sill, ~0.55 = bright indirect
+// light, ~0.3 = shade. Preferences follow growers' light classes for the
+// paper-look species (moss and fern: low to medium; Calathea, violets:
+// bright indirect; Oxalis, frogbit: bright; grasses and rushes: sun). See ECOLOGY.md.
 const plantTraits: Record<PlantKind, {
   moisture: number
   moistureRange: number
@@ -204,14 +212,14 @@ const plantTraits: Record<PlantKind, {
   dispersal: number
   spread: number
 }> = {
-  clover: { moisture: 0.45, moistureRange: 0.7, light: 0.75, lightRange: 0.8, nutrientNeed: 45, growth: 0.21, palatability: 1, dispersal: 1.1, spread: 0.035 },
-  fern: { moisture: 0.72, moistureRange: 0.75, light: 0.52, lightRange: 0.75, nutrientNeed: 58, growth: 0.22, palatability: 0.18, dispersal: 1.35, spread: 0.015 },
-  bloom: { moisture: 0.62, moistureRange: 0.7, light: 0.92, lightRange: 0.72, nutrientNeed: 72, growth: 0.29, palatability: 0.72, dispersal: 1.65, spread: 0.025 },
-  moss: { moisture: 0.82, moistureRange: 0.57, light: 0.38, lightRange: 0.68, nutrientNeed: 24, growth: 0.13, palatability: 0.04, dispersal: 0.85, spread: 0.025 },
-  grass: { moisture: 0.5, moistureRange: 0.68, light: 0.88, lightRange: 0.66, nutrientNeed: 38, growth: 0.25, palatability: 0.94, dispersal: 0.95, spread: 0.045 },
-  tree: { moisture: 0.64, moistureRange: 0.75, light: 0.78, lightRange: 0.85, nutrientNeed: 64, growth: 0.18, palatability: 0.015, dispersal: 1.75, spread: 0.008 },
-  lily: { moisture: 0.85, moistureRange: 0.8, light: 0.8, lightRange: 0.8, nutrientNeed: 10, growth: 0.15, palatability: 0.02, dispersal: 0.8, spread: 0.012 },
-  reed: { moisture: 0.85, moistureRange: 0.8, light: 0.85, lightRange: 0.8, nutrientNeed: 14, growth: 0.19, palatability: 0.04, dispersal: 0.85, spread: 0.018 },
+  clover: { moisture: 0.45, moistureRange: 0.7, light: 0.62, lightRange: 0.8, nutrientNeed: 45, growth: 0.21, palatability: 1, dispersal: 1.1, spread: 0.035 },
+  fern: { moisture: 0.72, moistureRange: 0.75, light: 0.42, lightRange: 0.75, nutrientNeed: 58, growth: 0.22, palatability: 0.18, dispersal: 1.35, spread: 0.015 },
+  bloom: { moisture: 0.62, moistureRange: 0.7, light: 0.58, lightRange: 0.72, nutrientNeed: 72, growth: 0.29, palatability: 0.72, dispersal: 1.65, spread: 0.025 },
+  moss: { moisture: 0.82, moistureRange: 0.57, light: 0.32, lightRange: 0.68, nutrientNeed: 24, growth: 0.13, palatability: 0.04, dispersal: 0.85, spread: 0.025 },
+  grass: { moisture: 0.5, moistureRange: 0.68, light: 0.78, lightRange: 0.66, nutrientNeed: 38, growth: 0.25, palatability: 0.94, dispersal: 0.95, spread: 0.045 },
+  tree: { moisture: 0.64, moistureRange: 0.75, light: 0.48, lightRange: 0.85, nutrientNeed: 64, growth: 0.18, palatability: 0.015, dispersal: 1.75, spread: 0.008 },
+  lily: { moisture: 0.85, moistureRange: 0.8, light: 0.66, lightRange: 0.8, nutrientNeed: 10, growth: 0.15, palatability: 0.02, dispersal: 0.8, spread: 0.012 },
+  reed: { moisture: 0.85, moistureRange: 0.8, light: 0.75, lightRange: 0.8, nutrientNeed: 14, growth: 0.19, palatability: 0.04, dispersal: 0.85, spread: 0.018 },
 }
 
 // Pocket 2 sat at (-1.7, 1.7) until the pond grew over it; its litter
@@ -264,31 +272,54 @@ export function plantMoisture(kind: PlantKind, water: number) {
   return clamp((water - 2) / 20, 0, 1) * suitability(water / 100, traits.moisture, traits.moistureRange)
 }
 
-function plantConditions(plant: Plant, patch: SoilPatch, light: number) {
+/**
+ * Mosses have no roots that draw on deep soil: they soak up water over their
+ * whole surface from damp air and dew (poikilohydry). Sealed jar air sits near
+ * saturation, so a sealed moss stays hydrated while the soil holds some water
+ * (2026-11-20). See ECOLOGY.md.
+ */
+export const humidMoss = (water: number) => 0.92 * clamp((water - 5) / 20, 0, 1)
+
+function plantConditions(plant: Plant, patch: SoilPatch, light: number, humid = false) {
   const traits = plantTraits[plant.kind]
+  const moisture = plantMoisture(plant.kind, patch.water)
   return {
-    moisture: plantMoisture(plant.kind, patch.water),
+    moisture: humid && plant.kind === 'moss' ? Math.max(moisture, humidMoss(patch.water)) : moisture,
     sunlight: Math.min(1, Math.max(0, light) / traits.light) * suitability(light, traits.light, traits.lightRange),
     fertility: clamp(patch.nutrients / traits.nutrientNeed, 0, 1),
   }
 }
 
+/**
+ * Liebig's law of the minimum: growth follows the scarcest of water, light and
+ * nutrients, scaled by temperature (2026-11-20; was the product of all three,
+ * which left even well-placed plants at a fraction of their potential).
+ */
+export const conditionFit = (c: { moisture: number; sunlight: number; fertility: number }, temperature = 1) => Math.min(c.moisture, c.sunlight, c.fertility) * temperature
+
 export function habitatFit(world: World, plant: Plant): number {
-  const { moisture, sunlight, fertility } = plantConditions(plant, plantPatch(world, plant), plantLight(world, plant))
-  return moisture * sunlight * fertility * Math.max(0, 1 - Math.abs(environmentAt(world).temperatureC - 22) / 24)
+  return conditionFit(plantConditions(plant, plantPatch(world, plant), plantLight(world, plant), !!world.sealed), Math.max(0, 1 - Math.abs(environmentAt(world).temperatureC - 22) / 24))
 }
 
+/** Relative growth rate per daylight-averaged hour at a perfect fit, from the old absolute peak (growth at half capacity). */
+export const plantRgr = (kind: PlantKind) => plantTraits[kind].growth * 4 / plantCapacity[kind]
+/** Upkeep per unit biomass per hour in ideal conditions, and the extra when water or light fall short. */
+export const plantUpkeep = { base: 0.004, dry: 0.02, dark: 0.012, senescent: 0.03 }
+
 function plantFlux(plant: Plant, patch: SoilPatch, light: number, temperature = 22, photosynthesis = 1, cycling = false, carbon = 1, sealed = false) {
-  const { moisture, sunlight, fertility } = plantConditions(plant, patch, light)
+  const conditions = plantConditions(plant, patch, light, sealed)
   const stage = plantStage(plant)
-  let growth = stage === 'seed' || stage === 'germinating' ? 0 : Math.min(plantTraits[plant.kind].growth * moisture * sunlight * fertility * (1 - plant.biomass / plant.capacity) * Math.max(0, 1 - Math.abs(temperature - 22) / 24) * photosynthesis * carbon, patch.water / 0.12, patch.nutrients / 0.65)
-  // Small seedlings cannot pay a full established canopy's absolute upkeep.
-  // Ramp existing turnover with living mass up to the seedling boundary;
-  // this is a coarse size surrogate, not calibrated respiratory chemistry.
-  const leafCost = Math.min(1, plant.biomass / (plant.capacity * 0.22))
-  const loss = stage === 'seed' || stage === 'germinating' ? 0.002 : (0.014 + 0.045 * (1 - moisture) + 0.035 * (1 - sunlight) + (stage === 'senescent' ? 0.08 : 0)) * leafCost + (sealed ? rotLoss(plant, patch) : 0)
-  if (cycling) growth = Math.min(growth, Math.max(0, plant.capacity - plant.biomass + loss))
-  return { growth, loss }
+  const warmth = Math.max(0, 1 - Math.abs(temperature - 22) / 24)
+  // Logistic growth: new tissue is built by existing leaves (relative growth
+  // rate x biomass) and slows as the plant nears its size; upkeep is paid per
+  // unit of living tissue, more when thirsty or shaded. A plant therefore
+  // settles where the two balance: near full size in a good spot, small in a
+  // poor one, and it dies only where upkeep always exceeds growth.
+  const potential = plantRgr(plant.kind) * conditionFit(conditions, warmth) * photosynthesis * carbon * plant.biomass * (1 - plant.biomass / plant.capacity)
+  const growth = stage === 'seed' || stage === 'germinating' ? 0 : Math.max(0, Math.min(potential, patch.water / 0.12, patch.nutrients / 0.65))
+  const upkeep = plantUpkeep.base + plantUpkeep.dry * (1 - conditions.moisture) + plantUpkeep.dark * (1 - conditions.sunlight) + (stage === 'senescent' ? plantUpkeep.senescent : 0)
+  const loss = stage === 'seed' || stage === 'germinating' ? 0.002 : upkeep * plant.biomass + (sealed ? rotLoss(plant, patch) : 0)
+  return { growth: cycling ? Math.min(growth, Math.max(0, plant.capacity - plant.biomass + loss)) : growth, loss }
 }
 
 export type PlantLimit = 'water' | 'light' | 'nutrients' | 'temperature' | 'co2' | 'rot'
@@ -297,13 +328,13 @@ export function plantOutlook(world: World, plant: Plant) {
   const patch = plantPatch(world, plant)
   const localLight = plantLight(world, plant)
   const environment = environmentAt(world)
-  const { moisture, sunlight, fertility } = plantConditions(plant, patch, localLight)
+  const { moisture, sunlight, fertility } = plantConditions(plant, patch, localLight, !!world.sealed)
   const air = carbonFit(world)
   const { growth, loss } = plantFlux(plant, patch, localLight, environment.temperatureC, environment.photosynthesis, environment.cycling, air, !!world.sealed)
   const temperature = Math.max(0, 1 - Math.abs(environment.temperatureC - 22) / 24)
   const soilLimit = temperature < Math.min(moisture, sunlight, fertility) ? 'temperature' : moisture <= sunlight && moisture <= fertility ? 'water' : sunlight <= fertility ? 'light' : 'nutrients'
   const limiting: PlantLimit = world.sealed && rotLoss(plant, patch) > 0 ? 'rot' : air < Math.min(moisture, sunlight, fertility, temperature) ? 'co2' : soilLimit
-  return { change: clamp(plant.biomass + growth - loss, 0, plant.capacity) - plant.biomass, growth, loss, dark: environment.cycling && environment.solar <= 0, limiting, fit: moisture * sunlight * fertility * temperature * air, localLight: localLight * environment.solar }
+  return { change: clamp(plant.biomass + growth - loss, 0, plant.capacity) - plant.biomass, growth, loss, dark: environment.cycling && environment.solar <= 0, limiting, fit: conditionFit({ moisture, sunlight, fertility }, temperature) * air, localLight: localLight * environment.solar }
 }
 
 const litterMoisture = (patch: SoilPatch) => clamp((patch.water - 10) / 55, 0, 1)
@@ -531,6 +562,8 @@ export function simulateStep(world: World): StepResult {
   // untracked gas; these are relative model units, not calibrated carbon mass.
   // Aerobic decay slows as a sealed jar runs out of oxygen.
   const breath = oxygenFit(world)
+  const soilBound = () => soil.reduce((sum, patch) => sum + patch.organic + patch.fungi, 0)
+  const boundBeforeDecay = soilBound()
   for (const patch of soil) {
     const moisture = clamp((patch.water - 8) / 38, 0, 1) * suitability(patch.water / 100, 0.72, 0.85)
     const decomposed = Math.min(patch.organic, 0.055 * patch.fungi * patch.organic / (patch.organic + 8) * moisture * rate * breath)
@@ -548,18 +581,24 @@ export function simulateStep(world: World): StepResult {
   }
 
   // In a sealed jar photosynthesis is limited by the CO2 in the jar air and
-  // can never fix more carbon this hour than the air holds.
+  // can never fix more carbon this hour than the air holds plus what soil life
+  // and the plants themselves breathe out during the same hour (2026-11-20:
+  // the tiny air pool turns over in minutes, as in real closed jars).
   let carbon = 1
   if (world.sealed) {
     const fit = carbonFit(world)
-    const potential = carbonShare * (world.plants.reduce((sum, plant) => sum + plantFlux(plant, isAquatic(plant.kind) ? aquaticSoil : nearestSoil(soil, plant.x, plant.z), plantLight(world, plant), temperature, environment.photosynthesis, environment.cycling, fit).growth, 0)
+    const fluxes = world.plants.map((plant) => plantFlux(plant, isAquatic(plant.kind) ? aquaticSoil : nearestSoil(soil, plant.x, plant.z), plantLight(world, plant), temperature, environment.photosynthesis, environment.cycling, fit))
+    const potential = carbonShare * (fluxes.reduce((sum, flux) => sum + flux.growth, 0)
       + algaeGrowth(pond, environment.light, { ...climate, temperatureC: temperature }) * fit)
-    carbon = fit * (potential > 0 ? Math.min(1, Math.max(0, world.sealed.co2) / potential) : 1)
+    const breathed = carbonShare * (Math.max(0, boundBeforeDecay - soilBound()) + fluxes.reduce((sum, flux) => sum + flux.loss * 0.58, 0))
+    // Only part of that breath is counted, so the air can never be overdrawn.
+    carbon = fit * (potential > 0 ? Math.min(1, (Math.max(0, world.sealed.co2) + breathed * 0.5) / potential) : 1)
+
   }
   const plants = world.plants.map((plant): Plant | null => {
     const patch = isAquatic(plant.kind) ? aquaticSoil : nearestSoil(soil, plant.x, plant.z)
     const age = (plant.age ?? 90) + 1
-    const moisture = plantConditions(plant, patch, plantLight(world, plant)).moisture
+    const moisture = plantConditions(plant, patch, plantLight(world, plant), !!world.sealed).moisture
     const development = (plant.development ?? 90) + moisture * Math.max(0, 1 - Math.abs(temperature - 22) / 24) * developmentRate[plant.kind]
     const developed = { ...plant, age, development, parentId: plant.parentId ?? null, lastReproduction: plant.lastReproduction ?? -1 }
     const { growth, loss } = plantFlux(developed, patch, plantLight(world, plant), temperature, environment.photosynthesis, environment.cycling, carbon, !!world.sealed)
@@ -605,7 +644,9 @@ export function simulateStep(world: World): StepResult {
       local.nutrients += digested * 0.35
       life.hydration *= life.mass / (life.mass + growth)
       life.mass += growth
-      energy = Math.min(100, energy + digested * 14 - growth * 20)
+      // Leaf litter softened by fungi is a rich meal for a woodlouse (2026-11-20: 14 -> 22),
+      // so well-fed adults in a damp jar reach breeding condition, as in captive cultures.
+      energy = Math.min(100, energy + digested * woodlouseDigestion - growth * 20)
       const moisture = litterMoisture(local)
       const hydration = clamp(life.hydration + moisture * 5 - (0.2 + (1 - moisture) * 0.6) * rate, 0, 100)
       const absorbed = Math.max(0, hydration - life.hydration) / 100 * life.mass * 0.8
@@ -686,7 +727,9 @@ export function simulateStep(world: World): StepResult {
         else if (mate) life.activity = 'courting'
         const distance = Math.hypot(target.x - x, target.z - z)
         if (distance > 0.24) {
-          const moved = walkOnLand(creature, target.x, target.z, Math.min(0.075 * clamp(energy / 30, 0.25, 1), distance - 0.2))
+          // A woodlouse walking with purpose covers about a centimetre a second (P. scaber),
+          // so a courting adult crosses the jar in a night; foraging stays an amble (2026-11-20).
+          const moved = walkOnLand(creature, target.x, target.z, Math.min((mate ? 0.3 : 0.075) * clamp(energy / 30, 0.25, 1), distance - 0.2))
           ;({ x, z, heading } = moved)
           energy -= moved.distance * 0.6
         } else if (!mate && !waterTarget) {
@@ -906,10 +949,14 @@ export function simulateStep(world: World): StepResult {
   const seedlings: Plant[] = []
   let nextPlantId = Math.max(world.nextPlantId ?? 0, world.plants.reduce((highest, plant) => Math.max(highest, plant.id), -1) + 1)
   for (const parent of plants) {
-    if (plants.length + seedlings.length >= 32 || parent.biomass / parent.capacity < 0.78 || plantStage(parent) !== 'mature') continue
+    // A plant sets seed (or spores, runners) once it can flower: the same 70% cover (2026-11-20; was 78%).
+    if (plants.length + seedlings.length >= 32 || !plantFlowering(parent) || plantStage(parent) !== 'mature') continue
+    // The pond surface is small: floating and rooted pond plants fill at most a third of the jar's plant slots,
+    // so a spreading frogbit mat cannot crowd every land seedling out (2026-11-20).
+    if (isAquatic(parent.kind) && [...plants, ...seedlings].filter((plant) => isAquatic(plant.kind)).length >= aquaticPlantLimit) continue
     const traits = plantTraits[parent.kind]
-    const conditions = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, parent.x, parent.z), plantLight(world, parent))
-    if (conditions.moisture * conditions.sunlight * conditions.fertility < 0.55) continue
+    const conditions = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, parent.x, parent.z), plantLight(world, parent), !!world.sealed)
+    if (conditionFit(conditions) < 0.45) continue
     let chance: number
     ;[seed, chance] = random(seed)
     if (chance > traits.spread) continue
@@ -922,8 +969,8 @@ export function simulateStep(world: World): StepResult {
     const z = parent.z + Math.cos(direction * Math.PI * 2) * radius
     // The seal stops the player adding life, not plants spreading inside the jar.
     if (placementIssue({ ...world, sealed: null, plants: [...plants, ...seedlings] }, parent.kind, x, z)) continue
-    const destination = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, x, z), parent.kind === 'tree' ? world.light : peakLightAt(world, x, z))
-    if (destination.moisture * destination.sunlight * destination.fertility < 0.45) continue
+    const destination = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, x, z), parent.kind === 'tree' ? world.light : peakLightAt(world, x, z), !!world.sealed)
+    if (conditionFit(destination) < 0.35) continue
     // Propagule material is transferred from the parent, never created by a timer.
     parent.biomass -= 0.55
     parent.lastReproduction = world.tick + 1

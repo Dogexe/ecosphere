@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { jarMatter } from '../src/sim/seal.ts'
 import { createWorld, introduceLife, plantOutlook, simulateStep, stepWorld } from '../src/sim/ecosystem.ts'
 import { beginDaylitWorld } from '../src/sim/climate.ts'
 import { plantStage } from '../src/sim/life.ts'
@@ -51,8 +52,8 @@ test('nighttime seedling upkeep is paid from existing mass and returned locally,
   const next = stepWorld(world)
   near(plant.biomass - next.plants[0].biomass, outlook.loss)
   near(next.soil[3].organic, outlook.loss * 0.42)
-  near(next.soil[3].nutrients, world.soil[3].nutrients)
-  near(next.pond.nutrients, stepWorld({ ...world, plants: [] }).pond.nutrients)
+  // No root uptake at night: the jar's minerals are unchanged; pockets and pond still seep (2026-11-20).
+  assert.ok(Math.abs(jarMatter(next).minerals - jarMatter(world).minerals) < 1e-9 * jarMatter(world).minerals)
 })
 
 test('shade tolerance cannot create photosynthetic growth at zero incident light', () => {

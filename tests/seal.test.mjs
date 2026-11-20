@@ -113,10 +113,15 @@ test('minerals and carbon inside a sealed jar are conserved, with respired carbo
   }
 })
 
-test('the open world still loses matter to the air, so the cycle only closes under the seal', () => {
+test('an open jar keeps its minerals but trades carbon with the room (2026-11-20)', () => {
   const start = beginDaylitWorld(createHabitatWorld('woodland'))
-  const open = advance(start, 30 * 24)
-  assert.ok(jarMatter(open).minerals < jarMatter(start).minerals * 0.99)
+  let open = start
+  for (let hour = 0; hour < 30 * 24; hour += 1) {
+    open = stepWorld(open)
+    assert.ok(Math.abs(jarMatter(open).minerals - jarMatter(start).minerals) < 1e-8 * jarMatter(start).minerals, `minerals drifted at hour ${hour}`)
+  }
+  assert.ok(Math.abs(jarMatter(open).carbon - jarMatter(start).carbon) > 1e-3)
+  assert.equal(open.sealed, undefined)
 })
 
 test('seedlings still establish inside a sealed jar; only the player is locked out', () => {
@@ -135,7 +140,10 @@ test('CO2 limits sealed photosynthesis and bright light heats the jar', () => {
   const open = beginDaylitWorld(createHabitatWorld('meadow'))
   const sealed = sealWorld(open, 30)
   assert.equal(carbonFit(open), 1)
-  assert.ok(Math.abs(carbonFit(sealed) - 0.5) < 1e-12)
+  // Room air at sealing gives the same photosynthesis as an open jar; drawn-down air slows it, extra CO2 helps up to 2x.
+  assert.ok(Math.abs(carbonFit(sealed) - 1) < 1e-12)
+  assert.ok(carbonFit({ sealed: { ...sealed.sealed, co2: sealed.sealed.co2 / 4 } }) < 0.5)
+  assert.ok(carbonFit({ sealed: { ...sealed.sealed, co2: sealed.sealed.co2 * 2 } }) > 1.3)
   const starved = { ...sealed, sealed: { ...sealed.sealed, co2: 0 } }
   const step = stepWorld({ ...starved, tick: 12 })
   for (const plant of starved.plants) {
@@ -143,7 +151,9 @@ test('CO2 limits sealed photosynthesis and bright light heats the jar', () => {
     if (after) assert.ok(after.biomass <= plant.biomass + 1e-12)
   }
   const noon = (world) => environmentAt({ ...world, tick: 12 }).temperatureC
-  assert.ok(noon(sealed) > noon(open) + 8)
+  // Heat follows irradiance, about light squared: full sun +10 C, bright indirect light (0.55) about +3 C.
+  assert.ok(noon({ ...sealed, light: 1 }) > noon({ ...open, light: 1 }) + 9.9)
+  assert.ok(noon({ ...sealed, light: 0.55 }) < noon({ ...open, light: 0.55 }) + 3.1)
   assert.equal(noon({ ...sealed, light: 0.3 }) < noon(sealed), true)
   assert.equal(environmentAt({ ...sealed, tick: 0 }).temperatureC, environmentAt({ ...open, tick: 0 }).temperatureC)
 })

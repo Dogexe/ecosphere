@@ -2,7 +2,8 @@ import type { Creature, Lifeform, Plant, PlantKind, SoilPatch, World } from './e
 import { isAquatic, rateAt } from './pond.ts'
 import type { Pond } from './pond'
 
-export const plantLifetime: Record<PlantKind, number> = { clover: 8760, grass: 8760, bloom: 2880, fern: 43800, moss: 87600, tree: 175200, lily: 17520, reed: 17520 }
+// Grass is a perennial bunchgrass (2026-11-20: 3 years, was 1).
+export const plantLifetime: Record<PlantKind, number> = { clover: 8760, grass: 26280, bloom: 2880, fern: 43800, moss: 87600, tree: 175200, lily: 17520, reed: 17520 }
 export const developmentRate: Record<PlantKind, number> = { clover: 1.2, grass: 1.5, bloom: 1, fern: 0.65, moss: 0.8, tree: 0.45, lily: 0.8, reed: 1.1 }
 export function plantStage(plant: Plant): 'seed' | 'germinating' | 'seedling' | 'growing' | 'mature' | 'senescent' {
   const age = plant.age ?? 90
@@ -37,13 +38,21 @@ export function woodlouseLife(creature: Creature): WoodlouseLife {
   return creature.life ? { ...creature.life, gut: creature.life.gut ?? 0 } : { mass: 0.22, hydration: 80, sex: creature.id % 2 ? 'male' : 'female', partnerId: null, courtship: 0, gestation: 0, brood: 0, gut: 0, parentId: null, activity: 'foraging' }
 }
 
+/** Energy an adult woodlouse needs to court (2026-11-20; was 45, about where a fed adult settles, so pairs kept losing interest mid-walk). */
+export const mateEnergy = 40
+/** How far a ready woodlouse will travel toward a mate: the whole jar. */
+export const mateSearchRadius = 8
+
 export function woodlouseMate(world: World, creature: Creature): Creature | null {
   const life = woodlouseLife(creature)
-  if (creature.stage === 'juvenile' || life.mass < 0.2 || life.hydration < 45 || life.brood > 0 || creature.energy < 45) return null
+  if (creature.stage === 'juvenile' || life.mass < 0.2 || life.hydration < 45 || life.brood > 0 || creature.energy < mateEnergy) return null
   let best: Creature | null = null
-  let distance = 4.5
+  // Woodlice gather in shared damp shelters by scent (aggregation pheromones), so a
+  // ready pair finds each other anywhere in a small jar (2026-11-20; was 4.5 units,
+  // which left two litter pockets 4.9 units apart unpaired for life).
+  let distance = mateSearchRadius
   for (const other of world.creatures) {
-    if (other.kind !== 'woodlouse' || other.id === creature.id || other.stage === 'juvenile' || other.energy < 45) continue
+    if (other.kind !== 'woodlouse' || other.id === creature.id || other.stage === 'juvenile' || other.energy < mateEnergy) continue
     const candidate = woodlouseLife(other)
     if (candidate.sex === life.sex || candidate.mass < 0.2 || candidate.hydration < 45 || candidate.brood > 0 || candidate.parentId === creature.id || life.parentId === other.id || (life.parentId !== null && life.parentId === candidate.parentId)) continue
     const next = Math.hypot(other.x - creature.x, other.z - creature.z)

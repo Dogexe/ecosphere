@@ -39,14 +39,18 @@ const pondCrew: ['snail' | 'shrimp', number, number][] = [
   ['snail', -0.6, 2.15],
 ]
 
+/** Bright indirect light, as terrarium growers recommend for a jar on a windowsill (2026-11-20). */
+export const starterLight = 0.55
+
 export function withStarterGarden(world: World): World {
-  let planted = world
-  for (const [kind, x, z] of garden) {
+  let planted: World = { ...world, light: starterLight }
+  // Plants bought for a jar are of mixed ages, so they do not all reach the end of life on the same day (2026-11-20).
+  for (const [index, [kind, x, z]] of garden.entries()) {
     const next = introduceLife(planted, kind, x, z)
     if (next === planted) continue
     // Already established when the player first looks in, not seedlings.
     const plant = next.plants[next.plants.length - 1]
-    planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * (plant.kind === 'tree' ? 0.8 : 0.85), age: 90, development: 90 }] }
+    planted = { ...next, plants: [...next.plants.slice(0, -1), { ...plant, biomass: plant.capacity * (plant.kind === 'tree' ? 0.8 : 0.85), age: 90 + (index * 7 % 16) * 24 * 9, development: 90 }] }
   }
   for (const [kind, x, z] of pondCrew) planted = introduceLife(planted, kind, x, z)
   // A seed-harvester colony on the front-right bank (owner's reference, 2026-11-07): its nest is shown in cutaway

@@ -173,7 +173,8 @@ test('juveniles mature before reproducing; age death returns body material and p
 
 test('oxygen caps aerobic processing and imported reserves match modeled reservoirs', () => {
   const pond = { ...defaultPond(), organic: 1000, algae: 0, oxygen: 1 }
-  const next = stepPond(pond, [], 0.8, defaultClimate(), 17, 1)
+  // In the dark, so the always-present algal inoculum adds no oxygen this hour (2026-11-20).
+  const next = stepPond(pond, [], 0, defaultClimate(), 17, 1)
   assert.ok(pond.organic - next.pond.organic <= pond.oxygen / 2.5 + 1e-9)
   const save = JSON.parse(serializeSave(createWorld()))
   save.world.creatures[0].materialReserve = 1

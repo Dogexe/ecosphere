@@ -1,5 +1,11 @@
 # ECOSPHERE development progress
 
+## Systems rebalance (plan item 1) — 2026-11-20
+
+Owner asked to return to game systems. Audit: the untouched starter jar died fast (open: drought by day 30; sealed: moss day 7, frogbit day 14, pond crew and ants by day 60, woodlice never bred). Rebalanced the ecology (details and sources in ECOLOGY.md): logistic plant growth with per-tissue upkeep and Liebig fit, sourced light classes (starter at bright indirect 0.55), squared greenhouse heat, ambient-relative CO2, moss drinking humid air, minerals recycled in open jars, pond-bank seepage, algae inoculum, slower pond grazers, seed-setting at flowering, pond plant cap 10, woodlouse mating across the jar, longer-lived harvester queen/workers who feed the queen first, perennial grass, mixed starter ages.
+
+279 tests pass (4 new in tests/balance.test.mjs; 23 older stock-flow tests updated where minerals now recycle or the bank seeps, living-jar trajectory fixture regenerated). Typecheck and build pass. Probe scripts: artifacts/systems/.
+
 ## Image 12 rounds 2-3 — 2026-11-07
 
 Toward concept image 12 (owner's main target). The default jar is re-poured as a sculpted low bank (gravel about 9 mm, soil bank 30-45 mm) with the pond dug to the gravel where it meets the front glass, so water, pebble bed, shrimp and snails are seen side-on; the waterline has a broken meniscus glint. The jar is squatter with a thinner screw cap, the front camera frames the whole jar above the dock, gravel through the glass reads as 5-8 mm stones, condensation beads are drawn as small lenses (dark rim, bright lower crescent, glint) concentrated on the upper glass with short wiped trails, the window shows a rainy garden behind a dark frame, the sill is matte dark walnut, and the vignette is lighter. Calathea, fern and violet presentation sizes match image 12 (no solver change).

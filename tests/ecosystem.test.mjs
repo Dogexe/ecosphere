@@ -24,7 +24,9 @@ test('water and compost add real stocks; decomposition releases nutrients', () =
   assert.ok(watered.soil.every((patch, index) => patch.water === initial.soil[index].water + 18))
   assert.ok(composted.soil.every((patch, index) => patch.organic === initial.soil[index].organic + 16))
   assert.ok(stepWorld(composted).nutrients > stepWorld(initial).nutrients)
-  assert.ok(vitality(advance(composted, 45)) > vitality(advance(initial, 45)))
+  // Total living plant mass, not mean vitality: compost can also raise more (small) seedlings.
+  const green = (world) => world.plants.reduce((sum, plant) => sum + plant.biomass, 0)
+  assert.ok(green(advance(composted, 45)) > green(advance(initial, 45)))
 })
 
 test('local tending changes one patch and one quarter of the world summary', () => {
@@ -101,13 +103,16 @@ test('local soil summaries stay synchronized and resource stocks stay nonnegativ
 
 test('wet substrate supports fungi, while dry soil cannot decompose it', () => {
   const initial = withSoil({ ...createWorld(), plants: [], creatures: [] }, (patch) => ({ ...patch, water: 75, organic: 30, fungi: 2 }))
-  const dry = withSoil(initial, (patch) => ({ ...patch, water: 0 }))
+  // An empty pond too: otherwise its water seeps into the dry bank, carrying nutrients (2026-11-20).
+  const dry = { ...withSoil(initial, (patch) => ({ ...patch, water: 0 })), pond: { ...initial.pond, water: 0, nutrients: 0 } }
   const wetResult = advance(initial, 50)
   const dryResult = advance(dry, 50)
   assert.ok(wetResult.soil[0].fungi > initial.soil[0].fungi)
   assert.ok(dryResult.soil[0].fungi < dry.soil[0].fungi)
   assert.ok(wetResult.nutrients > initial.nutrients)
-  assert.ok(Math.abs(dryResult.nutrients - dry.nutrients) < 1e-9)
+  // Dry soil decomposes nothing: its litter only grows as starving fungi die back.
+  // (Their minerals now return to the soil, so nutrients are no longer exactly flat.)
+  assert.ok(dryResult.organic >= dry.organic - 1e-9)
   assert.ok(wetResult.organic < initial.organic)
 })
 

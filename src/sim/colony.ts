@@ -188,10 +188,21 @@ export function introduceColony(world: World, x: number, z: number): World {
   return { ...world, colony }
 }
 
+/** Hourly upkeep of the sedentary queen. */
+export const queenUpkeep = 0.07
+/** Pogonomyrmex queens live for decades (Johnson 2001; up to ~30 y); the game caps at 10 years. */
+export const queenLifespan = 87600
+/** Harvester workers live months indoors; foragers far less in the wild. Six months here (was 50 days). */
+export const workerLifespan = 4380
+/** Cover above which a seed plant carries ripe seed for harvester ants. */
+export const seedCover = 0.55
+
 export function seedMaterialAvailable(plant: Plant): number {
   if (!['clover', 'grass', 'bloom'].includes(plant.kind) || !['mature', 'senescent'].includes(plantStage(plant))) return 0
   // Aggregate seed-bearing material within producer biomass, not a new pool.
-  return Math.max(0, plant.biomass - plant.capacity * 0.7)
+  // Seed heads ripen above 55% cover (2026-11-20; was 70%, which the logistic growth
+  // model's plants rarely pass in a damp jar, so the colony starved).
+  return Math.max(0, plant.biomass - plant.capacity * seedCover)
 }
 
 export function antFoodSources(plants: Plant[], x: number, z: number): Plant[] {
@@ -252,7 +263,9 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
       events.push({ type: 'ant', action: 'feeding', id: ant.id, amount: meal })
     }
     const localRate = ant.location.kind === 'nest' ? rate : rateAt(forcing.temperatureC)
-    ant.energy -= (ant.caste === 'queen' ? 0.17 : ant.activity === 'resting' ? 0.06 : 0.12) * localRate
+    // A queen sits still in her chamber: her upkeep is a resting worker's, not 0.17 (2026-11-20),
+    // so a provisioned queen outlasts lean weeks as real harvester queens do.
+    ant.energy -= (ant.caste === 'queen' ? queenUpkeep : ant.activity === 'resting' ? 0.06 : 0.12) * localRate
     const digested = Math.min(ant.gut, (ant.caste === 'queen' ? 0.0006 : 0.0008) * localRate, Math.max(0, (90 - ant.energy) / 600))
     ant.gut -= digested; ant.energy += digested * 600
     colony.ledger.metabolized += digested * 0.55
@@ -261,7 +274,7 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
     const gain = Math.min(100 - ant.hydration, Math.max(0, (patch.water - 8) / 55) * 3)
     const water = Math.min(patch.water, gain / 100 * ant.body * 0.4)
     patch.water -= water; ant.hydration += water / (ant.body * 0.4) * 100
-    if (ant.energy <= 0 || ant.hydration <= 0 || ant.age >= (ant.caste === 'queen' ? 10000 : 1200)) { die(ant); return false }
+    if (ant.energy <= 0 || ant.hydration <= 0 || ant.age >= (ant.caste === 'queen' ? queenLifespan : workerLifespan)) { die(ant); return false }
     return true
   }
   if (colony.queen && !maintain(colony.queen)) colony.queen = null
@@ -333,7 +346,9 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
     }
     const queenUrgent = colony.queen && colony.queen.energy < 35 && colony.queen.gut < 0.004
     const queenNeeds = colony.queen && colony.queen.gut < 0.008 && (!hungryLarvae || colony.queen.energy < 55)
-    if (ant.carried > 0 && ant.activity !== 'nursing' && colony.food <= 0.002 && readyToCare(ant) && (queenNeeds || hungryLarvae)) {
+    // Workers feed a starving queen before themselves (2026-11-20): in lean months a colony shrinks
+    // through its workers, not by losing the queen while foragers eat every seed they bring home.
+    if (ant.carried > 0 && ant.activity !== 'nursing' && colony.food <= 0.002 && (readyToCare(ant) || queenUrgent) && (queenNeeds || hungryLarvae)) {
       // A returning forager already holds real food. In an empty nest it can
       // become the carer, rather than requiring a separate granary round trip.
       ant.activity = 'nursing'; ant.goal = { kind: 'chamber', id: queenUrgent || queenNeeds ? queenRoom : broodRoom }

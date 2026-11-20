@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { antFixture } from '../scripts/probe_ant_colony.mjs'
-import { antMaterialError, antPosition, stepAntColony } from '../src/sim/colony.ts'
+import { antMaterialError, antPosition, stepAntColony, workerLifespan } from '../src/sim/colony.ts'
 import { addRemains, decayRemains } from '../src/sim/life.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
 
@@ -33,7 +33,7 @@ test('tiny recorded ant bodies retain fractional decay instead of disappearing a
 
 function dyingWorker() {
   const world = antFixture(), ant = world.colony.workers[0]
-  ant.age = 1199; ant.location = { kind: 'nest', from: 4, to: 5, progress: 0.4 }
+  ant.age = workerLifespan - 1; ant.location = { kind: 'nest', from: 4, to: 5, progress: 0.4 }
   return world
 }
 

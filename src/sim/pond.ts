@@ -48,11 +48,16 @@ function swim(creature: Creature, x: number, z: number, stride: number) {
   return { x: nextX, z: nextZ, heading: Math.atan2(nextX - creature.x, nextZ - creature.z) }
 }
 
+/** Trace of algae that always remains in wet pond water as cells and spores. */
+export const algaeInoculum = 0.05
+
 /** Potential algal growth this hour before any CO2 limit. */
 export function algaeGrowth(pond: Pond, light: number, climate: Climate) {
   const wet = Math.min(1, pond.water / 25)
   const temperatureFit = Math.max(0, 1 - Math.abs(climate.temperatureC - 22) / 24)
-  return Math.min(pond.nutrients / 0.6, 0.08 * pond.algae * light * (climate.photoperiod ? daylightNormalization : 1) * wet * temperatureFit * Math.max(0, 1 - pond.algae / 12))
+  // Algal cells and spores ride in on every surface and never fully vanish from
+  // wet water (2026-11-20): growth starts from at least a trace inoculum.
+  return Math.min(pond.nutrients / 0.6, 0.08 * Math.max(pond.algae, algaeInoculum * wet) * light * (climate.photoperiod ? daylightNormalization : 1) * wet * temperatureFit * Math.max(0, 1 - pond.algae / 12))
 }
 
 export function stepPond(source: Pond, animals: Creature[], light: number, climate: Climate, seed: number, nextId: number, tick = 0, carbon = 1, breath = 1) {
@@ -79,7 +84,9 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
   const survivors: Creature[] = []
   for (const creature of animals) {
     const oxygenFit = Math.min(1, pond.oxygen / Math.max(1, pond.water) / 0.35)
-    const maintenance = (creature.kind === 'fish' ? 0.18 : 0.15) * rate
+    // Snails and shrimp are slow, small grazers that can go a week or more between
+    // good meals; their upkeep is well below the free-swimming flea's (2026-11-20).
+    const maintenance = (creature.kind === 'fish' ? 0.18 : isBenthic(creature.kind) ? 0.06 : 0.15) * rate
     const stress = (1 - oxygenFit) * 1.3 + (1 - wet) * 2
     const resting = scheduledRest({ tick, climate }, { ...creature, energy: creature.energy - maintenance - stress })
     let energy = creature.energy - maintenance * (resting ? 0.5 : 1) - stress
@@ -129,7 +136,7 @@ export function stepPond(source: Pond, animals: Creature[], light: number, clima
     grazer.energy -= shrimp ? 0.02 : 0.01
     const hunger = (100 - grazer.energy) / 16
     const algae = Math.min(pond.algae, 0.02 * wet * pond.algae / (pond.algae + 1), hunger)
-    const detritus = Math.min(pond.organic, 0.012 * wet * pond.organic / (pond.organic + 2), hunger - algae)
+    const detritus = Math.min(pond.organic, 0.02 * wet * pond.organic / (pond.organic + 2), hunger - algae)
     pond.algae -= algae
     pond.organic -= detritus
     const eaten = algae + detritus

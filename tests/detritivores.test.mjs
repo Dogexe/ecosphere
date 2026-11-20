@@ -20,11 +20,16 @@ test('woodlice ingest local litter into the gut without instant energy or consum
   const nutrients = fed.soil[2].nutrients - control.soil[2].nutrients
   assert.ok(consumed > 0)
   assert.ok(Math.abs(litterLoss - consumed) < 1e-9)
-  assert.ok(Math.abs(nutrients) < 1e-9)
+  // The woodlouse also drinks, and the bank seeps with the pond by water level (2026-11-20),
+  // so dissolved nutrients shift by a trace; nothing is mineralised at ingestion.
+  assert.ok(Math.abs(nutrients) < 1e-4)
   assert.ok(fed.creatures[0].energy < initial.creatures[0].energy)
   assert.deepEqual(fed.plants, control.plants)
   assert.equal(fed.grazed, 0)
-  assert.deepEqual(fed.soil.filter((patch) => patch.id !== 2), control.soil.filter((patch) => patch.id !== 2))
+  for (const patch of fed.soil.filter((item) => item.id !== 2)) {
+    const other = control.soil.find((item) => item.id === patch.id)
+    for (const key of ['water', 'nutrients', 'organic', 'fungi']) assert.ok(Math.abs(patch[key] - other[key]) < 1e-6, key)
+  }
   assert.deepEqual(initial, snapshot)
   assert.ok(creatureIsFeeding(initial, initial.creatures[0]))
 })
@@ -39,7 +44,12 @@ test('woodlice navigate to moist litter and stay out of the pond', () => {
   }
   assert.ok(world.creatures.length > 0)
   assert.ok(Math.hypot(world.creatures[0].x + 1.4, world.creatures[0].z - 2.5) < initialDistance / 3)
-  assert.ok(world.soil[2].nutrients > 42)
+  // Feeding releases nutrients into the litter pocket, compared with the same jar without the woodlouse
+  // (the pond also seeps into the dry bank, so the absolute level is not a fixed number since 2026-11-20).
+  let control = { ...habitat({ energy: 95 }), creatures: [] }
+  control = { ...control, soil: control.soil.map((patch) => ({ ...patch, water: patch.id === 2 ? 75 : 1 })) }
+  for (let tick = 0; tick < 110; tick += 1) control = stepWorld(control)
+  assert.ok(world.soil[2].nutrients > control.soil[2].nutrients)
 })
 
 test('a lone detritivore rests when fed and cannot produce unpaired offspring', () => {

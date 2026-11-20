@@ -155,5 +155,9 @@ test('a controlled predator addition changes herbivory and producer recovery wit
   const experiment = run(1)
   assert.ok(experiment.catches > 0)
   assert.ok(experiment.world.grazed < control.world.grazed)
-  assert.ok(experiment.world.plants.reduce((sum, plant) => sum + plant.biomass, 0) > control.world.plants.reduce((sum, plant) => sum + plant.biomass, 0))
+  // The founding producers (the ones the grazers work on) recover more with a predator. Total mass
+  // also counts new seedlings, whose number is chance-driven since the 2026-11-20 growth model.
+  const founders = new Set(createWorld(17).plants.map((plant) => plant.id))
+  const standing = (world) => world.plants.filter((plant) => founders.has(plant.id)).reduce((sum, plant) => sum + plant.biomass, 0)
+  assert.ok(standing(experiment.world) > standing(control.world))
 })

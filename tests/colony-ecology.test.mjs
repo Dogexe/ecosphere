@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { antFixture } from '../scripts/probe_ant_colony.mjs'
-import { antMaterial, antMaterialError, antPosition, exportColony, seedMaterialAvailable, stepAntColony } from '../src/sim/colony.ts'
+import { antMaterial, antMaterialError, antPosition, exportColony, seedCover, seedMaterialAvailable, stepAntColony, workerLifespan } from '../src/sim/colony.ts'
 import { isLandSegment, walkOnLand } from '../src/sim/land.ts'
 import { removeLife, simulateStep } from '../src/sim/ecosystem.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
@@ -22,7 +22,7 @@ test('ant harvest transfers actual reproductive biomass, respects maturity/diet 
   assert.deepEqual(world, original)
   for (const kind of ['moss', 'fern', 'tree', 'lily', 'reed']) assert.equal(seedMaterialAvailable({ ...plant, kind }), 0)
   assert.equal(seedMaterialAvailable({ ...plant, development: 2 }), 0)
-  assert.equal(seedMaterialAvailable({ ...plant, biomass: plant.capacity * 0.7 }), 0)
+  assert.equal(seedMaterialAvailable({ ...plant, biomass: plant.capacity * seedCover }), 0)
   let deliveries = 0
   for (let i = 0; i < 20; i++) {
     const before = result.world
@@ -135,7 +135,7 @@ test('newly emerged body water is withdrawn from soil and cannot create water th
   const water = world.soil.reduce((sum, patch) => sum + patch.water, 0)
   const born = step(world).world, child = born.colony.workers[0]
   near(water - born.soil.reduce((sum, patch) => sum + patch.water, 0), child.hydration / 100 * child.body * 0.4)
-  child.age = 1199; child.stage = 'adult'
+  child.age = workerLifespan - 1; child.stage = 'adult'
   const dead = step(born).world
   assert.equal(dead.colony.workers.length, 0)
   assert.ok(dead.soil.reduce((sum, patch) => sum + patch.water, 0) <= water)

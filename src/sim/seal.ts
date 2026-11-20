@@ -2,6 +2,8 @@ import type { Creature, PlantLimit, World } from './ecosystem'
 import { bodyStock, woodlouseLife } from './life.ts'
 import { antMaterial } from './colony.ts'
 
+const aquatic = (kind: string) => kind === 'flea' || kind === 'fish' || kind === 'snail' || kind === 'shrimp' || kind === 'lily' || kind === 'reed'
+
 /**
  * Seal Mode: a closed jar. Matter cannot be added or removed by the player and
  * rain stops; light and heat still pass through the glass. Water that leaves
@@ -77,16 +79,21 @@ export function jarMatter(world: World): { minerals: number; carbon: number } {
     + world.pond.organic + world.pond.algae
     + world.plants.reduce((sum, plant) => sum + plant.biomass, 0)
     + (world.remains ?? []).reduce((sum, item) => sum + item.material, 0)
-    + world.creatures.reduce((sum, creature: Creature) => sum + bodyStock(creature, creatureBody[creature.kind] ?? 0), 0)
+    + world.creatures.reduce((sum, creature: Creature) => sum + bodyStock(creature, creatureBody[creature.kind ?? 'grazer'] ?? 0), 0)
     + (world.colony ? antMaterial(world.colony) : 0)
   return { minerals: free + bound * mineralShare, carbon: bound * carbonShare }
 }
 
-/** CO2 limit on photosynthesis: Michaelis-Menten with half-saturation at ambient CO2. */
+/**
+ * CO2 effect on photosynthesis: Michaelis-Menten with half-saturation at
+ * ambient CO2, relative to ambient (2026-11-20). Room air gives 1, as in an
+ * open jar; a jar the plants have drawn down slows, and extra CO2 helps up to
+ * 2x (doubling CO2 gives +33%, near the FACE estimates for C3 plants).
+ */
 export function carbonFit(world: Pick<World, 'sealed'>): number {
   if (!world.sealed) return 1
   const co2 = Math.max(0, world.sealed.co2)
-  return co2 / (co2 + startingCO2)
+  return 2 * co2 / (co2 + startingCO2)
 }
 
 /** Breathing stress for animals and aerobic decay: 1 at normal air, 0 when O2 is gone. */
@@ -115,20 +122,38 @@ export function closeWaterCycle(before: World, after: World): World {
   return { ...after, soil, water: mean, pond: { ...after.pond, water: after.pond.water + pondAdded }, climate: { ...after.climate, rainfall: 0 }, sealed: { ...before.sealed, vapor } }
 }
 
+/** Minerals in the pond: dissolved, in its organic matter and algae, and in aquatic plants, animals and remains. */
+export function pondMinerals(world: World): number {
+  const bound = world.pond.organic + world.pond.algae
+    + world.plants.reduce((sum, plant) => sum + (aquatic(plant.kind) ? plant.biomass : 0), 0)
+    + world.creatures.reduce((sum, creature) => sum + (aquatic(creature.kind) ? bodyStock(creature, creatureBody[creature.kind ?? 'grazer'] ?? 0) : 0), 0)
+    + (world.remains ?? []).reduce((sum, item) => sum + (item.patchId === 4 ? item.material : 0), 0)
+  return world.pond.nutrients + bound * mineralShare
+}
+
 /**
- * After one sealed step: minerals the open solver lost are mineralised evenly
- * into the four soil pockets; minerals it created are drawn from free
- * nutrients. Carbon that left living and dead matter is CO2 in the jar air and
- * used the same amount of O2; carbon that was fixed did the reverse.
+ * After every step, open or sealed: minerals the solver's coarse turnover lost
+ * are mineralised back where they were lost, the pond's share into the pond
+ * and the rest evenly into the four soil pockets; minerals it created are
+ * drawn from free nutrients. Minerals do not leave a jar as gas, so nutrients
+ * recycle in an open jar too (2026-11-20; before, open jars slowly lost ~58%
+ * of all turnover and starved). In a sealed jar, carbon that left living and
+ * dead matter is CO2 in the jar air and used the same amount of O2; carbon
+ * that was fixed did the reverse. An open jar trades carbon with the room.
  */
 export function closeMatterCycle(before: World, after: World): World {
-  if (!before.sealed || !after.sealed) return after
+  // A world kept alive through hot reload may predate spatial soil: nothing to balance against.
+  if (!before.soil || !after.soil) return after
   const opening = jarMatter(before)
   const closing = jarMatter(after)
   let minerals = opening.minerals - closing.minerals
   const soil = after.soil.map((patch) => ({ ...patch }))
   const pond = { ...after.pond }
-  if (minerals > 0) for (const patch of soil) patch.nutrients += minerals / soil.length
+  if (minerals > 0) {
+    const pondShare = Math.max(0, Math.min(minerals, pondMinerals(before) - pondMinerals(after)))
+    pond.nutrients += pondShare
+    for (const patch of soil) patch.nutrients += (minerals - pondShare) / soil.length
+  }
   else if (minerals < 0) {
     const pools = [...soil, pond]
     const available = pools.reduce((sum, pool) => sum + pool.nutrients, 0)
@@ -138,14 +163,51 @@ export function closeMatterCycle(before: World, after: World): World {
   }
   const respired = opening.carbon - closing.carbon
   const mean = (key: 'nutrients' | 'organic') => soil.reduce((sum, patch) => sum + patch[key], 0) / soil.length
-  return { ...after, soil, pond, nutrients: mean('nutrients'), sealed: { ...after.sealed, co2: after.sealed.co2 + respired, o2: after.sealed.o2 - respired } }
+  const closed = { ...after, soil, pond, nutrients: mean('nutrients') }
+  return before.sealed && after.sealed ? { ...closed, sealed: { ...after.sealed, co2: after.sealed.co2 + respired, o2: after.sealed.o2 - respired } } : closed
+}
+
+/** Hourly share of the level difference between the pond and the soil around it that seeps through the bank. */
+export const seepageRate = 0.012
+/** Hourly diffusion of dissolved nutrients between pond water and soil water. */
+export const nutrientDiffusion = 0.004
+
+/**
+ * The pond is where the jar's water table shows (2026-11-20): water seeps
+ * through the bank from the higher of pond and soil to the lower, carrying its
+ * dissolved nutrients, and nutrients also diffuse slowly between them. Water
+ * and nutrients are conserved. Before this, a sealed pond filled to the brim
+ * while its nutrients ran out and the lily pads starved.
+ */
+export function seepBank(world: World): World {
+  if (!world.soil?.length || !world.pond) return world
+  const soil = world.soil.map((patch) => ({ ...patch }))
+  const pond = { ...world.pond }
+  const share = 1 / soil.length
+  for (const patch of soil) {
+    const flow = seepageRate * share * (pond.water - patch.water)
+    const [from, to] = flow > 0 ? [pond, patch] : [patch, pond]
+    const water = Math.min(Math.abs(flow), from.water, 100 - to.water)
+    if (water > 0) {
+      const carried = from.nutrients * water / Math.max(1, from.water)
+      from.water -= water; to.water += water
+      from.nutrients -= carried; to.nutrients += carried
+    }
+    const pondConcentration = pond.nutrients / Math.max(1, pond.water)
+    const soilConcentration = patch.nutrients / Math.max(1, patch.water)
+    const diffused = nutrientDiffusion * share * (soilConcentration - pondConcentration) * Math.min(pond.water, patch.water)
+    const moved = diffused > 0 ? Math.min(diffused, patch.nutrients) : -Math.min(-diffused, pond.nutrients)
+    patch.nutrients -= moved; pond.nutrients += moved
+  }
+  const mean = (key: 'water' | 'nutrients') => soil.reduce((sum, patch) => sum + patch[key], 0) / soil.length
+  return { ...world, soil, pond, water: mean('water'), nutrients: mean('nutrients') }
 }
 
 /** How fogged the glass is, 0 clear to 1 heavy: vapour condensing on it this hour. */
 export const fogLevel = (world: Pick<World, 'sealed'>) => world.sealed ? Math.max(0, Math.min(1, world.sealed.vapor * condensationRate / 1.2)) : 0
 
-/** Close water, then matter, for one sealed step. */
-export const closeJar = (before: World, after: World) => closeMatterCycle(before, closeWaterCycle(before, after))
+/** Close water (sealed only), then minerals (always) and carbon (sealed), then let the bank seep. */
+export const closeJar = (before: World, after: World) => seepBank(closeMatterCycle(before, closeWaterCycle(before, after)))
 
 export type SealOutcome = {
   status: 'running' | 'survived' | 'collapsed'

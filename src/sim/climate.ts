@@ -14,7 +14,9 @@ export function environmentAt(world: ClockWorld) {
   const solar = cycling ? solarAt(hour) : 1
   const phase = !cycling ? 'constant' : hour < 5 || hour >= 20 ? 'night' : hour < 7 ? 'dawn' : hour < 16 ? 'daylight' : hour < 18 ? 'sunset' : 'twilight'
   // Glass traps the heat of the light that reaches a sealed jar (greenhouse).
-  const trapped = world.sealed ? greenhouseGain * world.light * solar : 0
+  // Irradiance rises much faster than the light slider: indirect light carries a
+  // fraction of direct sun's heat, so the gain follows light squared (2026-11-20).
+  const trapped = world.sealed ? greenhouseGain * (world.light * solar) ** 2 : 0
   const temperatureC = Math.max(0, Math.min(world.sealed ? 45 : 40, (world.climate?.temperatureC ?? 22) + (cycling ? 3 * Math.sin((hour - 9) * Math.PI / 12) : 0) + trapped))
   return { cycling, hour, solar, phase, light: world.light * solar, photosynthesis: cycling ? solar * daylightNormalization : 1, temperatureC }
 }

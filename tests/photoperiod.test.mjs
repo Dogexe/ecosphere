@@ -8,6 +8,7 @@ import { createHabitatWorld } from '../src/sim/habitats.ts'
 import { defaultPond, isAquatic, isPondPosition, rateAt, stepPond } from '../src/sim/pond.ts'
 import { woodlouseLife } from '../src/sim/life.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
+import { jarMatter } from '../src/sim/seal.ts'
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
 const phase = (world, tick) => ({ ...world, tick, climate: { ...world.climate, photoperiod: true } })
@@ -42,6 +43,9 @@ test('constant mode retains the twelve explicit living-jar-correction trajectori
     // paths; stock-flow/contact tests validate the cause independently.
     // Regenerated for the 6 cm pond (2026-11-03): less land, moved starter
     // positions and pocket 2, and sideways soil water/mineral seepage.
+    // Regenerated 2026-11-20 for the systems rebalance: logistic plant growth with
+    // per-tissue upkeep, sourced light classes, recycled minerals in open jars,
+    // pond-bank seepage, algae inoculum, woodlouse mating range and ant lifespans.
     let world = createHabitatWorld(item.habitat, item.seed)
     for (let i = 0; i < 240; i++) world = stepWorld(world)
     assert.equal(createHash('sha256').update(JSON.stringify(world)).digest('hex'), item.sha256)
@@ -78,10 +82,12 @@ test('night stops photosynthesis/root uptake while turnover continues; daylight 
     const next = stepWorld(world)
     const s = next.soil[3]
     near(next.plants[0].biomass - world.plants[0].biomass, outlook.growth - outlook.loss)
-    near(80 - s.nutrients, outlook.growth * 0.65)
+    // Since 2026-11-20 the minerals of turnover return to the soil and the bank seeps
+    // with the pond, so pocket stocks are checked as bounds rather than exact flows.
     near(s.organic, outlook.loss * 0.42)
+    assert.ok(s.nutrients <= 80 - outlook.growth * 0.65 + outlook.loss * 0.58 * 0.65 + 1e-9)
     const env = environmentAt(world)
-    near(72 - s.water, outlook.growth * 0.12 + (0.08 + env.light * 0.1) * rateAt(env.temperatureC))
+    assert.ok(72 - s.water >= outlook.growth * 0.12 + (0.08 + env.light * 0.1) * rateAt(env.temperatureC) - 1e-9)
     if (hour === 0) { assert.equal(outlook.growth, 0); assert.equal(outlook.dark, true); assert.equal(outlook.localLight, 0) }
     else assert.ok(outlook.growth > 0)
   }
@@ -104,13 +110,14 @@ test('pond algae stop photosynthesis at night while oxygen use and decay continu
 
 test('accepted small-capacity plants cannot consume resources for biomass discarded by the capacity cap', () => {
   let world = phase(isolated('bloom'), 12)
-  world = { ...world, light: 0.92, plants: [{ ...world.plants[0], biomass: 0.1, capacity: 0.5 }] }
+  world = { ...world, light: 0.92, plants: [{ ...world.plants[0], biomass: 0.45, capacity: 0.5 }] }
   world = parseSave(serializeSave(world))
   const outlook = plantOutlook(world, world.plants[0])
   const next = stepWorld(world)
   assert.ok(outlook.growth <= 0.4 + outlook.loss + 1e-9)
-  near(next.plants[0].biomass, Math.min(0.5, 0.1 + outlook.growth - outlook.loss))
-  near(80 - next.soil[3].nutrients, outlook.growth * 0.65)
+  near(next.plants[0].biomass, Math.min(0.5, 0.45 + outlook.growth - outlook.loss))
+  // Pocket nutrients also seep toward the poorer pond, so the check is the jar's mineral total.
+  assert.ok(Math.abs(jarMatter(next).minerals - jarMatter(world).minerals) < 1e-9 * jarMatter(world).minerals)
 })
 
 test('diurnal grazers and beetles rest at night but severe hunger and threats override rest', () => {

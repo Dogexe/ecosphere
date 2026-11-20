@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { antFixture } from '../scripts/probe_ant_colony.mjs'
-import { antFoodSources, antMaterialError, stepAntColony } from '../src/sim/colony.ts'
+import { antFoodSources, antMaterialError, seedCover, stepAntColony } from '../src/sim/colony.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
 
 test('a low-reserve worker digests its actual meal in the granary before resuming work', () => {
@@ -243,6 +243,6 @@ test('food inspection uses the same mature stock and detection boundary as forag
   assert.deepEqual(antFoodSources(world.plants, 1.7, 1.7).map((plant) => plant.id), [0, 1, 2])
   assert.equal(antFoodSources(world.plants, -3, -3).length, 0)
   assert.equal(antFoodSources(world.plants.map((plant) => ({ ...plant, development: 0 })), 1.7, 1.7).length, 0)
-  assert.equal(antFoodSources(world.plants.map((plant) => ({ ...plant, biomass: plant.capacity * 0.7 })), 1.7, 1.7).length, 0)
+  assert.equal(antFoodSources(world.plants.map((plant) => ({ ...plant, biomass: plant.capacity * seedCover })), 1.7, 1.7).length, 0)
   assert.deepEqual(world, original)
 })
