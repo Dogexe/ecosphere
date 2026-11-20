@@ -176,6 +176,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .mixture-toggle { min-height: 32px; margin: -7px 0 -3px; padding: 5px 0; border: 0; background: transparent; color: #6f8c6b; font-size: 10px; font-weight: 750; letter-spacing: 0; }
 .dock-content { display: grid; grid-template-columns: minmax(360px, 1.9fr) minmax(150px, 1fr) minmax(125px, .7fr); align-items: center; gap: 19px; }
 .input-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.input-actions:has(.mist-button) { grid-template-columns: 1fr 1fr .78fr; }
+.input-actions:has(.mist-button) .action-plus { display: none; }
 .action-button { min-width: 0; height: 67px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e0ebdc; border-radius: 14px; background: #eff6ee; text-align: left; color: #355c46; transition: transform .16s, background .16s, box-shadow .16s; }
 .action-button:hover { background: #e7f2e7; box-shadow: 0 4px 14px rgba(83, 131, 97, .08); }
 .action-button:active { transform: scale(.97); }
@@ -816,3 +818,15 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .glass-picker button { display: grid; gap: 2px; text-align: left; }
 .glass-picker button small { font-size: 10px; font-weight: 400; opacity: .75; }
 .glass-picker button.active { outline: 2px solid #6e8b5c; }
+
+/* Hands-on care (systems pass item 4, 2026-11-20). */
+.mist-button { background: #f1f5f6; border-color: #dfe8ea; }
+.mist-symbol { color: #6c95a3; background: #e1edf0; font-size: 17px; }
+.sill-spots { display: flex; gap: 4px; margin-top: 6px; }
+.sill-spots button { flex: 1; min-height: 24px; padding: 3px 4px; border: 1px solid #e0d6c2; border-radius: 99px; background: transparent; color: #85705a; font-size: 9.5px; white-space: nowrap; cursor: pointer; }
+.sill-spots button.on { background: #6e8b5c; border-color: #6e8b5c; color: #fff; }
+.tend-row { display: flex; gap: 8px; margin: 12px 0 0; }
+.tend-row button { flex: 1; min-height: 34px; padding: 6px 10px; border: 1px solid #d8c6a4; border-radius: 99px; background: #f3e9d4; color: #4b3a2a; font-size: 11px; font-weight: 600; cursor: pointer; }
+.tend-row button:disabled { opacity: .45; cursor: default; }
+/* Phones: the slider does the same job; the spots would push the tray up over the notes. */
+@media (max-width: 760px) { .sill-spots { display: none; } }

@@ -36,6 +36,7 @@ import { observe, pageById, progress, readNotebook, writeEntry, writeNotebook } 
 import type { Notebook } from './sim/notebook'
 import { applySoilInput, isLand, beetleIsHunting, dominantLimit, createWorld, creatureCounts, creatureIsFeeding, creatureKind, introduceLife, intervene, interveneAt, nearestSoil, placementIssue, plantOutlook, predatorThreat, removeLife, simulateStep, vitality } from './sim/ecosystem'
 import { adviceText, careForecast } from './sim/care'
+import { canFeed, canTakeCutting, canTrim, cuttingSpot, feed, mist, sillSpots, takeCutting, trimPlant } from './sim/tending'
 import { decodeGoals, glassNames, objectNames, openGoals, reachGoals, unlockName, unlockedGlass, unlockedObjects } from './sim/goals'
 import { oddObjectSize } from './scene/OddObjects'
 import type { DecorKind, JarShape } from './sim/substrate'
@@ -683,6 +684,7 @@ export function App() {
             {focusedKind === 'woodlouse' && creatureSoil && <Meter label="Nearby moisture" value={creatureSoil.water} display={`${Math.round(creatureSoil.water)}%`} tone="blue" />}
             <button className="back-link" type="button" onClick={() => setFollowCreature(followCreature === focusedCreature.id ? null : focusedCreature.id)}>{followCreature === focusedCreature.id ? 'Stop following' : 'Follow this animal'}</button>
             {offspring && <button className="back-link" type="button" onClick={() => { setSelectedCreature(offspring.id); setFollowCreature(offspring.id) }}>Observe offspring #{offspring.id + 1} →</button>}
+            {canFeed(focusedCreature) && <div className="tend-row"><button type="button" disabled={sealed} onClick={() => { setWorld((current) => feed(current, focusedCreature.id)); setNotice(isAquatic(focusedCreature.kind) ? 'A pinch of food drifts to the pond bed. Uneaten food decays and uses oxygen.' : 'You dropped a dry leaf nearby. It softens into food as it decays.') }}>{isAquatic(focusedCreature.kind) ? 'Feed a pinch' : 'Drop a dry leaf'}</button></div>}
             <button className="remove-link" disabled={sealed} onClick={() => remove('creature', focusedCreature.id)} type="button">Move out of terrarium</button>
             {residents.length > 1 && <button className="back-link" type="button" onClick={() => { const next = residents[(residents.findIndex((creature) => creature.id === focusedCreature.id) + 1) % residents.length]; clearSelection(); setSelectedCreature(next.id); setFollowCreature(next.id) }}>Watch next animal →</button>}
             <button className="back-link" onClick={clearSelection} type="button">← Whole ecosystem</button>
@@ -701,6 +703,10 @@ export function App() {
             {isAquatic(selected.kind) ? <Meter label="Pond water" value={pond.water} display={`${Math.round(pond.water)}%`} tone="blue" /> : selectedPatch && <Meter label="Nearby soil water" value={selectedPatch.water} display={`${Math.round(selectedPatch.water)}%`} tone="blue" />}
             {outlook && <div className="patch-litter">{Math.round(outlook.localLight * 100)}% local light after canopy shade</div>}
             {!isAquatic(selected.kind) && selectedPatch && <button className="back-link" type="button" onClick={() => { clearSelection(); setSelectedSoil(selectedPatch.id) }}>Tend this plant's soil →</button>}
+            {!seedPhase && <div className="tend-row">
+              <button type="button" disabled={sealed || !canTrim(selected)} title={sealed ? 'Open the seal to tend' : canTrim(selected) ? 'Cut back 40%; clippings stay as litter' : 'Too small to trim'} onClick={() => { setWorld((current) => trimPlant(current, selected.id)); setNotice('Trimmed back. The clippings stay as litter for the recyclers; the plant will regrow.') }}>Trim back</button>
+              <button type="button" disabled={sealed || !canTakeCutting(selected) || !cuttingSpot(world, selected)} title={sealed ? 'Open the seal to tend' : !canTakeCutting(selected) ? 'Needs a well-grown plant' : !cuttingSpot(world, selected) ? 'No room nearby (the jar holds 32 plants)' : 'Root a piece of it nearby'} onClick={() => { setWorld((current) => takeCutting(current, selected.id)); setNotice('You took a cutting and set it in the soil nearby. It will root if the spot suits it.') }}>Take a cutting</button>
+            </div>}
             <button className="remove-link" disabled={sealed} onClick={() => remove('plant', selected.id)} type="button">Move out of terrarium</button>
             <button className="back-link" onClick={clearSelection} type="button">← Whole ecosystem</button>
           </div>
@@ -766,11 +772,15 @@ export function App() {
             <button className="action-button compost-button" type="button" disabled={sealed} onClick={() => act({ type: underwater ? 'pond-organic' : 'compost' }, underwater ? 'Pond litter begins to decompose. Decay uses oxygen.' : 'Organic matter begins to decompose.')}>
               <span className="action-symbol compost-symbol" aria-hidden="true">✳</span><span><strong>{underwater ? 'Add pond litter' : selectedSoil === null ? 'Add compost' : 'Feed this spot'}</strong><small>{underwater ? 'Decay uses oxygen' : selectedSoil === null ? 'Feed the ground' : 'Focus this patch'}</small></span><span className="action-plus">+</span>
             </button>
+            {!underwater && <button className="action-button mist-button" type="button" disabled={sealed} onClick={() => { setWorld((current) => mist(current)); setNotice('A fine mist settles on leaves and moss. The air stays humid for a few hours.') }}>
+              <span className="action-symbol mist-symbol" aria-hidden="true">∴</span><span><strong>Mist</strong><small>Humid air, a little water</small></span>
+            </button>}
           </div>
           <div className="sun-control">
             <div className="control-label"><span>{environment.cycling ? 'Daylight' : 'Sunlight'}</span><strong>{environment.cycling ? `Peak ${Math.round(world.light * 100)}%` : world.light < 0.36 ? 'Shade' : world.light < 0.68 ? 'Dappled' : 'Bright'}</strong></div>
             <input type="range" min="0.18" max="1" step="0.01" value={world.light} aria-label="Sunlight" onChange={(event) => setWorld((current) => intervene(current, { type: 'light', value: Number(event.target.value) }))} />
             <div className="range-labels"><span>SHADE</span><span>FULL SUN</span></div>
+            <div className="sill-spots" role="group" aria-label="Move the jar along the sill">{sillSpots.map((spot) => <button key={spot.id} type="button" className={Math.abs(world.light - spot.light) < 0.02 ? 'on' : ''} onClick={() => { setWorld((current) => intervene(current, { type: 'light', value: spot.light })); setNotice(`You moved the jar to the ${spot.label.toLowerCase()}.`) }}>{spot.label}</button>)}</div>
           </div>
           <div className="time-control">
             <div className="control-label"><span>Time</span><strong>{speed === 0 ? 'Resting' : 'Flowing'}</strong></div>

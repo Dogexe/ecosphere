@@ -1,5 +1,17 @@
 # ECOSPHERE development progress
 
+## Hands-on care (plan item 4) — 2026-11-20
+
+New care verbs in `src/sim/tending.ts`, none of which work through a sealed lid:
+
+- Mist (dock): +4 water to every soil pocket and humid air for 8 model hours (`world.mistUntil`), during which moss drinks from the air as in a sealed jar (`humidAir` in ecosystem.ts).
+- Move along the sill (under the light slider, desktop): shady corner 0.30, bright window 0.55, sunny sill 0.85.
+- Trim back (selected plant, at least 50% cover and past seedling): takes 40% of its leaves; the clippings stay as litter (0.42 of tissue, as with leaf fall) for woodlice and springtails.
+- Take a cutting (selected plant, growing/mature, at least 60% cover): 25% of the parent becomes a rooted young plant of the same kind on the nearest open spot (needs a free plant slot; the jar holds 32).
+- Feed (selected woodlouse, springtail or pond animal): a dry leaf (+4 organic) at its soil pocket, or a pinch of food (+3 organic) to the pond, which decays and uses oxygen if overdone. Grazers and hunters find their own food.
+
+295 tests pass (5 new in tests/tending.test.mjs).
+
 ## Field goals and unlocks (plan item 3) — 2026-11-20
 
 The notebook now has direction. `src/sim/goals.ts` holds eight field goals in an order that teaches the jar (a week of green, woodlice pair up, first flowers, a new woodlouse, a sealed jar reaching its goal, the ants dig a chamber, 20 notebook pages, two months sealed). They are read from the notebook and the jar, stored with the notebook (key `ecosphere.notebook`, field `goals`, so they stay with the player across jars), and each unlocks something:

@@ -73,6 +73,8 @@ export interface World {
   remains: Remains[]
   nextCreatureId?: number
   nextPlantId?: number
+  /** Misting leaves the air humid until this tick (tending.ts, 2026-11-20). */
+  mistUntil?: number
 }
 
 export type Intervention = { type: 'water' } | { type: 'compost' } | { type: 'light' | 'temperature' | 'rain' | 'day-night'; value: number } | { type: 'pond-water' | 'pond-organic' | 'pond-nutrients' }
@@ -279,6 +281,9 @@ export function plantMoisture(kind: PlantKind, water: number) {
  * saturation, so a sealed moss stays hydrated while the soil holds some water
  * (2026-11-20). See ECOLOGY.md.
  */
+/** Air near saturation: always in a sealed jar, and for a few hours after misting an open one. */
+export const humidAir = (world: Pick<World, 'sealed' | 'tick' | 'mistUntil'>) => !!world.sealed || (world.mistUntil ?? -1) > world.tick
+
 export const humidMoss = (water: number) => 0.92 * clamp((water - 5) / 20, 0, 1)
 
 function plantConditions(plant: Plant, patch: SoilPatch, light: number, humid = false) {
@@ -299,7 +304,7 @@ function plantConditions(plant: Plant, patch: SoilPatch, light: number, humid = 
 export const conditionFit = (c: { moisture: number; sunlight: number; fertility: number }, temperature = 1) => Math.min(c.moisture, c.sunlight, c.fertility) * temperature
 
 export function habitatFit(world: World, plant: Plant): number {
-  return conditionFit(plantConditions(plant, plantPatch(world, plant), plantLight(world, plant), !!world.sealed), Math.max(0, 1 - Math.abs(environmentAt(world).temperatureC - 22) / 24))
+  return conditionFit(plantConditions(plant, plantPatch(world, plant), plantLight(world, plant), humidAir(world)), Math.max(0, 1 - Math.abs(environmentAt(world).temperatureC - 22) / 24))
 }
 
 /** Relative growth rate per daylight-averaged hour at a perfect fit, from the old absolute peak (growth at half capacity). */
@@ -307,8 +312,8 @@ export const plantRgr = (kind: PlantKind) => plantTraits[kind].growth * 4 / plan
 /** Upkeep per unit biomass per hour in ideal conditions, and the extra when water or light fall short. */
 export const plantUpkeep = { base: 0.004, dry: 0.02, dark: 0.012, senescent: 0.03 }
 
-function plantFlux(plant: Plant, patch: SoilPatch, light: number, temperature = 22, photosynthesis = 1, cycling = false, carbon = 1, sealed = false) {
-  const conditions = plantConditions(plant, patch, light, sealed)
+function plantFlux(plant: Plant, patch: SoilPatch, light: number, temperature = 22, photosynthesis = 1, cycling = false, carbon = 1, sealed = false, humid = sealed) {
+  const conditions = plantConditions(plant, patch, light, humid)
   const stage = plantStage(plant)
   const warmth = Math.max(0, 1 - Math.abs(temperature - 22) / 24)
   // Logistic growth: new tissue is built by existing leaves (relative growth
@@ -329,9 +334,9 @@ export function plantOutlook(world: World, plant: Plant) {
   const patch = plantPatch(world, plant)
   const localLight = plantLight(world, plant)
   const environment = environmentAt(world)
-  const { moisture, sunlight, fertility } = plantConditions(plant, patch, localLight, !!world.sealed)
+  const { moisture, sunlight, fertility } = plantConditions(plant, patch, localLight, humidAir(world))
   const air = carbonFit(world)
-  const { growth, loss } = plantFlux(plant, patch, localLight, environment.temperatureC, environment.photosynthesis, environment.cycling, air, !!world.sealed)
+  const { growth, loss } = plantFlux(plant, patch, localLight, environment.temperatureC, environment.photosynthesis, environment.cycling, air, !!world.sealed, humidAir(world))
   const temperature = Math.max(0, 1 - Math.abs(environment.temperatureC - 22) / 24)
   const soilLimit = temperature < Math.min(moisture, sunlight, fertility) ? 'temperature' : moisture <= sunlight && moisture <= fertility ? 'water' : sunlight <= fertility ? 'light' : 'nutrients'
   const limiting: PlantLimit = world.sealed && rotLoss(plant, patch) > 0 ? 'rot' : air < Math.min(moisture, sunlight, fertility, temperature) ? 'co2' : soilLimit
@@ -613,10 +618,10 @@ export function simulateStep(world: World): StepResult {
   const plants = world.plants.map((plant): Plant | null => {
     const patch = isAquatic(plant.kind) ? aquaticSoil : nearestSoil(soil, plant.x, plant.z)
     const age = (plant.age ?? 90) + 1
-    const moisture = plantConditions(plant, patch, plantLight(world, plant), !!world.sealed).moisture
+    const moisture = plantConditions(plant, patch, plantLight(world, plant), humidAir(world)).moisture
     const development = (plant.development ?? 90) + moisture * Math.max(0, 1 - Math.abs(temperature - 22) / 24) * developmentRate[plant.kind]
     const developed = { ...plant, age, development, parentId: plant.parentId ?? null, lastReproduction: plant.lastReproduction ?? -1 }
-    const { growth, loss } = plantFlux(developed, patch, plantLight(world, plant), temperature, environment.photosynthesis, environment.cycling, carbon, !!world.sealed)
+    const { growth, loss } = plantFlux(developed, patch, plantLight(world, plant), temperature, environment.photosynthesis, environment.cycling, carbon, !!world.sealed, humidAir(world))
     const biomass = clamp(plant.biomass + growth - loss, 0, plant.capacity)
     const actualChange = biomass - plant.biomass
     if (environment.cycling) {
@@ -970,7 +975,7 @@ export function simulateStep(world: World): StepResult {
     // so a spreading frogbit mat cannot crowd every land seedling out (2026-11-20).
     if (isAquatic(parent.kind) && [...plants, ...seedlings].filter((plant) => isAquatic(plant.kind)).length >= aquaticPlantLimit) continue
     const traits = plantTraits[parent.kind]
-    const conditions = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, parent.x, parent.z), plantLight(world, parent), !!world.sealed)
+    const conditions = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, parent.x, parent.z), plantLight(world, parent), humidAir(world))
     if (conditionFit(conditions) < 0.45) continue
     let chance: number
     ;[seed, chance] = random(seed)
@@ -984,7 +989,7 @@ export function simulateStep(world: World): StepResult {
     const z = parent.z + Math.cos(direction * Math.PI * 2) * radius
     // The seal stops the player adding life, not plants spreading inside the jar.
     if (placementIssue({ ...world, sealed: null, plants: [...plants, ...seedlings] }, parent.kind, x, z)) continue
-    const destination = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, x, z), parent.kind === 'tree' ? world.light : peakLightAt(world, x, z), !!world.sealed)
+    const destination = plantConditions(parent, isAquatic(parent.kind) ? aquaticSoil : nearestSoil(soil, x, z), parent.kind === 'tree' ? world.light : peakLightAt(world, x, z), humidAir(world))
     if (conditionFit(destination) < 0.35) continue
     // Propagule material is transferred from the parent, never created by a timer.
     parent.biomass -= 0.55
