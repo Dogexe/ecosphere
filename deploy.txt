@@ -1,1 +1,1 @@
-Built from claude/project-thread-t793yy a953737 (systems rebalance on top of 580c313)
+Built from claude/project-thread-t793yy 764e11d (early care warnings on top of a953737)
