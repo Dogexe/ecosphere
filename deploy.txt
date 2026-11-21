@@ -1,1 +1,1 @@
-claude/project-thread-t793yy b874a0a closed-jar pass 2026-11-20
+claude/project-thread-t793yy 915d598 closed-jar pass + relative base fix 2026-11-21
