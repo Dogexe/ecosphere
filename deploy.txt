@@ -1,1 +1,1 @@
-claude/project-thread-t793yy 915d598 closed-jar pass + relative base fix 2026-11-21
+claude/project-thread-t793yy b0d4d2f earthworms 2026-11-21
