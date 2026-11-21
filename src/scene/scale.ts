@@ -94,6 +94,7 @@ export const animalDimensions: Record<CreatureKind, { length: number; sourceLeng
   fish: { length: 0.43, sourceLength: 0.48, clearance: 0, newbornRatio: 0.55 },
   snail: { length: 0.5, sourceLength: 1, clearance: 0, newbornRatio: 0.2 },
   shrimp: { length: 0.8, sourceLength: 1, clearance: 0, newbornRatio: 0.12 },
+  worm: { length: 1.4, sourceLength: 1, clearance: 0, newbornRatio: 0.3 },
 }
 
 /**
@@ -115,11 +116,13 @@ export const animalDimensions: Record<CreatureKind, { length: number; sourceLeng
  * Owner 2026-11-08 ("animals too big for the jar"): the grazer is drawn as a fourth-instar cabbage white
  * (about 16 mm; instars 4-5 span about 12-30 mm, UF/IFAS EDIS IN283) and the shrimp as a juvenile cherry
  * shrimp (about 13 mm), so the jar reads as a miniature world. Visual only.
+ * - worm: red wiggler Eisenia fetida, adults 60-130 mm (https://en.wikipedia.org/wiki/Eisenia_fetida); drawn as a
+ *   young worm of 35 mm so it fits a jar about 11 cm across. Hatchlings leave the cocoon at about 10 mm.
  * Visual only: feeding ranges, contact cores and saved positions do not change.
  */
 export const millimetresPerUnit = 19
 export const realAdultLengthMm: Record<CreatureKind, number> = {
-  woodlouse: 12, springtail: 2.5, grazer: 16, beetle: 14, flea: 2, fish: 0.43 * 19, snail: 10, shrimp: 13,
+  woodlouse: 12, springtail: 2.5, grazer: 16, beetle: 14, flea: 2, fish: 0.43 * 19, snail: 10, shrimp: 13, worm: 35,
 }
 /**
  * Real hatchling length / adult length where it differs a lot from the
@@ -128,7 +131,7 @@ export const realAdultLengthMm: Record<CreatureKind, number> = {
  * EDIS IN283, https://ask.ifas.ufl.edu/publication/IN283). It hatches at
  * about 2 mm here and grows to the 16 mm drawn length above.
  */
-export const realNewbornRatio: Partial<Record<CreatureKind, number>> = { grazer: 2 / 16 }
+export const realNewbornRatio: Partial<Record<CreatureKind, number>> = { grazer: 2 / 16, worm: 10 / 35 }
 /** Set once by the paper look; the classic low-poly look keeps the Scale Bible envelopes. */
 export const animalScaleMode = { real: false }
 

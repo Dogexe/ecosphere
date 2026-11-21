@@ -98,6 +98,11 @@ export const pages: Page[] = [
     note: 'Tiny soil animals that graze fungi. Most springtails keep a forked jumping organ, the furcula, folded under the belly, and flick it to leap away.',
     inJar: 'Adults of this species live about 110–240 days; here, 180 days.',
     sources: [src('Wikipedia: Folsomia candida', 'https://en.wikipedia.org/wiki/Folsomia_candida'), src('The springtail jumping apparatus (PMC9336013)', 'https://pmc.ncbi.nlm.nih.gov/articles/PMC9336013/')] },
+  { id: 'worm', kind: 'species', title: 'Red earthworm', latin: 'Eisenia fetida', size: '60–130 mm (a young 35 mm worm here)',
+    hint: 'Introduce an earthworm on damp ground, then look against the glass.',
+    note: 'The red wiggler of compost bins, banded red and buff. It breathes through its moist skin, so it needs damp soil, and it is a hermaphrodite that still pairs with another worm to lay lemon-shaped cocoons.',
+    inJar: 'Kept to three: a small jar\'s litter feeds only a few. Each cocoon gives one or two young here (2–4 in the wild); cocoons wait out dry spells in the soil.',
+    sources: [src('Wikipedia: Eisenia fetida', 'https://en.wikipedia.org/wiki/Eisenia_fetida'), src('Wikipedia: Earthworm', 'https://en.wikipedia.org/wiki/Earthworm')] },
   { id: 'flea', kind: 'species', title: 'Water flea', latin: 'Daphnia pulex', size: '0.2–3 mm',
     hint: 'Introduce a water flea to the pond.',
     note: 'A tiny crustacean that rows with its antennae. In summer the population is almost all female: unfertilised eggs grow into daughters.',
@@ -122,6 +127,10 @@ export const pages: Page[] = [
     hint: 'Watch a springtail on damp soil.',
     note: 'Springtails pick at the fungal threads in soil. Light grazing can keep fungi growing; heavy grazing uses them up.',
     sources: [src('Springtail grazing on fungi (PubMed 16175795)', 'https://pubmed.ncbi.nlm.nih.gov/16175795/')] },
+  { id: 'worm-casting', kind: 'behaviour', title: 'Worm casts',
+    hint: 'Watch an earthworm feeding in litter-rich soil.',
+    note: 'An earthworm swallows decaying leaves with soil and leaves casts behind: crumbs richer in plant-available nitrogen and phosphorus than the soil around them.',
+    sources: [src('Wikipedia: Vermicompost', 'https://en.wikipedia.org/wiki/Vermicompost')] },
   { id: 'leaf-chewing', kind: 'behaviour', title: 'Chewing living leaves',
     hint: 'Watch a forager feeding.',
     note: 'A herbivore turns leaves into body, droppings and heat. Only a small part of what it eats becomes caterpillar.',
@@ -220,7 +229,7 @@ export type Notebook = { found: Record<string, Found>; journal: JournalEntry[]; 
 
 export const emptyNotebook = (): Notebook => ({ found: {}, journal: [] })
 
-const creatureNames: Record<string, string> = { grazer: 'caterpillar', woodlouse: 'woodlouse', beetle: 'tiger beetle', springtail: 'springtail', flea: 'water flea', fish: 'fish' }
+const creatureNames: Record<string, string> = { grazer: 'caterpillar', woodlouse: 'woodlouse', beetle: 'tiger beetle', springtail: 'springtail', flea: 'water flea', fish: 'fish', worm: 'earthworm' }
 const plantKinds = new Set<Lifeform>(['clover', 'fern', 'bloom', 'moss', 'grass', 'tree', 'lily', 'reed'])
 
 /** Which pages this step of the world shows. */
@@ -233,6 +242,7 @@ export function pagesShown(world: World, events: readonly SimulationEvent[]): st
     if (event.type === 'feeding') {
       if (event.kind === 'woodlouse' && event.source === 'litter') shown.add('shredding')
       else if (event.kind === 'springtail' && event.source === 'fungi') shown.add('fungal-grazing')
+      else if (event.kind === 'worm' && event.source === 'litter') shown.add('worm-casting')
       else if (event.kind === 'grazer' && event.source === 'plant') shown.add('leaf-chewing')
       else if (event.kind === 'flea' && event.source === 'algae') shown.add('filter-feeding')
     } else if (event.type === 'mating') shown.add('pairing')

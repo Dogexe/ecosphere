@@ -112,7 +112,8 @@ test('courtship requires a pair, gestation delays birth, and offspring carry fun
 test('the playable forest start supports an observable brooded generation growing into adulthood', () => {
   let world = createHabitatWorld('woodland', 2217)
   const born = []
-  for (let i = 0; i < 70; i++) {
+  // Five days of broods (2026-11-21: was about three; the first young of this jar happen to starve).
+  for (let i = 0; i < 120; i++) {
     const result = simulateStep(world)
     for (const birth of result.events.filter((event) => event.type === 'birth' && event.kind === 'woodlouse')) {
       born.push(birth.id); assert.equal(result.world.creatures.find((c) => c.id === birth.id).stage, 'juvenile')

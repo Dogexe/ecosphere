@@ -48,6 +48,7 @@ test('constant mode retains the twelve explicit living-jar-correction trajectori
     // pond-bank seepage, algae inoculum, woodlouse mating range and ant lifespans.
     // Regenerated 2026-11-20 (closed-jar pass): resting eggs and seed bank, fungal and algal refuges,
     // grazer refuge, woodlouse sperm storage and sibling pairs, ant upkeep and pond-plant water.
+    // Regenerated 2026-11-21 (earthworms): female-biased woodlouse broods and a caterpillar pupal reserve.
     let world = createHabitatWorld(item.habitat, item.seed)
     for (let i = 0; i < 240; i++) world = stepWorld(world)
     assert.equal(createHash('sha256').update(JSON.stringify(world)).digest('hex'), item.sha256)

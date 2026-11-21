@@ -196,3 +196,10 @@ Rules added so a sealed starter jar keeps all its kinds for three model years:
 - **Aquatic carbon.** Submerged and floating plants use bicarbonate and CO2-concentrating mechanisms when dissolved CO2 is low (Maberly & Gontero 2017, J Exp Bot 68:3797, https://doi.org/10.1093/jxb/erx201).
 - **Woodlouse sperm storage.** Female isopods store sperm and produce several broods from one mating (Moreau & Rigaud 2003, Behavioral Ecology).
 - **Ants scavenge.** Harvester ants take dead insects as well as seeds (https://en.wikipedia.org/wiki/Red_harvester_ant).
+
+## Earthworms — 2026-11-21
+
+- **Species**: red wiggler Eisenia fetida, the compost worm, 60-130 mm adult (drawn as a young 35 mm worm). Lives in rich litter, needs moist soil; hermaphrodite that pairs to exchange sperm; cocoons hatch in about three weeks with 2-4 young (https://en.wikipedia.org/wiki/Eisenia_fetida).
+- **Casts**: worm castings hold more plant-available nutrients than the material eaten; vermicompost raises available N and P (https://en.wikipedia.org/wiki/Vermicompost).
+- **Respiration through skin**: earthworms need moist skin to breathe, and waterlogged soil drives them up (https://en.wikipedia.org/wiki/Earthworm).
+- **Locomotion**: peristaltic waves of circular and longitudinal muscle (https://en.wikipedia.org/wiki/Earthworm#Locomotion); the drawing shows the wave, the sim moves at a few centimetres an hour.

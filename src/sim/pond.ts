@@ -5,10 +5,10 @@ export interface Climate { temperatureC: number; rainfall: number; photoperiod?:
 export interface Pond { water: number; nutrients: number; organic: number; oxygen: number; algae: number }
 export const defaultClimate = (): Climate => ({ temperatureC: 22, rainfall: 0 })
 export const defaultPond = (): Pond => ({ water: 60, nutrients: 5, organic: 4, oxygen: 48, algae: 1 })
-export const maturity = { grazer: 36, woodlouse: 60, beetle: 72, springtail: 24, flea: 12, fish: 96, snail: 48, shrimp: 72 } as const
+export const maturity = { grazer: 36, woodlouse: 60, beetle: 72, springtail: 24, flea: 12, fish: 96, snail: 48, shrimp: 72, worm: 96 } as const
 // Ramshorn snails live about a year (https://en.wikipedia.org/wiki/Ramshorn_snail);
 // cherry shrimp 1-2 years (https://en.wikipedia.org/wiki/Cherry_shrimp), here 18 months.
-export const lifespan = { grazer: 960, woodlouse: 17520, beetle: 1920, springtail: 4320, flea: 480, fish: 2880, snail: 8760, shrimp: 13140 } as const
+export const lifespan = { grazer: 960, woodlouse: 17520, beetle: 1920, springtail: 4320, flea: 480, fish: 2880, snail: 8760, shrimp: 13140, worm: 17520 } as const
 export const rateAt = (temperature: number) => Math.max(0.25, Math.min(2.4, 2 ** ((temperature - 22) / 10)))
 export { pondCenter, pondShape, setPondShape } from './pondShape.ts'
 import { pondCenter, pondShape, pushToShore } from './pondShape.ts'

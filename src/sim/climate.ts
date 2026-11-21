@@ -25,7 +25,7 @@ export function environmentAt(world: ClockWorld) {
 // retain continuous grazing. Starvation/dehydration override the schedule;
 // the solver handles immediate danger before applying rest.
 export function scheduledRest(world: Pick<ClockWorld, 'tick' | 'climate'>, creature: Pick<Creature, 'kind' | 'energy' | 'life'>) {
-  if (!world.climate?.photoperiod || creature.energy < 25 || creature.kind === 'flea') return false
+  if (!world.climate?.photoperiod || creature.energy < 25 || creature.kind === 'flea' || creature.kind === 'worm') return false
   if (creature.kind === 'woodlouse' && (creature.life?.hydration ?? 80) < 35) return false
   const hour = ((world.tick % 24) + 24) % 24
   const daylight = hour >= 6 && hour < 18

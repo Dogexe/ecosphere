@@ -15,6 +15,8 @@ import { isAquatic, pondMiddle } from './pond.ts'
  * - Springtail eggs are laid in moist soil and hatch in days to weeks
  *   (https://en.wikipedia.org/wiki/Springtail).
  *
+ * - Earthworm cocoons (Eisenia fetida) lie in the soil and hatch in about three weeks, later if it is
+ *   dry or cold (https://en.wikipedia.org/wiki/Eisenia_fetida).
  * - Caterpillars pupate at the end of larval life; the moth lays eggs on leaves in the
  *   same jar before it dies, so the next brood hatches there (the moth is not drawn).
  * - Land plants leave a soil seed bank: seeds of Viola, clover and grasses stay viable in
@@ -24,7 +26,7 @@ import { isAquatic, pondMiddle } from './pond.ts'
  * The eggs and seeds carry no material of their own: as with any birth, the newcomer's
  * body is paid from food at the spot (algae, fungi, leaf, or soil organic matter).
  */
-export const dormantKinds = ['flea', 'springtail', 'grazer', 'clover', 'grass', 'bloom', 'fern', 'moss', 'tree'] as const
+export const dormantKinds = ['flea', 'springtail', 'worm', 'grazer', 'clover', 'grass', 'bloom', 'fern', 'moss', 'tree'] as const
 export type DormantKind = typeof dormantKinds[number]
 export type DormantBank = Partial<Record<DormantKind, number>>
 const seedBankKinds = ['clover', 'grass', 'bloom', 'fern', 'moss', 'tree'] as const satisfies readonly PlantKind[]
@@ -35,6 +37,8 @@ const hatchBelow = 2
 /** Food that must be there before an egg hatches, and what the hatchling's body takes from it. */
 const fleaHatch = { algae: 0.45, body: 0.04 }
 const springtailHatch = { fungi: 0.6, body: 0.08, moisture: 0.6 }
+/** A worm hatchling's body comes from the litter its cocoon lies in (bodyMaterial.worm). */
+const wormHatch = { organic: 1.0, body: 0.3, moisture: 0.6 }
 /** A hatching caterpillar's body comes from the leaf it hatched on (bodyMaterial.grazer). */
 const grazerHatch = { body: 0.42, cover: 0.5 }
 /** A seedling from the seed bank, paid from the soil's organic matter where it comes up. */
@@ -42,7 +46,7 @@ const seedlingBody = 0.55
 /** Plant slots in the jar (as in the solver). */
 const plantSlots = 32
 
-const isDormantKind = (kind: string): kind is DormantKind => kind === 'flea' || kind === 'springtail' || kind === 'grazer' || (seedBankKinds as readonly string[]).includes(kind)
+const isDormantKind = (kind: string): kind is DormantKind => kind === 'flea' || kind === 'springtail' || kind === 'worm' || kind === 'grazer' || (seedBankKinds as readonly string[]).includes(kind)
 
 /**
  * Every adult flea or springtail that dies leaves a resting egg; a caterpillar that reaches the
@@ -51,6 +55,9 @@ const isDormantKind = (kind: string): kind is DormantKind => kind === 'flea' || 
 export function layRestingEggs(bank: DormantBank | undefined, events: readonly SimulationEvent[]): DormantBank {
   const next: DormantBank = { ...(bank ?? {}) }
   for (const event of events) {
+    // Some of each caterpillar brood pupate and wait (Pieris rapae overwinters as a pupa,
+    // https://en.wikipedia.org/wiki/Pieris_rapae), so a line of caterpillars that later starves out still has a reserve.
+    if (event.type === 'birth' && event.kind === 'grazer' && event.parentId >= 0) { next.grazer = Math.min(dormantCap, (next.grazer ?? 0) + 1); continue }
     if (event.type !== 'death' || !isDormantKind(event.kind)) continue
     if (event.kind === 'grazer' && event.reason !== 'age') continue
     next[event.kind] = Math.min(dormantCap, (next[event.kind] ?? 0) + (event.kind === 'grazer' ? 2 : 1))
@@ -69,8 +76,8 @@ export function hatchRestingEggs(world: World): { world: World; events: Simulati
   let nextId = world.nextCreatureId ?? creatures.reduce((highest, creature) => Math.max(highest, creature.id), -1) + 1
   const next: DormantBank = { ...bank }
   let plantsAfter = world.plants
-  const alive = (kind: 'flea' | 'springtail' | 'grazer') => creatures.filter((creature) => creature.kind === kind).length
-  const hatchling = (kind: 'flea' | 'springtail' | 'grazer', x: number, z: number): Creature => ({ id: nextId++, kind, x, z, heading: (nextId * 2.399) % (Math.PI * 2), energy: 50, age: 0, stage: 'juvenile', materialReserve: 0 })
+  const alive = (kind: 'flea' | 'springtail' | 'grazer' | 'worm') => creatures.filter((creature) => creature.kind === kind).length
+  const hatchling = (kind: 'flea' | 'springtail' | 'grazer' | 'worm', x: number, z: number): Creature => ({ id: nextId++, kind, x, z, heading: (nextId * 2.399) % (Math.PI * 2), energy: 50, age: 0, stage: 'juvenile', materialReserve: 0 })
 
   if ((next.flea ?? 0) > 0 && alive('flea') < hatchBelow && pond.algae >= fleaHatch.algae && pond.water >= 25) {
     const { x, z } = pondMiddle()
@@ -90,6 +97,16 @@ export function hatchRestingEggs(world: World): { world: World; events: Simulati
       creatures = [...creatures, child]
       next.springtail = (next.springtail ?? 0) - 1
       events.push({ type: 'birth', id: child.id, kind: 'springtail', parentId: -1 })
+    }
+  }
+  if ((next.worm ?? 0) > 0 && alive('worm') < hatchBelow) {
+    const patch = [...soil].filter((item) => isLand(item.x, item.z) && item.organic >= wormHatch.organic && litterMoisture(item.water) >= wormHatch.moisture).sort((a, b) => b.organic - a.organic)[0]
+    if (patch) {
+      soil = soil.map((item) => item.id === patch.id ? { ...item, organic: item.organic - wormHatch.body } : item)
+      const child = hatchling('worm', patch.x, patch.z)
+      creatures = [...creatures, child]
+      next.worm = (next.worm ?? 0) - 1
+      events.push({ type: 'birth', id: child.id, kind: 'worm', parentId: -1 })
     }
   }
   if ((next.grazer ?? 0) > 0 && alive('grazer') < hatchBelow) {

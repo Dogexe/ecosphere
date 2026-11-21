@@ -47,7 +47,7 @@ const plantName: Record<PlantKind, [string, string]> = {
 }
 const animalName: Record<CreatureKind, [string, string]> = {
   grazer: ['grazer', 'grazers'], woodlouse: ['woodlouse', 'woodlice'], beetle: ['beetle', 'beetles'], springtail: ['springtail', 'springtails'],
-  flea: ['water flea', 'water fleas'], fish: ['fish', 'fish'], snail: ['snail', 'snails'], shrimp: ['shrimp', 'shrimp'],
+  flea: ['water flea', 'water fleas'], fish: ['fish', 'fish'], snail: ['snail', 'snails'], shrimp: ['shrimp', 'shrimp'], worm: ['earthworm', 'earthworms'],
 }
 const named = (names: [string, string], count: number) => `${count === 1 ? 'a' : count} ${names[count === 1 ? 0 : 1]}`
 
@@ -195,7 +195,7 @@ export function careForecast(world: World, hours = forecastHours): CareAlert[] {
     const plants = mine.flatMap((loss) => loss.plant ? [loss.plant] : [])
     const animals = mine.flatMap((loss) => loss.creature ? [loss.creature] : [])
     const ants = mine.filter((loss) => loss.cause === 'colony').length
-    const recyclers = animals.filter((a) => a.kind === 'woodlouse' || a.kind === 'springtail').length
+    const recyclers = animals.filter((a) => a.kind === 'woodlouse' || a.kind === 'springtail' || a.kind === 'worm').length
     const pondFloor = animals.filter((a) => a.kind === 'snail' || a.kind === 'shrimp').length
     const advice = cause !== 'hungry-animals' || sealed ? adviceFor(cause, sealed, hot)
       : recyclers * 2 > animals.length ? 'compost' : pondFloor * 2 > animals.length ? 'pond-litter' : 'none'

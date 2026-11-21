@@ -225,7 +225,7 @@ export function antFoodSources(plants: Plant[], x: number, z: number): Plant[] {
 export function antScavengeSources(remains: readonly Remains[], x: number, z: number): Remains[] {
   return remains.filter((item) => scavengeKinds.has(item.kind) && item.patchId !== 4 && item.material >= 0.002 && Math.hypot(item.x - x, item.z - z) <= 2.8)
 }
-const scavengeKinds = new Set(['grazer', 'woodlouse', 'springtail', 'beetle'])
+const scavengeKinds = new Set(['grazer', 'woodlouse', 'springtail', 'beetle', 'worm'])
 
 export function clearMissingAntGoals(colony: AntColony, plants: Plant[], remains: readonly Remains[] = []): AntColony {
   const valid = (ant: Ant) => ant.goal?.kind === 'plant' ? plants.some((plant) => plant.id === ant.goal!.id)

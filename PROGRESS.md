@@ -1,5 +1,20 @@
 # ECOSPHERE development progress
 
+## Earthworms — 2026-11-21
+
+Owner's pick from the new-species card. Red earthworms (Eisenia fetida, kind `worm`, jar holds 3) live in the soil:
+
+- Eat damp litter (bite up to 0.02 an hour, leaving 0.6 of a patch's organic matter in soil crumbs), gaining 30 energy a unit; casts return 45% as plant nutrients and 15% as humus, so worms speed the mineral cycle (Vermicompost, Eisenia fetida on Wikipedia).
+- Breathe through moist skin: upkeep 0.1 + 0.7 x dryness, more in waterlogged soil (water above 92); a worm that starves in dry soil dies of desiccation.
+- Hermaphrodites that still cross-fertilise: a worm breeds only when a second adult is in the jar, paying the young's body (0.3) from the litter where it lays. Dead worms leave cocoons (dormancy.ts) that hatch when the soil is damp and litter-rich again.
+- Out of the tiger beetle's reach (they live in the soil); ants scavenge their remains. Active day and night.
+- Drawn in 3D (`src/scene/Earthworm3D.tsx`) in a burrow against the glass at the worm's bearing, about 4-12 mm under the surface; no licensed model existed (ASSETS.md).
+- The starter jar has two worms on the right-hand bank (the land side of the glass). Worms were present at the end of every 3-year sealed run.
+- Two weak spots the long runs showed, fixed: some jars ended with only male woodlice (broods now keep a young male only while males are under a third of the jar, as in female-biased isopod broods), and caterpillars that starved left no reserve (now part of each brood waits as pupae, as Pieris rapae overwinters). 12-seed 3-year sealed runs: every starting kind present at the end in 9 of 12 jars (was 6 of 12), colony lasting 2 years in 11 of 12 (was 9), woodlice kept in 9 of 12 (unchanged).
+- Notebook pages: Red earthworm, Worm casts (40 pages). Observatory series: Earthworms. Old autosave histories read the new series as 0.
+
+Also fixed: the GitHub Pages site was blank since the 2026-11-20 care-warnings deploy, because the build used absolute `/assets/` paths. Deploy builds now use `npm run build:pages` (relative base).
+
 ## Closed-jar pass — 2026-11-20
 
 Owner asked: make the sealed system sustainable and add more kinds of life. Benchmark is the untouched starter jar, sealed. Before this pass it lost its moss in about a week, its water fleas and springtails in about 15 days, its pond crew in about two months and its ant colony within a year. It now keeps every kind it starts with for three model years in all six probe seeds (tests/closed-jar.test.mjs, one seed, about 4 s).

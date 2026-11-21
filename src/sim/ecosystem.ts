@@ -14,7 +14,7 @@ import { dryingFactor } from './substrate.ts'
 import type { Seal } from './seal'
 export { isLand } from './land.ts'
 export type PlantKind = 'clover' | 'fern' | 'bloom' | 'moss' | 'grass' | 'tree' | 'lily' | 'reed'
-export type CreatureKind = 'grazer' | 'woodlouse' | 'beetle' | 'springtail' | 'flea' | 'fish' | 'snail' | 'shrimp'
+export type CreatureKind = 'grazer' | 'woodlouse' | 'beetle' | 'springtail' | 'flea' | 'fish' | 'snail' | 'shrimp' | 'worm'
 export type Lifeform = PlantKind | CreatureKind
 
 export interface SoilPatch {
@@ -117,7 +117,18 @@ const kindLimit = (kind: PlantKind) => kind === "tree" ? 1 : plantKindLimit
 /** Plants that live one season and carry on by seed. */
 const annuals = new Set<PlantKind>(['bloom'])
 // Room for a breeding population, not a cohort that ages out together (closed-jar pass, 2026-11-20; woodlice were 4, snails and shrimp 4).
-export const creatureLimits = { grazer: 7, woodlouse: 8, beetle: 2, springtail: 10, ...pondLimits } as const
+export const creatureLimits = { grazer: 7, woodlouse: 8, beetle: 2, springtail: 10, worm: 3, ...pondLimits } as const
+/**
+ * Earthworms (Eisenia fetida, the red wiggler of compost bins; added 2026-11-21). They swallow
+ * decaying litter with soil and pass most of its minerals out in their casts, which are richer
+ * in plant-available nitrogen and phosphorus than the soil around them
+ * (https://en.wikipedia.org/wiki/Eisenia_fetida, https://en.wikipedia.org/wiki/Vermicompost).
+ * Energy a worm gets from a unit of litter; share of what it eats returned as minerals.
+ */
+export const wormYield = 30
+export const wormCastMinerals = 0.45
+/** Litter bound up in soil crumbs, out of a worm's reach, so worms never eat a patch to nothing. */
+const wormRefuge = 0.6
 /** Fraction of soil litter that bacteria mineralise per model hour at full moisture and 22 C. */
 export const bacterialDecay = 0.0008
 /** Energy a woodlouse gains per unit of litter it digests. */
@@ -127,11 +138,11 @@ export const woodlouseDigestion = 22
  * land plants' roots: extra hourly loss above 85% soil water.
  */
 export const rotLoss = (plant: Plant, patch: SoilPatch) => isAquatic(plant.kind) ? 0 : 0.03 * clamp((patch.water - 85) / 15, 0, 1)
-const bodyMaterial = { grazer: 0.42, woodlouse: 0.22, beetle: 0.34, springtail: 0.08, flea: 0.04, fish: 0.24, snail: 0.12, shrimp: 0.1 }
+const bodyMaterial = { grazer: 0.42, woodlouse: 0.22, beetle: 0.34, springtail: 0.08, flea: 0.04, fish: 0.24, snail: 0.12, shrimp: 0.1, worm: 0.3 }
 const plantCapacity: Record<PlantKind, number> = { clover: 8.8, fern: 7.6, bloom: 8.8, moss: 4.5, grass: 6.5, tree: 18, lily: 5.2, reed: 7.2 }
 
 export function isCreatureKind(kind: string): kind is CreatureKind {
-  return kind === 'grazer' || kind === 'woodlouse' || kind === 'beetle' || kind === 'springtail' || kind === 'flea' || kind === 'fish' || kind === 'snail' || kind === 'shrimp'
+  return kind === 'grazer' || kind === 'woodlouse' || kind === 'beetle' || kind === 'springtail' || kind === 'flea' || kind === 'fish' || kind === 'snail' || kind === 'shrimp' || kind === 'worm'
 }
 
 export function creatureKind(creature: Creature): CreatureKind {
@@ -139,7 +150,7 @@ export function creatureKind(creature: Creature): CreatureKind {
 }
 
 export function creatureCounts(creatures: Creature[]): Record<CreatureKind, number> {
-  const counts = { grazer: 0, woodlouse: 0, beetle: 0, springtail: 0, flea: 0, fish: 0, snail: 0, shrimp: 0 }
+  const counts = { grazer: 0, woodlouse: 0, beetle: 0, springtail: 0, flea: 0, fish: 0, snail: 0, shrimp: 0, worm: 0 }
   for (const creature of creatures) counts[creatureKind(creature)] += 1
   return counts
 }
@@ -150,7 +161,7 @@ export function placementIssue(world: World, kind: Lifeform, x: number, z: numbe
   if (isAquatic(kind) ? !isPondPosition(x, z) || (world.pond ?? defaultPond()).water < 8 : !isLand(x, z)) return isAquatic(kind) ? 'Choose water inside the pond. Refill a dry pond first.' : 'Choose dry ground inside the rim.'
   if ((kind === 'fish' || kind === 'flea' || kind === 'snail' || kind === 'shrimp') && !isSwimmingPosition(kind, x, z)) return 'Choose deeper inside the pond so the whole animal clears the bank.'
   if (isCreatureKind(kind)) {
-    if (creatureCounts(world.creatures)[kind] >= creatureLimits[kind]) return `This small world has room for ${creatureLimits[kind]} ${kind === 'woodlouse' ? 'woodlice' : kind === 'beetle' ? 'beetles' : kind === 'springtail' ? 'springtails' : kind === 'flea' ? 'water fleas' : kind === 'fish' ? 'fish' : kind === 'snail' ? 'ramshorn snails' : kind === 'shrimp' ? 'cherry shrimp' : 'grazers'}.`
+    if (creatureCounts(world.creatures)[kind] >= creatureLimits[kind]) return `This small world has room for ${creatureLimits[kind]} ${kind === 'woodlouse' ? 'woodlice' : kind === 'beetle' ? 'beetles' : kind === 'springtail' ? 'springtails' : kind === 'flea' ? 'water fleas' : kind === 'fish' ? 'fish' : kind === 'snail' ? 'ramshorn snails' : kind === 'shrimp' ? 'cherry shrimp' : kind === 'worm' ? 'earthworms' : 'grazers'}.`
     if (world.creatures.some((creature) => Math.hypot(x - creature.x, z - creature.z) < (isAquatic(kind) ? 0.18 : 0.4))) return 'Give this creature a little more room.'
   } else {
     if (world.plants.length >= 32) return 'The terrarium has room for 32 plants.'
@@ -387,6 +398,24 @@ export function plantStress(world: World, plant: Plant): { limit: PlantLimit; si
 
 const litterMoisture = (patch: SoilPatch) => clamp((patch.water - 10) / 55, 0, 1)
 
+/**
+ * A worm breathes through its moist skin: dry soil costs it dearly, and so does soil so wet that
+ * it holds no air (worms surface after heavy rain). Eisenia does best at 70-90% moisture.
+ */
+const wormUpkeep = (patch: SoilPatch) => 0.1 + (1 - litterMoisture(patch)) * 0.7 + clamp((patch.water - 92) / 8, 0, 1) * 0.5
+
+/** The richest damp litter near a worm; it burrows slowly toward it. */
+function wormTarget(soil: SoilPatch[], creature: Creature): SoilPatch | null {
+  let best: SoilPatch | null = null
+  let bestScore = 0
+  for (const patch of soil) {
+    if (patch.organic < wormRefuge + 0.05) continue
+    const score = litterMoisture(patch) * (patch.organic - wormRefuge) / (patch.organic + 3) / (0.5 + Math.hypot(patch.x - creature.x, patch.z - creature.z))
+    if (score > bestScore) { best = patch; bestScore = score }
+  }
+  return best
+}
+
 function litterTarget(soil: SoilPatch[], creature: Creature): SoilPatch | null {
   let best: SoilPatch | null = null
   let bestScore = 0
@@ -419,7 +448,7 @@ function grazerTarget(plants: Plant[], creature: Creature): Plant | null {
 }
 
 export function predatorThreat(world: World, creature: Creature): Creature | null {
-  if (creatureKind(creature) === 'beetle' || isAquatic(creatureKind(creature))) return null
+  if (creatureKind(creature) === 'beetle' || creatureKind(creature) === 'worm' || isAquatic(creatureKind(creature))) return null
   const radius = creatureKind(creature) === 'woodlouse' ? 0.85 : creatureKind(creature) === 'springtail' ? 0.65 : 1.05
   let nearest: Creature | null = null
   let distance = radius
@@ -445,7 +474,7 @@ function preyTarget(prey: Creature[], hunter: Creature): Creature | null {
   let score = Infinity
   for (const creature of prey) {
     const kind = creatureKind(creature)
-    if (kind === 'beetle' || isAquatic(kind) || creature.energy <= 0) continue
+    if (kind === 'beetle' || kind === 'worm' || isAquatic(kind) || creature.energy <= 0) continue
     const distance = Math.hypot(creature.x - hunter.x, creature.z - hunter.z)
     if (distance > 2.6) continue
     const next = distance ** 2 / bodyStock(creature, bodyMaterial[kind])
@@ -687,7 +716,7 @@ export function simulateStep(world: World): StepResult {
     if (kind === 'beetle' || isAquatic(kind)) continue
     const local = nearestSoil(soil, creature.x, creature.z)
     // Thin jar air (low O2) makes every hour costlier to breathe through.
-    const maintenance = (kind === 'woodlouse' ? 0.24 + (1 - litterMoisture(local)) * 0.45 : kind === 'springtail' ? 0.08 + (1 - litterMoisture(local)) * 0.5 : 0.42) * rate * (1 + 2 * (1 - breath))
+    const maintenance = (kind === 'woodlouse' ? 0.24 + (1 - litterMoisture(local)) * 0.45 : kind === 'springtail' ? 0.08 + (1 - litterMoisture(local)) * 0.5 : kind === 'worm' ? wormUpkeep(local) : 0.42) * rate * (1 + 2 * (1 - breath))
     const resting = scheduledRest(world, { ...creature, energy: creature.energy - maintenance }) && !predatorThreat(world, creature)
     let energy = creature.energy - maintenance * (resting ? 0.5 : 1)
     if (kind === 'woodlouse') {
@@ -716,7 +745,8 @@ export function simulateStep(world: World): StepResult {
     }
     if (energy <= 0) {
       depositBody(creature)
-      events.push({ type: 'death', id: creature.id, kind, reason: 'energy' })
+      // A worm in dry soil dies of drying out: it breathes through skin that must stay moist.
+      events.push({ type: 'death', id: creature.id, kind, reason: kind === 'worm' && litterMoisture(local) < 0.2 ? 'desiccation' : 'energy' })
       continue
     }
 
@@ -738,6 +768,34 @@ export function simulateStep(world: World): StepResult {
     if (scheduledRest(world, { ...creature, energy })) {
       if (creature.life) creature.life.activity = 'resting'
       creatures.push({ ...creature, energy })
+      continue
+    }
+
+    if (kind === 'worm') {
+      const target = wormTarget(soil, creature)
+      let { x, z, heading } = creature
+      if (target && Math.hypot(target.x - x, target.z - z) <= 0.3) {
+        const bite = Math.min(Math.max(0, target.organic - wormRefuge), 0.02 * litterMoisture(target), (100 - energy) / wormYield)
+        target.organic -= bite
+        // Casts: most of the minerals come back to the soil at once, a little organic matter stays as humus.
+        target.nutrients += bite * wormCastMinerals
+        target.organic += bite * 0.15
+        energy += bite * wormYield
+        if (bite > 0) events.push({ type: 'feeding', id: creature.id, kind, source: 'litter', amount: bite })
+      } else {
+        let turn: number
+        ;[seed, turn] = random(seed)
+        const destinationX = target?.x ?? x + Math.sin(heading + turn - 0.5)
+        const destinationZ = target?.z ?? z + Math.cos(heading + turn - 0.5)
+        // Burrowing is slow: a few centimetres an hour through the soil.
+        const moved = walkOnLand(creature, destinationX, destinationZ, Math.min(target ? Math.max(0, Math.hypot(destinationX - x, destinationZ - z) - 0.25) : 0.03, 0.06))
+        ;({ x, z, heading } = moved)
+        energy -= moved.distance * 0.8
+      }
+      if (energy <= 0) {
+        depositBody(creature, x, z)
+        events.push({ type: 'death', id: creature.id, kind, reason: litterMoisture(local) < 0.2 ? 'desiccation' : 'energy' })
+      } else creatures.push({ ...creature, kind, x, z, heading, energy })
       continue
     }
 
@@ -946,10 +1004,12 @@ export function simulateStep(world: World): StepResult {
         const hydration = Math.min(70, life.hydration)
         life.hydration = Math.max(0, life.hydration - hydration * 0.055 / life.mass)
         // Each brood holds both sexes (dozens of young in a real brood pouch); the jar keeps the one or two
-        // that fit, so the young it keeps are of whichever sex the jar has fewer of.
+        // that fit. Woodlouse broods often run female-biased (Wolbachia feminises genetic males in many isopods,
+        // https://en.wikipedia.org/wiki/Wolbachia), and one male serves several females, so a kept young is male
+        // only while males are under a third of the jar's woodlice (2026-11-21: an even split left some jars all male).
         const adults = [...survivors, ...newborns].filter((other) => other.kind === 'woodlouse' && other.id !== child.id)
         const males = adults.filter((other) => woodlouseLife(other).sex === 'male').length
-        const sex = males * 2 < adults.length ? 'male' as const : males * 2 > adults.length ? 'female' as const : woodlouseLife(child).sex
+        const sex = males * 3 < adults.length ? 'male' as const : 'female' as const
         child.life = { ...woodlouseLife(child), mass: 0.055, hydration, parentId: mother.id, sex }
         newborns.push(child)
         populations.woodlouse += 1
@@ -1002,7 +1062,14 @@ export function simulateStep(world: World): StepResult {
     const kind = creatureKind(creature)
     if (kind === 'woodlouse') continue
     if (populations[kind] >= creatureLimits[kind] || creature.energy < 82 || creature.stage === 'juvenile' || predatorThreat(world, creature) || scheduledRest(world, creature)) continue
-    if (kind === 'springtail') {
+    if (kind === 'worm') {
+      // Hermaphrodites, but they cross-fertilise: a worm needs a second adult in the jar. Each cocoon
+      // gives one or two young here (2-4 in Eisenia), its body paid from the litter where it is laid.
+      if (survivors.filter((other) => other.kind === 'worm' && other.id !== creature.id && other.stage !== 'juvenile').length === 0) continue
+      const nursery = nearestSoil(soil, creature.x, creature.z)
+      if (litterMoisture(nursery) < 0.55 || nursery.organic < bodyMaterial.worm + wormRefuge + 0.2) continue
+      nursery.organic -= bodyMaterial.worm
+    } else if (kind === 'springtail') {
       const nursery = fungusTarget(soil, creature)
       if (!nursery || litterMoisture(nursery) < 0.6 || nursery.fungi < bodyMaterial.springtail + fungalRefuge + 0.1 || Math.hypot(nursery.x - creature.x, nursery.z - creature.z) > 0.3) continue
       nursery.fungi -= bodyMaterial.springtail

@@ -111,6 +111,7 @@ test('mixture sequences and snapshot continuation preserve deterministic world-o
   }
   const world = run()
   assert.deepEqual(world, run())
-  assert.deepEqual(Object.keys(world).sort(), Object.keys(createWorld()).sort())
+  // A jar's resting eggs and pupae (dormant) are an optional field that appears once some are laid.
+  assert.deepEqual(Object.keys(world).filter((key) => key !== 'dormant').sort(), Object.keys(createWorld()).sort())
   assert.deepEqual(simulateStep(world), simulateStep(parseSave(serializeSave(world))))
 })

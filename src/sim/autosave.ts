@@ -17,7 +17,7 @@ export type Autosave = { savedAt: number; world: World; history: ObservationSamp
 
 const keys = metrics.map((metric) => metric.key)
 /** Defaults for measurements added after a save was written (room air). */
-const fallback: Partial<Record<MetricKey, number>> = { jarOxygen: 20.9, jarCO2: 420 }
+const fallback: Partial<Record<MetricKey, number>> = { jarOxygen: 20.9, jarCO2: 420, worm: 0 }
 const round = (value: number) => Math.round(value * 100) / 100
 
 /** Encodes the world and history; history rows are [tick, ...metric values]. */

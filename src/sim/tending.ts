@@ -82,7 +82,7 @@ export function takeCutting(world: World, id: number): World {
 }
 
 /** Who a pinch of food helps: recyclers and the pond crew eat what settles. Grazers and hunters find their own. */
-export const canFeed = (creature: Creature) => ['woodlouse', 'springtail', 'snail', 'shrimp', 'fish', 'flea'].includes(creature.kind)
+export const canFeed = (creature: Creature) => ['woodlouse', 'springtail', 'worm', 'snail', 'shrimp', 'fish', 'flea'].includes(creature.kind)
 
 export function feed(world: World, id: number): World {
   const creature = world.creatures.find((item) => item.id === id)

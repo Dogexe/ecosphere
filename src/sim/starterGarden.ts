@@ -39,7 +39,10 @@ const pondCrew: ['snail' | 'shrimp', number, number][] = [
   ['snail', -0.6, 2.15],
 ]
 
-const microFauna: ['springtail' | 'flea', number, number][] = [
+const microFauna: ['springtail' | 'flea' | 'worm', number, number][] = [
+  // Two red earthworms (owner's pick, 2026-11-21): they pair to lay cocoons.
+  ['worm', 2.7, -0.6],
+  ['worm', 2.4, 1.2],
   ['springtail', -1.9, -0.9],
   ['springtail', 1.3, -1.2],
   ['springtail', 2.3, 0.2],

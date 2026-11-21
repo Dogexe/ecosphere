@@ -25,7 +25,7 @@ function sealedStarter() {
 test('a sealed starter jar keeps every kind of plant and animal it began with for three years', () => {
   let world = sealedStarter()
   const kinds = new Set([...world.plants.map((plant) => plant.kind), ...world.creatures.map((creature) => creature.kind)])
-  assert.ok(kinds.has('springtail') && kinds.has('flea'), 'the starter jar has its micro-fauna')
+  assert.ok(kinds.has('springtail') && kinds.has('flea') && kinds.has('worm'), 'the starter jar has its micro-fauna and earthworms')
   let colonyDays = 0
   for (let day = 1; day <= 3 * 365; day += 1) {
     while (world.tick < day * 24 + 8) world = simulateStep(world).world

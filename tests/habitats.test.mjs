@@ -42,7 +42,8 @@ test('starter saves use the existing envelope and continue identically without h
     const world = advance(createHabitatWorld(id, 183), 48)
     const encoded = serializeSave(world)
     assert.deepEqual(Object.keys(JSON.parse(encoded)).sort(), ['version', 'world'])
-    assert.deepEqual(Object.keys(world).sort(), Object.keys(createWorld()).sort())
+    // Resting eggs and pupae (dormant) are an optional field that appears once some are laid.
+    assert.deepEqual(Object.keys(world).filter((key) => key !== 'dormant').sort(), Object.keys(createWorld()).sort())
     assert.deepEqual(advance(parseSave(encoded), 100), advance(world, 100))
   }
 })

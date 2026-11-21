@@ -254,6 +254,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 .seed-field small { color: #8c9d81; font-size: 10px; }
 .life-icon.tree i { width: 21px; height: 18px; left: 0; top: 0; border-radius: 50% 50% 40% 45%; background: #78976b; transform: none; box-shadow: 0 11px 0 -7px #9a8062; }
 .life-icon.grass i { width: 4px; height: 20px; left: 8px; top: 2px; border-radius: 90% 0 0 0; transform: rotate(-15deg); box-shadow: -6px 3px #99ad7c, 6px 1px #6d956b; }
+.life-icon.worm i { width: 20px; height: 6px; left: 0; top: 9px; border-radius: 4px; background: #b5654f; transform: rotate(-8deg); box-shadow: 3px 5px 0 -1px #c98a6c; }
 .life-icon.springtail i { width: 17px; height: 10px; left: 1px; top: 10px; border-radius: 60%; background: #c3c8ad; transform: none; box-shadow: 6px -3px 0 -2px #a6b49b; }
 .habitat-card { min-width: 0; padding: 0; overflow: hidden; border: 1px solid #d7e3cf; border-radius: 15px; background: #f9fbf2; color: #45654b; text-align: left; }
 .habitat-card:hover { background: #f1f6e8; }

@@ -11,6 +11,7 @@ import { Vector3 } from 'three'
 import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
 import { drawnAnimals, naturalLook, PaperAnimal, paperLook } from './PaperCritter'
+import { Earthworm3D } from './Earthworm3D'
 import { PondCrew3D } from './PondCrew3D'
 import { cutUniform, nestWindow, rootWindow } from './LayeredGround'
 import { buildRoots } from './soilRoots'
@@ -452,6 +453,15 @@ function BenthicAnimal({ creature, events, selected, onSelect, speed }: Creature
   </group>
 }
 
+/** Red earthworm, drawn in its burrow against the glass (Earthworm3D.tsx). */
+function EarthwormAnimal({ creature, world, events, selected, onSelect, speed }: CreatureProps) {
+  const feeding = creatureIsFeeding(world, creature, events)
+  return <Earthworm3D x={creature.x} z={creature.z} length={animalModelScale(creature)} adult={creature.stage !== 'juvenile'} feeding={feeding} speed={speed}
+    health={MathUtils.clamp(creature.energy / 50, 0, 1)} selected={selected} onClick={(event) => onSelect(event.ray)}>
+    <AnimalInteraction scale={1} y={0.058} selected={selected} markerRadius={0.1} />
+  </Earthworm3D>
+}
+
 function Springtail({ creature, world, events, selected, onSelect, speed }: CreatureProps) {
   const group = useRef<Group>(null)
   const motion = useRef(false)
@@ -725,7 +735,7 @@ function Fauna({ world, events, worldRevision, selectedCreature, placing, onPlac
   }
   return <>{world.creatures.map((creature) => {
     const kind = creatureKind(creature)
-    const Model = kind === 'fish' || kind === 'flea' ? AquaticAnimal : kind === 'snail' || kind === 'shrimp' ? BenthicAnimal : kind === 'woodlouse' ? Woodlouse : kind === 'beetle' ? Beetle : kind === 'springtail' ? Springtail : Grazer
+    const Model = kind === 'fish' || kind === 'flea' ? AquaticAnimal : kind === 'snail' || kind === 'shrimp' ? BenthicAnimal : kind === 'woodlouse' ? Woodlouse : kind === 'beetle' ? Beetle : kind === 'springtail' ? Springtail : kind === 'worm' ? EarthwormAnimal : Grazer
     return <Model key={`${worldRevision}:${creature.id}`} creature={creature} world={world} events={events} selected={selectedCreature === creature.id} speed={speed} onSelect={(ray) => pickAnimal(ray, creature)} />
   })}</>
 }
@@ -741,7 +751,7 @@ function RemainsField({ world }: { world: World }) {
     remains.forEach((item, index) => {
       const ratio = Math.max(0, item.material / item.initial)
       const size = Math.min(0.45, 0.12 + Math.cbrt(item.initial) * 0.18) * Math.sqrt(ratio)
-      const animal = ['grazer', 'woodlouse', 'beetle', 'springtail', 'flea', 'fish', 'snail', 'shrimp', 'ant'].includes(item.kind)
+      const animal = ['grazer', 'woodlouse', 'beetle', 'springtail', 'flea', 'fish', 'snail', 'shrimp', 'worm', 'ant'].includes(item.kind)
       for (let part = 0; part < 3; part += 1) {
         const px = item.x + Math.sin(item.id * 2.4) * part * size * 0.6, pz = item.z + Math.cos(item.id * 2.4) * part * size * 0.6
         pose.position.set(px, 0.06 + part * 0.004 + groundShape.offset(px, pz), pz)

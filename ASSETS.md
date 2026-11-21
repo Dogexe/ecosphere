@@ -128,6 +128,10 @@ Mushrooms (Mycena-like bonnets), floating pads (frogbit-like, lily kind), hairgr
 
 Owner asked for bushy things and animals in 3D. Paper-look animals now use the existing 3D organism GLBs (woodlouse, springtail, tiger beetle, leaf grazer, daphnia); `?animals=drawn` restores the paper sheets. No CC0/CC-BY ramshorn snail or cherry shrimp model was found (web/CGTrader search 2026-11-07: paid or unlicensed only), so `src/scene/PondCrew3D.tsx` builds both procedurally from their anatomy (planispiral shell, foot, tentacles; carapace, six abdominal segments, five-blade tail fan, antennae, five leg pairs). Moss cushions (`src/scene/Moss3D.tsx`) and grass tufts are procedural 3D geometry; the drawn cushion art stays in the repo but is no longer placed in the default jar.
 
+## 3D earthworm (2026-11-21)
+
+Owner picked an earthworm as the next species. No earthworm model with a usable licence was found (web search 2026-11-21: CGTrader and TurboSquid list paid models; Free3D's are personal-use only), so `src/scene/Earthworm3D.tsx` builds the red earthworm (Eisenia fetida) procedurally from its anatomy: a segmented tube pointed at the head, banded maroon and buff, with the paler clitellum saddle on adults, deformed each frame by a backward peristaltic wave as the body follows the head's burrow. No external file, no licence obligations.
+
 ## Natural look assets (2026-11-07)
 
 Owner's new direction (Stylized 3D Naturalism / Soft Organic Low-poly). From Poly Pizza, unmodified GLBs in `public/assets/organisms/` (sources and credits in `artifacts/natural-assets/CREDITS.md`):
