@@ -14,7 +14,7 @@ import { drawnAnimals, naturalLook, PaperAnimal, paperLook } from './PaperCritte
 import { Earthworm3D } from './Earthworm3D'
 import { PondCrew3D } from './PondCrew3D'
 import { cutUniform, nestWindow, rootWindow } from './LayeredGround'
-import { buildRoots } from './soilRoots'
+import { buildRoots, wallRadius } from './soilRoots'
 import type { RootPlant } from './soilRoots'
 import { Watercolor } from './watercolor'
 import { Polish, polishLook } from './Polish'
@@ -34,7 +34,7 @@ import { PondAtmosphere, PondControls } from './PondView'
 import { AntColonyScene } from './AntColony'
 import { NestControls } from './NestView'
 import { antPosition, nestChamberRadius, seedMaterialAvailable } from '../sim/colony'
-import type { AntColony } from '../sim/colony'
+import type { AntColony, NestNode } from '../sim/colony'
 import type { Remains } from '../sim/life'
 import { AntRemainsScene } from './AntRemains'
 import type { SurfacePose } from './PondView'
@@ -912,37 +912,44 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
   return <OrbitControls ref={controls} makeDefault enablePan screenSpacePanning minDistance={minimum} maxDistance={focusedFrame?.maxDistance ?? (frontView ? 28 : 21)} minPolarAngle={frontView ? 0.95 : 0.25} maxPolarAngle={frontView ? 1.5 : 1.42} minAzimuthAngle={frontView && !fullTurn ? -frontTurn : -Infinity} maxAzimuthAngle={frontView && !fullTurn ? frontTurn : Infinity} target={surfacePose.target} enableDamping dampingFactor={0.08} onStart={() => { if (plant || remains) { autoPlant.current = false; focus.current.remaining = 0 } }} />
 }
 
+/** A nest node moved straight out at its bearing until its chamber or tunnel lies against the glass. */
+function pressToGlass<T extends NestNode>(node: T): T {
+  const length = Math.hypot(node.x, node.z) || 1, reach = wallRadius - 0.012 - nestChamberRadius(node) * 0.35
+  return { ...node, x: node.x / length * reach, z: node.z / length * reach }
+}
+
 /**
  * Natural look: the colony's nest shown in section behind the front glass (ant-farm cutaway, owner's
  * reference 2026-11-07). The nest, its ants and brood are the same scene as the underground view,
  * lifted onto the poured ground at the entrance; CutawayFace is the soil face with the nest's holes.
  */
 function NestSection({ colony, ...props }: { colony: AntColony; speed: number; events: SimulationEvent[]; selected: number | null; revision: number; remains: Remains[]; selectedBrood: number | null; onSelectBrood: (id: number) => void; onSelect: (id: number) => void; onColony: () => void; onChamber: (id: number) => void; onRemains: (id: number) => void; antCenters: Map<number, Vector3>; broodCenters: Map<number, Vector3> }) {
-  // Like a real ant farm, the nest is shown dug against the glass: the graph is moved straight out
-  // (about 1 cm, presentation only) until its outermost chamber meets the wall, and the soil wall
-  // opens where the tunnels and chambers lie behind it.
-  const offset = groundShape.offset(colony.entrance.x, colony.entrance.z)
-  const shift = useMemo(() => {
-    const cx = colony.nodes.reduce((sum, node) => sum + node.x, 0) / colony.nodes.length, cz = colony.nodes.reduce((sum, node) => sum + node.z, 0) / colony.nodes.length
-    const length = Math.hypot(cx, cz) || 1, dx = cx / length, dz = cz / length
-    const reach = Math.max(...colony.nodes.map((node) => node.x * dx + node.z * dz + nestChamberRadius(node) * 0.6))
-    const push = Math.max(0, 3.78 - reach)
-    return { x: dx * push, z: dz * push }
-  }, [colony.nodes])
+  // Like a real ant farm, the nest is shown dug against the glass. Each chamber and tunnel is moved
+  // straight out at its own bearing until it lies against the wall (presentation only; the sim keeps
+  // its real positions), so the openings in the soil face are the actual cross-sections of the 3D
+  // cavity and no opening looks into undug soil (owner 2026-11-22; the whole graph used to be moved
+  // out together, which left the inner chambers behind their windows).
+  const nodes = useMemo(() => colony.nodes.map(pressToGlass), [colony.nodes])
+  const construction = useMemo(() => colony.construction?.job ? { ...colony.construction, job: { ...colony.construction.job, target: pressToGlass(colony.construction.job.target) } } : colony.construction, [colony.construction])
+  const pressed = { ...colony, nodes, construction }
+  // Ground height where the pressed entrance meets the glass, so the shaft opens at the soil's edge
+  // and never stands up above it.
+  const mouth = nodes.find((node) => node.role === 'entrance') ?? nodes[0]
+  const offset = groundShape.offset(mouth.x * 0.97, mouth.z * 0.97)
   useLayoutEffect(() => {
     const radius = (node: { role: string }) => nestChamberRadius(node as never)
-    nestWindow.nodes.forEach((slot, i) => { const node = colony.nodes[i]; if (node) slot.set(node.x + shift.x, node.y + offset, node.z + shift.z, radius(node) * 0.9); else slot.set(0, -99, 0, 0) })
+    nestWindow.nodes.forEach((slot, i) => { const node = nodes[i]; if (node) slot.set(node.x, node.y + offset, node.z, radius(node) * 0.9); else slot.set(0, -99, 0, 0) })
     nestWindow.edgesA.forEach((slot, i) => {
       const edge = colony.edges[i], other = nestWindow.edgesB[i]
       if (!edge) { slot.set(0, -99, 0, 0); other.set(0, -99, 0, 0); return }
-      const a = colony.nodes.find((node) => node.id === edge[0])!, b = colony.nodes.find((node) => node.id === edge[1])!
-      slot.set(a.x + shift.x, a.y + offset, a.z + shift.z, 0.075); other.set(b.x + shift.x, b.y + offset, b.z + shift.z, 0)
+      const a = nodes.find((node) => node.id === edge[0])!, b = nodes.find((node) => node.id === edge[1])!
+      slot.set(a.x, a.y + offset, a.z, 0.075); other.set(b.x, b.y + offset, b.z, 0)
     })
     cutUniform.w = 1
     return () => { cutUniform.w = 0 }
-  }, [colony.nodes, colony.edges, shift, offset])
-  return <group position={[shift.x, offset, shift.z]}>
-    <AntColonyScene colony={colony} underground chamber={null} selectedRemains={null} {...props} />
+  }, [nodes, colony.edges, offset])
+  return <group position={[0, offset, 0]}>
+    <AntColonyScene colony={pressed} underground chamber={null} selectedRemains={null} {...props} />
   </group>
 }
 
