@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { BufferAttribute, BufferGeometry, Color, MeshStandardMaterial } from 'three'
-import type { Group } from 'three'
+import type { Group, Mesh } from 'three'
 import { wallRadius } from './soilRoots'
 import { environmentScale, groundShape } from './scale'
 
@@ -40,24 +40,36 @@ function profile(u: number, adult: boolean) {
 
 type Point = { s: number; y: number }
 
-export function Earthworm3D({ x, z, length, adult, feeding, speed, health, selected, onClick, children }: {
-  x: number; z: number; length: number; adult: boolean; feeding: boolean; speed: number; health: number; selected: boolean
+/**
+ * Is this worm at the glass this hour? Worms in a jar show along the glass only some of the time and
+ * spend the rest out of sight in the soil (owner 2026-11-21: "why do the worms always sit at the glass").
+ * Each worm keeps its own rhythm of about a day and a half, at the glass a little under half of it.
+ */
+export const wormAtGlass = (id: number, tick: number) => ((tick / 36 + id * 0.618) % 1 + 1) % 1 < 0.45
+
+export function Earthworm3D({ id, x, z, tick, inSoil = false, length, adult, feeding, speed, health, selected, onClick, children }: {
+  id: number; x: number; z: number; tick: number; inSoil?: boolean
+  length: number; adult: boolean; feeding: boolean; speed: number; health: number; selected: boolean
   onClick: (event: ThreeEvent<MouseEvent>) => void; children?: ReactNode
 }) {
   const head = useRef<Group>(null)
+  const mesh = useRef<Mesh>(null)
   // Arc length round the wall and height, for a point at the glass at the worm's bearing.
   const target = (): Point => {
+    // Underground view: the soil is see-through, so the worm is drawn where it really is, its body in
+    // the upright plane through it (s = x, at its z).
+    if (inSoil) return { s: x, y: environmentScale.soilSurfaceY - (feeding ? 0.22 : 0.62) }
     const angle = Math.atan2(z, x)
     const wx = Math.cos(angle) * wallRadius, wz = Math.sin(angle) * wallRadius
     const surface = environmentScale.soilSurfaceY + groundShape.offset(wx * 0.97, wz * 0.97)
     // Feeding worms come up under the litter; otherwise they rest deeper, a centimetre or so down.
     return { s: angle * wallRadius, y: surface - (feeding ? 0.22 : 0.62) }
   }
-  const state = useRef<{ path: Point[]; t: number; heading: number } | null>(null)
+  const state = useRef<{ path: Point[]; t: number; heading: number; away: number; z: number } | null>(null)
   if (!state.current) {
     const start = target()
     // Lay the body out level behind the head at first, as if it had come along its burrow.
-    state.current = { path: Array.from({ length: 24 }, (_, i) => ({ s: start.s - i * length / 20, y: start.y + Math.sin(i * 0.5) * 0.04 })), t: 0, heading: 0 }
+    state.current = { path: Array.from({ length: 24 }, (_, i) => ({ s: start.s - i * length / 20, y: start.y + Math.sin(i * 0.5) * 0.04 })), t: 0, heading: 0, away: inSoil || wormAtGlass(id, tick) ? 0 : 1, z }
   }
   const radius = Math.max(0.025, length * 0.045)
   const geometry = useMemo(() => {
@@ -83,6 +95,8 @@ export function Earthworm3D({ x, z, length, adult, feeding, speed, health, selec
     return g
   }, [adult])
   const material = useMemo(() => new MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0 }), [])
+  // Seen through the soil in the Underground view: ghosted, so a worm passing the nest never hides it.
+  material.transparent = inSoil; material.opacity = inSoil ? 0.42 : 1; material.depthWrite = !inSoil
   material.color.setScalar(0.55 + 0.45 * health)
   material.emissive.set(selected ? '#3a2a20' : '#000000')
 
@@ -109,6 +123,9 @@ export function Earthworm3D({ x, z, length, adult, feeding, speed, health, selec
       else path[0] = next
       if (path.length > 40) path.length = 40
     }
+    // Retreat from the glass into the soil, or come back to it, over a few seconds.
+    memory.away += ((inSoil || wormAtGlass(id, tick) ? 0 : 1) - memory.away) * Math.min(1, delta * 0.8)
+    memory.z += (z - memory.z) * Math.min(1, delta * 2)
     memory.t += moving ? delta * 6 : delta * 1.2
     const t = memory.t
     // Body points at equal arc steps back along the burrowed path.
@@ -131,8 +148,8 @@ export function Earthworm3D({ x, z, length, adult, feeding, speed, health, selec
     for (let pass = 0; pass < 6; pass += 1) for (let i = 1; i < flat.length - 1; i += 1) {
       flat[i] = [(flat[i - 1][0] + flat[i][0] * 2 + flat[i + 1][0]) / 4, (flat[i - 1][1] + flat[i][1] * 2 + flat[i + 1][1]) / 4]
     }
-    const r = wallRadius - radius * 0.35
-    const centre = flat.map(([s, y]): [number, number, number] => [Math.cos(s / wallRadius) * r, y, Math.sin(s / wallRadius) * r])
+    const r = wallRadius - radius * 0.35 - memory.away * 0.6
+    const centre = flat.map(([s, y]): [number, number, number] => inSoil ? [s, y, memory.z] : [Math.cos(s / wallRadius) * r, y, Math.sin(s / wallRadius) * r])
     const position = geometry.getAttribute('position') as BufferAttribute
     const normal = geometry.getAttribute('normal') as BufferAttribute
     for (let ring = 0; ring <= rings; ring += 1) {
@@ -140,7 +157,7 @@ export function Earthworm3D({ x, z, length, adult, feeding, speed, health, selec
       let tx = q[0] - o[0], ty = q[1] - o[1], tz = q[2] - o[2]
       const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl
       // Frame: outward from the jar's axis, and the side direction across it.
-      let nx = p[0], nz = p[2]; const nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl
+      let nx = inSoil ? 0 : p[0], nz = inSoil ? 1 : p[2]; const nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl
       let bx = ty * nz, by = tz * nx - tx * nz, bz = -ty * nx
       const bl = Math.hypot(bx, by, bz) || 1; bx /= bl; by /= bl; bz /= bl
       const u = ring / rings
@@ -160,9 +177,10 @@ export function Earthworm3D({ x, z, length, adult, feeding, speed, health, selec
     normal.needsUpdate = true
     geometry.computeBoundingSphere()
     if (head.current) head.current.position.set(centre[0][0], centre[0][1], centre[0][2])
+    if (mesh.current) mesh.current.visible = memory.away < 0.97
   })
   return <>
-    <mesh geometry={geometry} material={material} frustumCulled={false} castShadow onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onClick(event) }} />
+    <mesh ref={mesh} geometry={geometry} material={material} frustumCulled={false} castShadow onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onClick(event) }} />
     <group ref={head}>{children}</group>
   </>
 }

@@ -203,3 +203,15 @@ Rules added so a sealed starter jar keeps all its kinds for three model years:
 - **Casts**: worm castings hold more plant-available nutrients than the material eaten; vermicompost raises available N and P (https://en.wikipedia.org/wiki/Vermicompost).
 - **Respiration through skin**: earthworms need moist skin to breathe, and waterlogged soil drives them up (https://en.wikipedia.org/wiki/Earthworm).
 - **Locomotion**: peristaltic waves of circular and longitudinal muscle (https://en.wikipedia.org/wiki/Earthworm#Locomotion); the drawing shows the wave, the sim moves at a few centimetres an hour.
+
+## Ant nest architecture — 2026-11-21 audit
+
+Checked against [Tschinkel 2004](https://pmc.ncbi.nlm.nih.gov/articles/PMC528881/) (Florida harvester ant, *Pogonomyrmex badius*, casts of real nests):
+- **Chambers are flat**: about 1 cm high whatever their floor area, floors flat, much wider than tall, lobed when large. Game chambers were spheres; they are now flat-floored rounded slabs (half-height 0.6 × radius, 1.25 × wider across the floor) in the sim (`chamberReach`), the 3D nest mesh and the glass-side nest window.
+- **Nests are top-heavy**: about half the chamber area is in the top quarter of the depth, and chambers near the top are only 2–4 cm apart vertically. The game used to dig every new chamber 18–25 mm below the newest one (a deepening chain). It now branches from the shallowest junction or chamber first, 11–17 mm lower, and moves deeper only when there is no clear ground left.
+- **Kept as is**: seeds stored above brood and queen, as in the real nest. Shafts a little under 1 cm across against a 6–8 mm worker; game tunnels are about 1.45 worker lengths across, a similar ratio.
+- **Not modelled**: real nests also grow by enlarging existing chambers (area ∝ workers^0.87, depth ∝ workers^0.37). That would need a per-chamber size in the save, so it waits for the owner's go-ahead. Depths are compressed to the jar: the game nest is a few centimetres deep, while real incipient nests are about 30 cm deep and mature ones 2.5–3 m.
+
+## Worms on the glass — 2026-11-21
+
+Worms in a worm jar show along the glass only some of the time. Each worm now visits the glass for a little under half of a cycle of about a day and a half, and spends the rest out of sight in the soil. The Underground view makes the soil see-through and draws worms faintly at their real positions.

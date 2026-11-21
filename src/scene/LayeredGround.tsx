@@ -306,7 +306,7 @@ export function useLayerMaterials() {
   if (cutBox.w > 0.5) {
     float angle = atan(vCutWorld.z, vCutWorld.x), radius = length(vCutWorld.xz);
     float field = 1e3;
-    for (int i = 0; i < 12; i++) { vec4 n = nestNodes[i]; if (n.w <= 0.0) continue; float da = atan(sin(angle - atan(n.z, n.x)), cos(angle - atan(n.z, n.x))); field = min(field, length(vec2(da * radius / 1.12, vCutWorld.y - n.y)) - n.w); }
+    for (int i = 0; i < 12; i++) { vec4 n = nestNodes[i]; if (n.w <= 0.0) continue; float da = atan(sin(angle - atan(n.z, n.x)), cos(angle - atan(n.z, n.x))); field = min(field, n.w > 0.1 ? (pow(pow(abs(da * radius / 1.12 / 1.25), 4.0) + pow(abs((vCutWorld.y - n.y) / 0.6), 4.0), 0.25) - n.w) * 0.5 : length(vec2(da * radius / 1.12, vCutWorld.y - n.y)) - n.w); }
     for (int i = 0; i < 20; i++) { vec4 a = nestA[i]; if (a.w <= 0.0) continue; vec4 b = nestB[i];
       vec2 pa = vec2(atan(sin(angle - atan(a.z, a.x)), cos(angle - atan(a.z, a.x))) * radius, vCutWorld.y - a.y);
       vec2 ab = vec2(atan(sin(atan(b.z, b.x) - atan(a.z, a.x)), cos(atan(b.z, b.x) - atan(a.z, a.x))) * radius, b.y - a.y);

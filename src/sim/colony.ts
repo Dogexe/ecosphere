@@ -31,6 +31,21 @@ export type AntEvent = { type: 'ant'; action: 'harvest' | 'delivery' | 'feeding'
 
 export const nestTunnelRadius = 0.085
 export const nestChamberRadius = (node: NestNode) => node.role === 'queen' ? 0.20 : node.role === 'brood' || node.role === 'food' || node.role === 'rest' ? 0.17 : 0.085
+/**
+ * Harvester-ant chambers are flat, not round: horizontal floors, a low ceiling about the same height
+ * whatever the floor area, the width much greater than the height (Tschinkel 2004, J Insect Sci 4:21,
+ * https://pmc.ncbi.nlm.nih.gov/articles/PMC528881/: chambers about 1 cm high, shafts a little under 1 cm
+ * across, in Pogonomyrmex badius; floors flat). A chamber here is a flat-floored rounded slab: its
+ * half-height is this share of its radius, and it reaches this much wider than the radius across the
+ * floor (2026-11-21; were spheres).
+ */
+export const chamberFlatness = 0.6
+export const chamberSpread = 1.25
+const isChamber = (node: NestNode) => node.role === 'queen' || node.role === 'brood' || node.role === 'food' || node.role === 'rest'
+/** Distance from a chamber's centre in units of its radius, measured across its flattened shape. */
+export const chamberReach = (node: NestNode, dx: number, dy: number, dz: number) => isChamber(node)
+  ? ((Math.hypot(dx, dz) / chamberSpread) ** 4 + (dy / chamberFlatness) ** 4) ** 0.25
+  : Math.hypot(dx, dy, dz)
 export const antContactRadius = (ant: Pick<Ant, 'caste'>) => ant.caste === 'queen' ? 0.085 : 0.04
 // Soil stocks belong to four surface columns, not an extra reservoir per room.
 export const antSoilAt = (soil: readonly SoilPatch[], position: { x: number; z: number }) => soil.reduce((best, next) => Math.hypot(next.x - position.x, next.z - position.z) < Math.hypot(best.x - position.x, best.z - position.z) ? next : best)
@@ -47,7 +62,8 @@ function copyAnt(ant: Ant): Ant {
 
 export function nestContains(colony: Pick<AntColony, 'nodes' | 'edges'>, p: { x: number; y: number; z: number }, radius: number) {
   if (p.y > 0.045 || !isLand(p.x, p.z, radius)) return false
-  if (colony.nodes.some((node) => Math.hypot(p.x - node.x, p.y - node.y, p.z - node.z) <= nestChamberRadius(node) - radius + 1e-8)) return true
+  // Inside a flat chamber, kept a body's width from its floor and ceiling.
+  if (colony.nodes.some((node) => chamberReach(node, p.x - node.x, p.y - node.y, p.z - node.z) <= nestChamberRadius(node) - radius / (isChamber(node) ? chamberFlatness : 1) + 1e-8)) return true
   return colony.edges.some(([aId, bId]) => {
     const a = colony.nodes.find((node) => node.id === aId)!, b = colony.nodes.find((node) => node.id === bId)!
     const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z

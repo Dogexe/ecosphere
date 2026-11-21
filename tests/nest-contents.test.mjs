@@ -60,7 +60,8 @@ test('existing eggs and grain bounds stay inside the room at their supported flo
   for(const [role,bounds] of [['brood',eggBounds],['food',grainBounds]]) {
     const room=colony.nodes.find(n=>n.role===role), origin=new Vector3(room.x,room.y-.035,room.z)
     const before=bounds.clone(), floor=nestContentOffset(field,origin,bounds,new Quaternion())
-    assert.ok(floor<-.06)
+    // Chambers are flat-floored slabs since 2026-11-21 (Tschinkel 2004), so the floor sits closer under the centre.
+    assert.ok(floor<-.03)
     for(const x of [bounds.min.x,bounds.max.x]) for(const y of [bounds.min.y,bounds.max.y]) for(const z of [bounds.min.z,bounds.max.z])
       assert.ok(field(origin.x+x,origin.y+y+floor,origin.z+z)<0)
     assert.deepEqual(bounds,before)

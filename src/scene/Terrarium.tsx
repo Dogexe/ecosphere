@@ -453,10 +453,31 @@ function BenthicAnimal({ creature, events, selected, onSelect, speed }: Creature
   </group>
 }
 
+/**
+ * Underground view: the soil is drawn see-through (a faint ghost of the jar's soil body) so the earthworms
+ * show where they really are, beside the ant nest (owner 2026-11-21).
+ */
+function WormsInSoil({ world, events, speed, selected, onSelect }: { world: World; events: SimulationEvent[]; speed: number; selected: number | null; onSelect: (id: number) => void }) {
+  const worms = world.creatures.filter((creature) => creature.kind === 'worm')
+  if (!worms.length) return null
+  const depth = 1.5
+  return <>
+    <mesh position={[0, environmentScale.soilSurfaceY - depth / 2, 0]} renderOrder={-1}>
+      <cylinderGeometry args={[3.75, 3.75, depth, 64, 1, true]} />
+      <meshBasicMaterial color="#8a6244" transparent opacity={0.1} depthWrite={false} side={DoubleSide} />
+    </mesh>
+    <mesh position={[0, environmentScale.soilSurfaceY, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={-1}>
+      <circleGeometry args={[3.75, 64]} />
+      <meshBasicMaterial color="#6f8a4c" transparent opacity={0.08} depthWrite={false} side={DoubleSide} />
+    </mesh>
+    {worms.map((creature) => <EarthwormAnimal key={creature.id} creature={creature} world={world} events={events} speed={speed} selected={selected === creature.id} onSelect={() => onSelect(creature.id)} inSoil />)}
+  </>
+}
+
 /** Red earthworm, drawn in its burrow against the glass (Earthworm3D.tsx). */
-function EarthwormAnimal({ creature, world, events, selected, onSelect, speed }: CreatureProps) {
+function EarthwormAnimal({ creature, world, events, selected, onSelect, speed, inSoil = false }: CreatureProps & { inSoil?: boolean }) {
   const feeding = creatureIsFeeding(world, creature, events)
-  return <Earthworm3D x={creature.x} z={creature.z} length={animalModelScale(creature)} adult={creature.stage !== 'juvenile'} feeding={feeding} speed={speed}
+  return <Earthworm3D id={creature.id} tick={world.tick} inSoil={inSoil} x={creature.x} z={creature.z} length={animalModelScale(creature)} adult={creature.stage !== 'juvenile'} feeding={feeding} speed={speed}
     health={MathUtils.clamp(creature.energy / 50, 0, 1)} selected={selected} onClick={(event) => onSelect(event.ray)}>
     <AnimalInteraction scale={1} y={0.058} selected={selected} markerRadius={0.1} />
   </Earthworm3D>
@@ -1015,6 +1036,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       </>}
       {world.colony && !underwater && <AntColonyScene broodCenters={broodCenters} antCenters={antCenters} colony={world.colony} underground={underground} speed={speed} events={events} selected={selectedAnt} chamber={focusChamber} revision={worldRevision} onSelect={selectAnt} onColony={() => placing ? onPlace(world.colony!.entrance.x, world.colony!.entrance.z) : onSelectColony()} onChamber={onSelectChamber} remains={world.remains} selectedRemains={focusedRemains?.id ?? null} onRemains={selectRemains} selectedBrood={selectedBrood} onSelectBrood={onSelectBrood} />}
       {naturalLook && world.colony && !underwater && !underground && <NestSection colony={world.colony} speed={speed} events={events} selected={selectedAnt} revision={worldRevision} remains={world.remains} selectedBrood={selectedBrood} onSelectBrood={onSelectBrood} onSelect={selectAnt} onColony={() => placing ? onPlace(world.colony!.entrance.x, world.colony!.entrance.z) : onSelectColony()} onChamber={onSelectChamber} onRemains={selectRemains} antCenters={antCenters} broodCenters={broodCenters} />}
+      {underground && <WormsInSoil world={world} events={events} speed={speed} selected={selectedCreature} onSelect={onSelectCreature} />}
       {!underwater && <AntRemainsScene remains={world.remains} colony={world.colony} underground={underground} selected={focusedRemains?.id ?? null} onSelect={selectRemains} />}
       {profiling && <RenderProbe onSample={setProfile} />}
       {underground && world.colony ? <NestControls broodCenters={broodCenters} antCenters={antCenters} remains={focusedRemains} colony={world.colony} ant={followedAnt} focusBrood={focusBrood} broodId={selectedBrood} chamber={focusChamber} surfacePose={surfacePose} /> : underwater ? <PondControls creature={viewWorld.creatures.find((creature) => creature.id === followCreature)} fish={viewWorld.creatures.filter((creature) => creature.kind === 'fish')} surfacePose={surfacePose} /> : <WatchingControls remains={focusedRemains} creature={world.creatures.find((creature) => creature.id === followCreature)} plant={world.plants.find((plant) => plant.id === focusPlant)} ant={surfaceAnt} surfacePose={surfacePose} />}

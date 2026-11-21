@@ -1,6 +1,6 @@
 import { Box3, BufferGeometry, Float32BufferAttribute, Vector3 } from 'three'
 import type { AntColony, NestNode } from '../sim/colony'
-import { nestChamberRadius, nestTunnelRadius } from '../sim/colony.ts'
+import { chamberReach, nestChamberRadius, nestTunnelRadius } from '../sim/colony.ts'
 import { growingRadius } from '../sim/excavation.ts'
 
 export const chamberRadius = (node: NestNode) => nestChamberRadius(node)
@@ -11,9 +11,10 @@ export function nestFrame(colony: NestShape) {
   const origin = colony.nodes.find((node) => node.role === 'entrance')!
   const bounds = new Box3()
   for (const node of colony.nodes) {
-    const r = growingRadius(colony, node) * 1.3
-    bounds.expandByPoint(new Vector3(node.x - r, node.y - r, node.z - r))
-    bounds.expandByPoint(new Vector3(node.x + r, node.y + r, node.z + r))
+    // Flat chambers reach wider than their radius across the floor (chamberSpread, lobes).
+    const r = growingRadius(colony, node) * 1.3, wide = growingRadius(colony, node) * 1.75
+    bounds.expandByPoint(new Vector3(node.x - wide, node.y - r, node.z - wide))
+    bounds.expandByPoint(new Vector3(node.x + wide, node.y + r, node.z + wide))
   }
   const center = bounds.getCenter(new Vector3()), right = new Vector3(1, 0, 0)
   // Stable world orientation: adding a branch must not rotate the observer.
@@ -51,9 +52,10 @@ export function prepareField(colony: Pick<AntColony, 'nodes' | 'edges' | 'constr
   return (x: number, y: number, z: number) => {
     let field = Infinity
     for (const node of nodes) {
-      const dx = (x - node.x) / 1.16, dy = y - node.y, dz = (z - node.z) / 1.06
-      const radius = node.radius * (1.04 + 0.018 * Math.sin((x - node.x) * 23 + node.id) * Math.cos((z - node.z) * 21))
-      field = smoothUnion(field, Math.sqrt(dx * dx + dy * dy + dz * dz) - radius)
+      // Flat, slightly lobed chambers (chamberReach), with a little irregularity in the walls.
+      const lobe = 1.04 + 0.018 * Math.sin((x - node.x) * 23 + node.id) * Math.cos((z - node.z) * 21) + 0.05 * Math.sin(Math.atan2(z - node.z, x - node.x) * 3 + node.id)
+      const flat = node.radius > nestTunnelRadius * 1.5 ? 0.6 : 1 // the flattened field grows faster than distance vertically
+      field = smoothUnion(field, (chamberReach(node, (x - node.x) / 1.08, y - node.y, z - node.z) - node.radius * lobe) * flat)
     }
     for (const edge of edges) {
       const x0 = x - edge.a.x, y0 = y - edge.a.y, z0 = z - edge.a.z

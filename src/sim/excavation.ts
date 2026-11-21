@@ -11,10 +11,22 @@ export const chamberWork = () => 4 / 3 * Math.PI * (0.17 ** 3 - nestTunnelRadius
 export const digRequired = (colony: Pick<AntColony, 'nodes'>, job: NestDig) => tunnelVolume(digLength(colony, job)) + chamberWork()
 export const nestCrowded = (colony: AntColony) => colony.workers.length + colony.brood.reduce((sum, cohort) => sum + cohort.count, 0) > 3 + colony.nodes.filter((node) => node.role === 'rest').length * 4
 
+/**
+ * Where the next chamber branches from. Real harvester-ant nests are top-heavy: about half the
+ * chamber area lies in the top quarter of the depth, and nests grow mostly by adding and widening
+ * chambers near the top rather than by an ever-deeper chain (Tschinkel 2004, J Insect Sci 4:21,
+ * https://pmc.ncbi.nlm.nih.gov/articles/PMC528881/). So the shallowest branch point is dug from first
+ * (planExcavation moves deeper when it has no clear ground left); the newest breaks ties (2026-11-21; was always the newest).
+ */
+export function branchSites(colony: Pick<AntColony, 'nodes'>) {
+  return colony.nodes.filter((node) => node.role === 'junction' || node.role === 'rest')
+    .sort((a, b) => Math.round((b.y - a.y) * 20) || b.id - a.id)
+}
+
 export function excavationSite(colony: AntColony): NestNode {
   const job = colony.construction?.job
   return (job ? colony.nodes.find((node) => node.id === job.target.id) ?? colony.nodes.find((node) => node.id === job.from)
-    : [...colony.nodes].filter((node) => node.role === 'junction' || node.role === 'rest').sort((a, b) => b.id - a.id)[0]) ?? colony.nodes[0]
+    : branchSites(colony)[0]) ?? colony.nodes[0]
 }
 
 export function growingRadius(colony: Pick<AntColony, 'nodes' | 'construction'>, node: NestNode) {
@@ -29,12 +41,12 @@ export function planExcavation(colony: AntColony, water: number, seed: number) {
   if (!construction?.enabled || construction.job || !colony.queen || colony.nodes.length >= antLimits.nodes || colony.edges.length >= antLimits.edges || colony.workers.length < 3 || water <= 20 || water >= 88) return
   const committed = colony.brood.reduce((sum, cohort) => sum + (cohort.stage === 'pupa' ? 0 : Math.max(0, cohort.count * 0.04 - cohort.material) / 0.75), 0)
   if (!nestCrowded(colony) || colony.food < 0.18 + committed) return
-  const parent = excavationSite(colony)
-  if (parent.role !== 'junction' && parent.role !== 'rest') return
-  for (let attempt = 0; attempt < 40; attempt++) {
+  // Try the shallowest branch point first, then deeper ones if it has no clear ground left.
+  for (const parent of branchSites(colony)) for (let attempt = 0; attempt < 40; attempt++) {
     const angle = seed / 4294967296 * Math.PI * 2 + colony.nodes.length * 2.399 + attempt * 0.79
     const length = 0.44 + (attempt % 3) * 0.055
-    const target: NestNode = { id: Math.max(...colony.nodes.map((node) => node.id)) + 1, role: 'rest', x: parent.x + Math.cos(angle) * length, y: parent.y - 0.18 - (attempt % 2) * 0.07, z: parent.z + Math.sin(angle) * length }
+    // A gentle drop: chambers near the top sit only a few centimetres apart in depth (Tschinkel 2004).
+    const target: NestNode = { id: Math.max(...colony.nodes.map((node) => node.id)) + 1, role: 'rest', x: parent.x + Math.cos(angle) * length, y: parent.y - 0.11 - (attempt % 2) * 0.06, z: parent.z + Math.sin(angle) * length }
     if (target.y < -1.6 || !isLand(target.x, target.z, 0.25) || !isLandSegment(parent.x, parent.z, target.x, target.z, 0.12)) continue
     let clear = true
     for (let i = 1; i <= 20 && clear; i++) {
