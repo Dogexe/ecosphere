@@ -1,7 +1,7 @@
 import type { Plant, SoilPatch } from './ecosystem'
 import { antContactRadius, antLimits, antMaterialError, antOffsetLimit, antPosition, nestContains, nestRoute } from './colony.ts'
 import type { Ant, AntBrood, AntColony, AntLedger, AntLocation, NestNode } from './colony'
-import { isLand, isLandSegment } from './land.ts'
+import { isLand, isLandSegment, soilRim } from './land.ts'
 import { digLength, digRequired, tunnelVolume } from './excavation.ts'
 
 const damaged = () => new Error('This ant colony is incomplete or damaged.')
@@ -31,8 +31,8 @@ export function parseColony(value: unknown, plants: Plant[], soil: SoilPatch[]):
   const nodes = list(source, 'nodes', antLimits.nodes).map((value): NestNode => {
     const node = object(value)
     if (!['entrance', 'junction', 'food', 'brood', 'queen', 'rest'].includes(node.role as string)) throw damaged()
-    const result = { id: num(node, 'id', 0, 1e9, true), x: num(node, 'x', -3.15, 3.15), y: num(node, 'y', -1.65, 0.045), z: num(node, 'z', -3.15, 3.15), role: node.role as NestNode['role'] }
-    if (!isLand(result.x, result.z, antLimits.surfaceClearance)) throw damaged()
+    const result = { id: num(node, 'id', 0, 1e9, true), x: num(node, 'x', -soilRim, soilRim), y: num(node, 'y', -1.65, 0.045), z: num(node, 'z', -soilRim, soilRim), role: node.role as NestNode['role'] }
+    if (!isLand(result.x, result.z, antLimits.surfaceClearance, result.role === 'entrance' ? 3.15 : soilRim)) throw damaged()
     if (result.role === 'entrance' ? Math.abs(result.y - 0.045) > 1e-9 : result.y > -0.1) throw damaged()
     return result
   })
@@ -46,7 +46,7 @@ export function parseColony(value: unknown, plants: Plant[], soil: SoilPatch[]):
     if (!a || !b || a.id === b.id) throw damaged()
     const length = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z)
     if (length < 0.02 || length > 1.5) throw damaged()
-    if (!isLandSegment(a.x, a.z, b.x, b.z, antLimits.surfaceClearance)) throw damaged()
+    if (!isLandSegment(a.x, a.z, b.x, b.z, antLimits.surfaceClearance, soilRim)) throw damaged()
     return [a.id, b.id]
   })
   if (new Set(edges.map(([a, b]) => `${Math.min(a, b)}:${Math.max(a, b)}`)).size !== edges.length) throw damaged()
@@ -97,7 +97,7 @@ export function parseColony(value: unknown, plants: Plant[], soil: SoilPatch[]):
       const actual = antPosition({ nodes }, result)
       const anchor = antPosition({ nodes }, { ...result, location: { ...location, offset: undefined } })
       if (location.offset && Math.hypot(location.offset.x, location.offset.y, location.offset.z) > antOffsetLimit({ nodes }, result) + 1e-8) throw damaged()
-      if (!nestContains({ nodes, edges }, actual, antContactRadius(result)) || !isLandSegment(anchor.x, anchor.z, actual.x, actual.z, antContactRadius(result))) throw damaged()
+      if (!nestContains({ nodes, edges }, actual, antContactRadius(result)) || !isLandSegment(anchor.x, anchor.z, actual.x, actual.z, antContactRadius(result), soilRim)) throw damaged()
     }
     return result
   }
@@ -127,7 +127,7 @@ export function parseColony(value: unknown, plants: Plant[], soil: SoilPatch[]):
       const data = object(construction.job), targetSource = object(data.target)
       const target: NestNode = { id: num(targetSource, 'id', 1, 1e9, true), role: 'rest', x: num(targetSource, 'x', -3.15, 3.15), y: num(targetSource, 'y', -1.6, -0.1), z: num(targetSource, 'z', -3.15, 3.15) }
       const from = num(data, 'from', 0, 1e9, true), parent = nodes.find((node) => node.id === from)
-      if (targetSource.role !== 'rest' || !parent || parent.id === target.id || parent.role === 'entrance' || !isLand(target.x, target.z, 0.25) || !isLandSegment(parent.x, parent.z, target.x, target.z, 0.12)) throw damaged()
+      if (targetSource.role !== 'rest' || !parent || parent.id === target.id || parent.role === 'entrance' || !isLand(target.x, target.z, 0.25, soilRim) || !isLandSegment(parent.x, parent.z, target.x, target.z, 0.12, soilRim)) throw damaged()
       const job = { from, target, work: num(data, 'work', 0, 1) }, length = digLength(colony, job)
       if (length < 0.1 || length > 1 || job.work >= digRequired(colony, job) || job.work > colony.construction.removed + 1e-9) throw damaged()
       const tip = nodes.find((node) => node.id === target.id)

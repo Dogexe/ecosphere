@@ -25,6 +25,14 @@ function broodPosition(colony: Colony, index: number) {
   return nurseryOrigin(room, index)
 }
 
+/** A chamber dug up to the jar has the glass as its outer wall: nothing of the cavity is drawn beyond it. */
+const clipAtGlass = (shader: { vertexShader: string; fragmentShader: string }) => {
+  shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vNestWorld;')
+    .replace('#include <project_vertex>', '#include <project_vertex>\nvNestWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;')
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vNestWorld;')
+    .replace('void main() {', 'void main() {\n  if (length(vNestWorld.xz) > 3.79) discard;')
+}
+
 function BroodModel({ colony, cohort, index, rotation, selected, center, onPick, field }: { colony: Colony; cohort: AntBrood; index: number; rotation: Quaternion; selected: boolean; center: Vector3; onPick: (ray: Ray) => void; field: ReturnType<typeof prepareField> }) {
   const hit = useRef<Group>(null), halo = useRef<Group>(null), { camera, size } = useThree()
   const localCenter = useRef(new Vector3(0, -0.04, 0)), offset = useRef(new Vector3())
@@ -174,7 +182,7 @@ export function AntColonyScene({ colony, underground, speed, events, selected, c
         const room = colony.nodes.filter((node) => node.role !== 'entrance' && node.role !== 'junction').map((node) => ({ node, distance: event.point.distanceTo(new Vector3(node.x, node.y, node.z)) / chamberRadius(node) })).sort((a, b) => a.distance - b.distance)[0]
         if (room && room.distance < 1.35) onChamber(room.node.id)
         else onColony()
-      }}><meshStandardMaterial vertexColors roughness={1} side={BackSide} /></mesh>}
+      }}><meshStandardMaterial vertexColors roughness={1} side={BackSide} onBeforeCompile={clipAtGlass} /></mesh>}
       {colony.nodes.filter((node) => node.role !== 'entrance' && node.role !== 'junction').map((node) => <group key={node.id} position={[node.x, node.y, node.z]}>
         {chamber === node.id && <Billboard><mesh><ringGeometry args={[0.188, 0.192, 48]} /><meshBasicMaterial color="#e8c783" transparent opacity={0.55} depthTest={false} side={DoubleSide} /></mesh></Billboard>}
       </group>)}

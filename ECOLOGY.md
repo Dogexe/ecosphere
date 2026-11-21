@@ -215,3 +215,7 @@ Checked against [Tschinkel 2004](https://pmc.ncbi.nlm.nih.gov/articles/PMC528881
 ## Worms on the glass — 2026-11-21
 
 Worms in a worm jar show along the glass only some of the time. Each worm now visits the glass for a little under half of a cycle of about a day and a half, and spends the rest out of sight in the soil. The Underground view makes the soil see-through and draws worms faintly at their real positions.
+
+## Nest seen through the glass — 2026-11-22
+
+The natural look now draws the nest where it really is. The soil face behind the glass opens only where a chamber or tunnel actually reaches the glass, as in a real jar, and the Underground view shows the whole nest. The sim now lets ants dig right up to the glass; before, nests stopped about 1.3 cm short of it. The starter nest sits about 1.3 cm from the glass, so at the start it is seen only in the Underground view.

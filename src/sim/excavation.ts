@@ -1,6 +1,6 @@
 import type { Ant, AntColony, NestDig, NestNode } from './colony'
 import { antLimits, nestChamberRadius, nestTunnelRadius } from './colony.ts'
-import { isLand, isLandSegment } from './land.ts'
+import { isLand, isLandSegment, soilRim } from './land.ts'
 
 export const digLength = (colony: Pick<AntColony, 'nodes'>, job: NestDig) => {
   const a = colony.nodes.find((node) => node.id === job.from)!
@@ -47,7 +47,7 @@ export function planExcavation(colony: AntColony, water: number, seed: number) {
     const length = 0.44 + (attempt % 3) * 0.055
     // A gentle drop: chambers near the top sit only a few centimetres apart in depth (Tschinkel 2004).
     const target: NestNode = { id: Math.max(...colony.nodes.map((node) => node.id)) + 1, role: 'rest', x: parent.x + Math.cos(angle) * length, y: parent.y - 0.11 - (attempt % 2) * 0.06, z: parent.z + Math.sin(angle) * length }
-    if (target.y < -1.6 || !isLand(target.x, target.z, 0.25) || !isLandSegment(parent.x, parent.z, target.x, target.z, 0.12)) continue
+    if (target.y < -1.6 || !isLand(target.x, target.z, 0.25, soilRim) || !isLandSegment(parent.x, parent.z, target.x, target.z, 0.12, soilRim)) continue
     let clear = true
     for (let i = 1; i <= 20 && clear; i++) {
       const t = i / 20, p = { x: parent.x + (target.x - parent.x) * t, y: parent.y + (target.y - parent.y) * t, z: parent.z + (target.z - parent.z) * t }

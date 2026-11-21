@@ -1,5 +1,5 @@
 import type { Plant, SoilPatch, World } from './ecosystem'
-import { isLand, isLandSegment, walkOnLand } from './land.ts'
+import { isLand, isLandSegment, soilRim, walkOnLand } from './land.ts'
 import { addRemains, plantStage, type Remains } from './life.ts'
 import { environmentAt } from './climate.ts'
 import { rateAt } from './pond.ts'
@@ -61,7 +61,7 @@ function copyAnt(ant: Ant): Ant {
 }
 
 export function nestContains(colony: Pick<AntColony, 'nodes' | 'edges'>, p: { x: number; y: number; z: number }, radius: number) {
-  if (p.y > 0.045 || !isLand(p.x, p.z, radius)) return false
+  if (p.y > 0.045 || !isLand(p.x, p.z, radius, soilRim)) return false
   // Inside a flat chamber, kept a body's width from its floor and ceiling.
   if (colony.nodes.some((node) => chamberReach(node, p.x - node.x, p.y - node.y, p.z - node.z) <= nestChamberRadius(node) - radius / (isChamber(node) ? chamberFlatness : 1) + 1e-8)) return true
   return colony.edges.some(([aId, bId]) => {
@@ -100,7 +100,7 @@ export function resolveAntContacts(source: AntColony, allowance?: ReadonlyMap<nu
     const amount = Math.min(wanted, budget.get(ant.id)!), p = antPosition(colony, ant)
     const old = ant.location.offset ?? { x: 0, y: 0, z: 0 }
     const offset = { x: old.x + dx * amount, y: old.y + dy * amount, z: old.z + dz * amount }
-    if (amount <= 0 || Math.hypot(offset.x, offset.y, offset.z) > antOffsetLimit(colony, ant) + 1e-9 || !isLandSegment(p.x, p.z, p.x + dx * amount, p.z + dz * amount, antContactRadius(ant)) || !nestContains(colony, { x: p.x + dx * amount, y: p.y + dy * amount, z: p.z + dz * amount }, antContactRadius(ant))) return 0
+    if (amount <= 0 || Math.hypot(offset.x, offset.y, offset.z) > antOffsetLimit(colony, ant) + 1e-9 || !isLandSegment(p.x, p.z, p.x + dx * amount, p.z + dz * amount, antContactRadius(ant), soilRim) || !nestContains(colony, { x: p.x + dx * amount, y: p.y + dy * amount, z: p.z + dz * amount }, antContactRadius(ant))) return 0
     ant.location.offset = offset; budget.set(ant.id, budget.get(ant.id)! - amount)
     return amount
   }
@@ -181,7 +181,7 @@ function makeNest(x: number, z: number): { nodes: NestNode[]; edges: [number, nu
   for (let attempt = 0; attempt < 8; attempt++) {
     const angle = attempt * Math.PI / 4
     const nodes = layout.map(([dx, y, dz, role], id) => ({ id, x: x + Math.cos(angle) * dx - Math.sin(angle) * dz, y, z: z + Math.sin(angle) * dx + Math.cos(angle) * dz, role }))
-    if (nodes.every((node) => isLand(node.x, node.z, 0.12)) && edges.every(([a, b]) => isLandSegment(nodes[a].x, nodes[a].z, nodes[b].x, nodes[b].z, 0.12))) return { nodes, edges }
+    if (nodes.every((node) => isLand(node.x, node.z, 0.12, node.role === 'entrance' ? 3.15 : soilRim)) && edges.every(([a, b]) => isLandSegment(nodes[a].x, nodes[a].z, nodes[b].x, nodes[b].z, 0.12, soilRim))) return { nodes, edges }
   }
   return null
 }

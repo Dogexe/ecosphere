@@ -115,3 +115,11 @@ test('completed refuges are used for rest and loss of crowding suspends an activ
   c.workers=c.workers.slice(0,2)
   assert.equal(workExcavation(c,ant,55,1,.14).amount,0)
 })
+
+test('nests may be dug right up to the glass, while the entrance stays on walkable ground (2026-11-22)',()=>{
+  const world=spatialFixture(), c=world.colony, queen=c.nodes.find(n=>n.role==='queen')
+  const r=Math.hypot(queen.x,queen.z); queen.x*=3.58/r; queen.z*=3.58/r
+  assert.deepEqual(parseSave(serializeSave(world)).colony.nodes,c.nodes)
+  const entrance=c.nodes.find(n=>n.role==='entrance'), e=Math.hypot(entrance.x,entrance.z); entrance.x*=3.5/e; entrance.z*=3.5/e; c.entrance={x:entrance.x,z:entrance.z}
+  assert.throws(()=>parseSave(serializeSave(world)))
+})

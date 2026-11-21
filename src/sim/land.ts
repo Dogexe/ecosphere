@@ -41,13 +41,19 @@ export function settleOnLand(x: number, z: number, clearance = 0): { x: number; 
   return { x, z }
 }
 
-export function isLand(x: number, z: number, clearance = 0): boolean {
-  if (poured()) return Number.isFinite(x) && Number.isFinite(z) && Math.hypot(x, z) <= 3.15 - clearance + 1e-9 && shoreGap(x, z) >= clearance - 1e-9
-  return Number.isFinite(x) && Number.isFinite(z) && Math.hypot(x, z) <= 3.15 - clearance + 1e-9 && Math.hypot(x - pond.x, z - pond.z) >= pond.radius + clearance - 1e-9
+/**
+ * Underground the soil reaches the glass (the glass wall is at 3.79), while walkable
+ * ground on top stops at the rim, 3.15. Nests use the underground reach so ants can dig right up to
+ * the glass, as they do in a real jar (2026-11-22; nests used to stop 1.3 cm short of it).
+ */
+export const soilRim = 3.79
+export function isLand(x: number, z: number, clearance = 0, rim = 3.15): boolean {
+  if (poured()) return Number.isFinite(x) && Number.isFinite(z) && Math.hypot(x, z) <= rim - clearance + 1e-9 && shoreGap(x, z) >= clearance - 1e-9
+  return Number.isFinite(x) && Number.isFinite(z) && Math.hypot(x, z) <= rim - clearance + 1e-9 && Math.hypot(x - pond.x, z - pond.z) >= pond.radius + clearance - 1e-9
 }
 
-export function isLandSegment(ax: number, az: number, bx: number, bz: number, clearance = 0): boolean {
-  if (!isLand(ax, az, clearance) || !isLand(bx, bz, clearance)) return false
+export function isLandSegment(ax: number, az: number, bx: number, bz: number, clearance = 0, rim = 3.15): boolean {
+  if (!isLand(ax, az, clearance, rim) || !isLand(bx, bz, clearance, rim)) return false
   if (poured()) {
     // The shore can curve any way: check points along the segment, a few mm apart.
     const steps = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.04)
