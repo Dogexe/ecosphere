@@ -14,6 +14,7 @@ import type { PondShape } from '../sim/pondShape'
 import type { Pond } from '../sim/pond'
 import { ShapedPond } from './PondWater'
 import { GlassDroplets } from './GlassDroplets'
+import { SillProps } from './SillProps'
 import { DrawnCurledLeaf, DrawnMossCushion } from './DrawnPlant'
 import { naturalLook } from './PaperCritter'
 import { OrganismAsset } from './OrganismAsset'
@@ -235,12 +236,12 @@ function Glass({ bottom = gravelBottom, sealed = false, mist = 0, shape = 'squat
 
 function Sill({ bottom = gravelBottom }: { bottom?: number }) {
   const oak = useScan('oak_veneer_01', sillRepeat, true)
-  return <mesh position={[0, bottom - 0.85, 1.5]} raycast={noRaycast}>
+  return <>{naturalLook && <SillProps y={bottom - 0.35} />}<mesh position={[0, bottom - 0.85, 1.5]} raycast={noRaycast} receiveShadow>
     <boxGeometry args={[30, 1, 14]} />
     {/* Dark walnut, like the sill in concept image 12. */}
     {/* Natural look: flat warm wood without the photo grain (Codex: grain competed with the jar). */}
     {naturalLook ? <meshStandardMaterial color="#a07a58" roughness={0.9} /> : <meshStandardMaterial {...oak} roughnessMap={null} roughness={0.82} color="#57412f" envMapIntensity={0.35} />}
-  </mesh>
+  </mesh></>
 }
 
 const leaf = 'dry_quiver_leaf/dry_quiver_leaf_1k.gltf'
