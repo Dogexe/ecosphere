@@ -1038,7 +1038,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       {paperLook && watercolorLook && !underground && !underwater && <Room world={world} />}
       {paperLook && watercolorLook && polishLook && <Polish light={coarsePointer} water={underwater ? pondWaterLook(world) : null} />}
       {underwater && <PondAtmosphere world={world} />}
-      {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
+      {underground && <><color attach="background" args={['#33231a']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
       <Terrain fog={fogLevel(world)} sealed={!!world.sealed} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
       {!underwater && (world.soil ?? []).map((patch) => <FungalPatch key={patch.id} patch={patch} />)}

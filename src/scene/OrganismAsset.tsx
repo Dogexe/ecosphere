@@ -23,6 +23,8 @@ export const antModelUnavailable = (retry: () => void) => modelUnavailable('Ant'
 // Welding their vertices and averaging normals keeps the low-poly silhouette but shades the form softly,
 // as ART_DIRECTION.md's "soft organic low-poly" asks (phase 1 of the target-look plan, 2026-11-22).
 const softShaded = new Set<OrganismFile>(['natural-clover', 'natural-fern'])
+/** Plant kinds whose natural-look 3D model has shipped (phase 3). */
+const naturalPlantFiles = new Set<PlantKind>(['bloom', 'tree'])
 function softenNormals(root: Object3D) {
   root.traverse((node) => {
     if (!(node instanceof Mesh) || node instanceof SkinnedMesh) return
@@ -126,6 +128,17 @@ export function PlantAsset({ kind, health, flowering, fallback, seed = 0, cover 
   // Quaternius CC0 low-poly fern, one style with the clover (2026-11-07).
   if (naturalLook && kind === 'fern') { const { spread, height } = plantDimensions.fern; return <OrganismAsset file="natural-fern" shape={{ spread, height, base: 0 }} health={health} flowering={flowering} fallback={fallback} /> }
   if (naturalLook && kind === 'clover') { const { spread, height } = plantDimensions.clover; return <OrganismAsset file="natural-clover" shape={{ spread, height, base: 0 }} health={health} flowering={flowering} fallback={fallback} /> }
+  // Phase 3 of the target-look plan (2026-11-22): real 3D violet and broadleaf replace the painted cards in the
+  // natural look; the painted plant stays as the fallback while the model loads or if it is missing.
+  if (naturalLook && (kind === 'bloom' || kind === 'tree') && naturalPlantFiles.has(kind)) {
+    // Keep each model near its own proportions instead of stretching it into the painted card's box: the violet
+    // is a low rosette (Viola odorata: about 10-15 cm tall, wider than tall), the broadleaf a clump taller than wide.
+    const { spread, height } = kind === 'bloom'
+      ? { spread: plantDimensions.bloom.spread * 1.15, height: plantDimensions.bloom.spread * 1.15 * 0.6 }
+      : { spread: plantDimensions.tree.height * 0.92, height: plantDimensions.tree.height * 1.08 }
+    const painted = drawnLook && hasDrawnPlant(kind) ? <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} flowering={flowering} /></Suspense> : fallback
+    return <OrganismAsset file={kind === 'bloom' ? 'natural-violet' : 'natural-broadleaf'} shape={{ spread, height, base: 0 }} health={health} flowering={flowering} fallback={painted} />
+  }
   if (paperLook && drawnLook && hasDrawnPlant(kind) && (!naturalLook || kind === 'tree' || kind === 'bloom')) return <Suspense fallback={fallback}><DrawnPlant kind={kind} seed={seed} health={health} flowering={flowering} /></Suspense>
   if (paperLook && !naturalLook && hasScanPlant(kind)) return <ScanPlant kind={kind} seed={seed} health={health} fallback={fallback} />
   if (paperLook && kind === 'lily') return <FloatingRosette health={health} seed={seed} />
