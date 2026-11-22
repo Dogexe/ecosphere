@@ -72,11 +72,48 @@ function paint(width: number, height: number, draw: (context: CanvasRenderingCon
   return texture
 }
 
+// Natural look: a sunny garden out of focus, in depth layers so it reads as a place, not a green smear.
+// Sky with soft cloud, a far blue-green tree line, a nearer hedge, a lawn, and warm flower bokeh, each
+// layer blurred more the nearer it is to the (focused-on-the-jar) camera.
+function gardenView(context: CanvasRenderingContext2D) {
+  const w = 768, h = 600
+  let seed = 11
+  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+  const sky = context.createLinearGradient(0, 0, 0, h * 0.6)
+  sky.addColorStop(0, '#a9c6dc'); sky.addColorStop(0.6, '#d6e3e6'); sky.addColorStop(1, '#eef0e2')
+  context.fillStyle = sky; context.fillRect(0, 0, w, h)
+  const blob = (x: number, y: number, rx: number, ry: number, colour: string, alpha = 1) => {
+    context.globalAlpha = alpha; context.fillStyle = colour
+    context.beginPath(); context.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); context.fill()
+  }
+  context.filter = 'blur(14px)'
+  for (let i = 0; i < 7; i += 1) blob(rand() * w, 40 + rand() * 120, 60 + rand() * 70, 18 + rand() * 16, '#ffffff', 0.55)
+  // Far tree line: cool and pale with distance.
+  context.filter = 'blur(9px)'
+  for (let i = 0; i < 26; i += 1) blob(i * 32 + rand() * 20, h * 0.42 + rand() * 30, 34 + rand() * 30, 50 + rand() * 40, ['#8fab93', '#7f9e88', '#9bb59a'][i % 3], 0.95)
+  context.fillStyle = '#8eaa8c'; context.globalAlpha = 1; context.fillRect(0, h * 0.47, w, h * 0.1)
+  // Lawn.
+  const lawn = context.createLinearGradient(0, h * 0.55, 0, h)
+  lawn.addColorStop(0, '#9fbf6a'); lawn.addColorStop(1, '#6f9446')
+  context.fillStyle = lawn; context.fillRect(0, h * 0.55, w, h * 0.45)
+  // Nearer hedge and a tree trunk, warmer and darker.
+  context.filter = 'blur(16px)'
+  for (let i = 0; i < 16; i += 1) blob(rand() * w, h * 0.6 + rand() * 50, 50 + rand() * 50, 36 + rand() * 30, ['#5f8a44', '#6e9a4d', '#4f763a'][i % 3], 0.9)
+  context.fillStyle = '#5a4433'; context.globalAlpha = 0.85; context.fillRect(w * 0.78, h * 0.05, 26, h * 0.6)
+  for (let i = 0; i < 9; i += 1) blob(w * 0.8 + (rand() - 0.5) * 260, h * 0.12 + rand() * 120, 70 + rand() * 50, 50 + rand() * 40, ['#4f7a3a', '#5e8b45', '#6b9a50'][i % 3], 0.92)
+  // Sunlit patches and flower bokeh in the foreground.
+  context.filter = 'blur(22px)'
+  for (let i = 0; i < 6; i += 1) blob(rand() * w, h * 0.7 + rand() * 120, 80 + rand() * 60, 20 + rand() * 20, '#d9e59a', 0.45)
+  context.filter = 'blur(6px)'
+  for (let i = 0; i < 26; i += 1) blob(rand() * w, h * 0.66 + rand() * h * 0.3, 6 + rand() * 9, 6 + rand() * 9, ['#f4d7a1', '#e9a7a0', '#fff4d6', '#d7b0e0'][i % 4], 0.6)
+  context.globalAlpha = 1; context.filter = 'none'
+}
+
 function useViews() {
   return useMemo(() => ({
     // A soft rainy garden outside, as in concept image 12 (2026-11-07): overcast bright sky, deep
     // blurred greenery filling most of the pane, and rain beading and running on the window glass.
-    day: paint(512, 400, (context) => {
+    day: naturalLook ? paint(768, 600, gardenView) : paint(512, 400, (context) => {
       const sky = context.createLinearGradient(0, 0, 0, 400)
       sky.addColorStop(0, '#dfe6dc'); sky.addColorStop(0.35, '#c9d6bd'); sky.addColorStop(0.7, '#88a467'); sky.addColorStop(1, '#4f6b3c')
       context.fillStyle = sky; context.fillRect(0, 0, 512, 400)
