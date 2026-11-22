@@ -1,1 +1,1 @@
-built from claude/project-thread-t793yy 4867731 (npm run build:pages)
+3f78b83 claude/project-thread-t793yy 2026-11-22T08:51:31Z
