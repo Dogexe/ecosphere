@@ -356,7 +356,7 @@ function PlantModel({ plant, fit, tick, selected, onSelect }: { plant: Plant; fi
         </group>
       )}</group>} />}
       {plant.lastReproduction === tick && <mesh position={[0.2, 0.16, 0]}><sphereGeometry args={[0.04, 7, 4]} /><meshStandardMaterial color="#bd9c63" roughness={1} /></mesh>}
-      <mesh ref={hit} position={[0, young ? youngCenterY : 0.1 / scale, 0]} scale={environmentScale.minimumPickRadius / scale}><sphereGeometry args={[1, 6, 4]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
+      <mesh ref={hit} visible={false} position={[0, young ? youngCenterY : 0.1 / scale, 0]} scale={environmentScale.minimumPickRadius / scale}><sphereGeometry args={[1, 6, 4]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
     </group>
   )
 }
@@ -383,7 +383,7 @@ function AnimalInteraction({ scale, y, selected, markerRadius = 0.24 }: { scale:
   })
   return <group scale={1 / scale}>
     {selected && <mesh position={[0, 0.058 - y, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[markerRadius, markerRadius * 1.1, 28]} /><meshBasicMaterial color="#f9f6d3" transparent opacity={0.9} depthWrite={false} /></mesh>}
-    <mesh ref={hit}><sphereGeometry args={[1, 8, 6]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
+    {/* Hidden: raycasting ignores visibility, and an opacity-0 sphere still cost a draw call. */}<mesh ref={hit} visible={false}><sphereGeometry args={[1, 8, 6]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
   </group>
 }
 

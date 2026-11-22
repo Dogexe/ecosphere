@@ -54,6 +54,19 @@ Keep entries short: the symptom, the cause, the fix, and where it lives.
 - **Background vanishes when swapping views.** Two `<color attach="background">` swapped in R3F clear it (old
   detach runs after new attach). Set `scene.background` in `useFrame` instead (`UndergroundBackdrop`).
 
+## Performance
+
+- **Count where the calls go.** `renderer.info` over five frames with and without `?polish=0` and shadows
+  splits scene, post and shadow cost; then group visible meshes by geometry to find duplicates.
+- **N8AO doubles transparent draws.** It auto-detects transparent materials and re-renders them twice a frame
+  (about 100 calls here). Glass and water do not write depth, so set `autoDetectTransparency = false` and
+  `configuration.transparencyAware = false` through the pass ref (`Polish.tsx`).
+- **Opacity-0 meshes still draw.** Pick targets should be `visible={false}`: three's Raycaster and R3F events
+  ignore visibility, so picking keeps working.
+- **Full-grid water sheets.** Keep only quads with any vertex alpha in the index (`trimSheet.ts`).
+- **Many flat-colour parts.** Bake part colours into vertex colours and merge opaque skinned parts sharing a
+  skeleton at load (`mergeOpaqueSkinnedParts`, daphnia 8 → 2 draws); keep see-through shells separate.
+
 ## Testing and deploy
 
 - **Clicks fail in scripts.** Buttons with emoji spans do not match `getByText` exactly. Give buttons a

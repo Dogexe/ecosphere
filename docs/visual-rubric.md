@@ -35,13 +35,13 @@ GLB with `--lineup`. Captions carry draw calls and triangles per frame; `stats.j
 
 ## Budgets (from stats.json)
 
-| Measure | Target | Phase 1 (2026-11-22) |
-|---|---|---|
-| Draw calls per frame, overview | ≤ 300 | 543 |
-| Triangles per frame, overview | ≤ 400k | 667k |
-| Triangles per frame, macro | ≤ 600k | 820k |
-| Triangles per frame, underwater | ≤ 600k | 878k |
-| One animal GLB | ≤ 6k tris, ≤ 4 materials | woodlouse 5.4k / 4, daphnia 5.7k / 8 |
+| Measure | Target | Phase 1 (2026-11-22) | Phase 7 (2026-11-22) |
+|---|---|---|---|
+| Draw calls per frame, overview | ≤ 300 | 543 | 285 |
+| Triangles per frame, overview | ≤ 400k | 667k | 487k |
+| Triangles per frame, macro | ≤ 600k | 820k | 663k |
+| Triangles per frame, underwater | ≤ 600k | 878k | 664k |
+| One animal GLB | ≤ 6k tris, ≤ 4 materials | woodlouse 5.4k / 4, daphnia 5.7k / 8 | daphnia drawn as 2 (opaque parts merged at load) |
 
 Counts are `renderer.info` averaged over five frames (all passes: shadow, scene, AO and finishing).
 The first baseline sheet counted about two frames and is not comparable.
@@ -57,3 +57,4 @@ The first baseline sheet counted about two frames and is not comparable.
 | 2026-11-22 | phase4-b | 3 | 3 | 3 | 3 | 3 | 4 | 4 | 4 | 4 | Caterpillar repainted cabbage-white green (was a muted swallowtail texture) with smooth normals; sheet now has animal close-ups |
 | 2026-11-22 | phase5-a | 3 | 3 | 3 | 4 | 3 | 4 | 4 | 4 | 4 | Underground now on a dark soil backdrop (background set every frame; the `<color attach>` swap had cleared it), nest walls in soil tones with smoothed normals instead of pale stair-stepped facets |
 | 2026-11-22 | phase6-a | 3 | 4 | 3 | 4 | 3 | 4 | 4 | 4 | 4 | Layered sunny garden through the window (sky, far tree line, near tree, lawn, flower bokeh); Kenney CC0 potted plant, books and cup on the sill with long soft shadows. Overview 525 calls / 677k tris |
+| 2026-11-22 | phase7-a | 3 | 4 | 3 | 4 | 3 | 4 | 4 | 4 | 4 | Same look at 285 draw calls (was 525): N8AO transparency re-render off, empty water/puddle sheet triangles trimmed, invisible pick spheres hidden, lily rosettes and water-flea parts merged |

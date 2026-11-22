@@ -1,3 +1,4 @@
+import { trimSheet } from './trimSheet'
 import { Suspense, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, FrontSide, LatheGeometry, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, PlaneGeometry, RepeatWrapping, Vector2 } from 'three'
@@ -351,6 +352,7 @@ export function ShapedPond({ ground, cells, level, floor, pond, underwater, onPo
     meniscusPosition.needsUpdate = true; meniscusColour.needsUpdate = true
     parts.meniscus.computeBoundingSphere()
     parts.side.computeVertexNormals(); parts.side.computeBoundingSphere()
+    trimSheet(parts.geometry, M)
     parts.geometry.computeVertexNormals(); parts.geometry.computeBoundingSphere()
     // Still water is level right to the shore: no tilted normals where the sheet tucks under the bank.
     const normals = parts.geometry.getAttribute('normal') as BufferAttribute

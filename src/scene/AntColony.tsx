@@ -52,7 +52,7 @@ function BroodModel({ colony, cohort, index, rotation, selected, center, onPick,
       {cohort.stage === 'egg' ? <mesh scale={[0.007, 0.008, 0.012]} position={[0, -0.04, 0]}><sphereGeometry args={[1, 10, 7]} /><meshStandardMaterial color="#e7e0bf" roughness={0.9} /></mesh> : <OrganismAsset key={cohort.stage} file={cohort.stage === 'larva' ? 'ant-larva' : 'ant-pupa'} shape={{ length: cohort.stage === 'larva' ? antLength.larva * Math.cbrt(cohort.material / cohort.count / 0.04) : antLength.pupa, base: -0.055 }} fallback={null} unavailable={antModelUnavailable} onBounds={i === 0 ? measure : undefined} />}
     </group>)}
     {selected && <group ref={halo}><Billboard><mesh><ringGeometry args={[0.049, 0.052, 32]} /><meshBasicMaterial color="#e8c783" side={DoubleSide} depthTest={false} transparent opacity={0.8} /></mesh></Billboard></group>}
-    <group ref={hit}><mesh geometry={targetGeometry}><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh></group>
+    <group ref={hit}><mesh geometry={targetGeometry} visible={false}><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh></group>
   </group>
 }
 
@@ -119,7 +119,7 @@ function AntModel({ colony, ant, speed, selected, feeding, onPick, field, center
       {ant.carried > 0 && <mesh position={[0, 0.017, antLength[ant.caste] * 0.42]} scale={[0.008, 0.006, 0.012]}><sphereGeometry args={[1, 7, 5]} /><meshStandardMaterial color="#c9a16a" roughness={1} /></mesh>}
     </group></group>
     <group ref={marker}>{selected && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.002, 0]}><ringGeometry args={[0.069, 0.074, 32]} /><meshBasicMaterial color="#e8c783" side={DoubleSide} depthTest={false} transparent opacity={0.8} /></mesh>}</group>
-    <group ref={hit}><mesh geometry={targetGeometry} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onPick(event.ray) }}><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh></group>
+    <group ref={hit}><mesh geometry={targetGeometry} visible={false} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onPick(event.ray) }}><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh></group>
   </group>
 }
 

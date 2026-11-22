@@ -5,6 +5,7 @@ import { Html } from '@react-three/drei'
 import { BufferAttribute, Mesh, MeshStandardMaterial, SkinnedMesh, Vector3 } from 'three'
 import type { Box3, BufferGeometry, Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { instantiateOrganism } from './organismModel'
 import type { ModelShape, OrganismFile } from './organismModel'
@@ -56,6 +57,47 @@ export function smoothNormalsByPosition(source: BufferGeometry) {
   geometry.setAttribute('normal', new BufferAttribute(normals, 3))
   return geometry
 }
+/**
+ * Models whose untextured opaque parts are baked into one skinned mesh at load (phase 7, 2026-11-22). The water
+ * flea came as eight parts with eight flat-colour materials (eye, gut, heart, legs...): eight draw calls per
+ * flea, 48 for a full pond. Opaque parts become one mesh with the part colours as vertex colours; the
+ * see-through carapace stays its own mesh so the gut and heart still show through it.
+ */
+const mergedParts = new Set<OrganismFile>(['daphnia'])
+function mergeOpaqueSkinnedParts(root: Object3D) {
+  root.updateMatrixWorld(true)
+  const parts: SkinnedMesh[] = []
+  root.traverse((node) => {
+    if (!(node instanceof SkinnedMesh) || Array.isArray(node.material)) return
+    const material = node.material as MeshStandardMaterial
+    if (material.map || material.transparent || material.name.startsWith('Flowers')) return
+    parts.push(node)
+  })
+  if (parts.length < 2) return
+  const [first] = parts
+  const same = parts.filter((part) => part.skeleton === first.skeleton && part.bindMatrix.equals(first.bindMatrix) && part.parent === first.parent && part.matrix.equals(first.matrix))
+  if (same.length < 2) return
+  const keys = Object.keys(first.geometry.attributes).filter((key) => key !== 'color').sort().join()
+  if (same.some((part) => Object.keys(part.geometry.attributes).filter((key) => key !== 'color').sort().join() !== keys)) return
+  const pieces = same.map((part) => {
+    const geometry = part.geometry.clone()
+    const colour = (part.material as MeshStandardMaterial).color
+    const count = geometry.getAttribute('position').count
+    const colours = new Float32Array(count * 3)
+    for (let v = 0; v < count; v++) colours.set([colour.r, colour.g, colour.b], v * 3)
+    geometry.setAttribute('color', new BufferAttribute(colours, 3))
+    return geometry
+  })
+  const merged = mergeGeometries(pieces)
+  if (!merged) return
+  const material = (first.material as MeshStandardMaterial).clone()
+  material.name = 'MergedParts'
+  material.color.set('#ffffff')
+  material.vertexColors = true
+  first.geometry = merged
+  first.material = material
+  for (const part of same.slice(1)) part.removeFromParent()
+}
 function loadOrganism(file: OrganismFile) {
   let pending = models.get(file)
   if (!pending) {
@@ -67,6 +109,7 @@ function loadOrganism(file: OrganismFile) {
         if (!response.ok) return null
         const gltf = await new GLTFLoader().parseAsync(await response.arrayBuffer(), '')
         if (softShaded.has(file)) softenNormals(gltf.scene)
+        if (mergedParts.has(file)) mergeOpaqueSkinnedParts(gltf.scene)
         return gltf
       } catch { return null } finally { window.clearTimeout(timeout) }
     })()

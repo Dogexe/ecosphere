@@ -40,7 +40,7 @@ function Carcass({ item, selected, onSelect }: { item: Remains; selected: boolea
       </group>)}
     </group>
     {selected && <Billboard position={[0, base + 0.01, 0]}><mesh><ringGeometry args={[0.065, 0.069, 40]} /><meshBasicMaterial color="#e8c783" transparent opacity={0.8} depthTest={false} side={DoubleSide} /></mesh></Billboard>}
-    <group ref={hit} position={[0, base + 0.01, 0]}><mesh geometry={target} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(item.id) }}><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh></group>
+    <group ref={hit} position={[0, base + 0.01, 0]}><mesh geometry={target} visible={false} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(item.id) }}><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh></group>
   </group>
 }
 

@@ -1,3 +1,4 @@
+import { trimSheet } from './trimSheet'
 import type { MossState } from './MossCarpet'
 import { useLayoutEffect, useMemo } from 'react'
 import { BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, DynamicDrawUsage, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, RepeatWrapping, Vector4 } from 'three'
@@ -159,6 +160,7 @@ export function updateLayered(geometry: ReturnType<typeof useLayeredGeometry>, s
     pebbles.setX(v, bilinear(cells, 5, 3, px, pz))
   }
   position.needsUpdate = true; colours.needsUpdate = true; pebbles.needsUpdate = true; water.needsUpdate = true; waterColours.needsUpdate = true
+  trimSheet(geometry.puddles, M)
   geometry.puddles.computeVertexNormals()
   geometry.surface.computeVertexNormals()
   // The surface UVs are a top-down projection, so on the steep pond bank the pebble scan stretches into

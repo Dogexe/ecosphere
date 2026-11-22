@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
-import { CanvasTexture, Color, DoubleSide, Group, LatheGeometry, Mesh, MeshStandardMaterial, PlaneGeometry, Shape, ShapeGeometry, SRGBColorSpace, TubeGeometry, Vector2, Vector3, CatmullRomCurve3 } from 'three'
+import { useEffect, useMemo } from 'react'
+import { CanvasTexture, Color, Matrix4, Quaternion, DoubleSide, Group, LatheGeometry, Mesh, MeshStandardMaterial, PlaneGeometry, Shape, ShapeGeometry, SRGBColorSpace, TubeGeometry, Vector2, Vector3, CatmullRomCurve3 } from 'three'
 import type { BufferGeometry } from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { plantModelScale } from './scale'
 import { naturalLook } from './PaperCritter'
 
@@ -151,15 +152,16 @@ function leafMaterial(kind: string, health: number, make: () => MeshStandardMate
 export function FloatingRosette({ health, seed: id }: { health: number; seed: number }) {
   const parts = pads()
   const material = leafMaterial('pad', health, () => new MeshStandardMaterial({ map: parts.texture, roughness: naturalLook ? 0.62 : 0.28, side: DoubleSide }))
-  const leaves = useMemo(() => Array.from({ length: 5 }, (_, i) => {
+  // The five leaves are baked into one geometry per rosette: one draw call instead of five (phase 7).
+  const geometry = useMemo(() => mergeGeometries(Array.from({ length: 5 }, (_, i) => {
     const angle = i / 5 * Math.PI * 2 + id * 0.7, size = 0.15 + ((id * 13 + i * 7) % 5) * 0.012
-    return { x: Math.cos(angle) * size * 0.9, z: Math.sin(angle) * size * 0.9, turn: -angle - Math.PI / 2, size }
-  }), [id])
+    const place = new Matrix4().compose(new Vector3(Math.cos(angle) * size * 0.9, i * 0.0015, Math.sin(angle) * size * 0.9), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), -angle - Math.PI / 2), new Vector3(size, size, size))
+    return parts.geometry.clone().applyMatrix4(place)
+  }))!, [id, parts.geometry])
+  useEffect(() => () => geometry.dispose(), [geometry])
   // The lily anchor sits 0.025 source units below the surface (see plantGroundY).
   const top = 0.025 * plantModelScale('lily')[1] + 0.002
-  return <group position={[0, top, 0]}>
-    {leaves.map((leaf, i) => <mesh key={i} geometry={parts.geometry} material={material} position={[leaf.x, i * 0.0015, leaf.z]} rotation={[0, leaf.turn, 0]} scale={leaf.size} receiveShadow raycast={noRaycast} />)}
-  </group>
+  return <mesh geometry={geometry} material={material} position={[0, top, 0]} receiveShadow raycast={noRaycast} />
 }
 
 /* ---------- Hairgrass tuft (reed kind) ---------- */

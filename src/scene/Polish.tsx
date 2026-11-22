@@ -24,9 +24,18 @@ import { Underwater } from './UnderwaterEffect'
  */
 export const polishLook = (() => { try { return new URLSearchParams(window.location.search).get('polish') !== '0' } catch { return true } })()
 
+/**
+ * N8AO detects transparent materials (glass, water, moss cards) and then re-renders the transparent part of
+ * the scene twice a frame to keep AO off them: about 100 extra draw calls (phase 7 census, 2026-11-22).
+ * The jar glass and water do not write depth, so AO from the depth buffer already falls on what is behind
+ * them; turning the transparency pass off keeps the contact shading and drops those calls.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const opaqueOnlyAO = (pass: any) => { if (pass?.configuration) { pass.autoDetectTransparency = false; pass.configuration.transparencyAware = false } }
+
 export function Polish({ light, water }: { light: boolean; water?: { clarity: number; light: number; tint: string } | null }) {
   return <EffectComposer multisampling={light ? 0 : 2} enableNormalPass={false}>
-    <N8AO halfRes quality="performance" aoRadius={0.45} distanceFalloff={0.6} intensity={light ? 2.2 : 2.6} color="#1a120c" />
+    <N8AO ref={opaqueOnlyAO} halfRes quality="performance" aoRadius={0.45} distanceFalloff={0.6} intensity={light ? 2.2 : 2.6} color="#1a120c" />
     <>{water && <Underwater clarity={water.clarity} light={water.light} tint={water.tint} />}</>
     <Bloom mipmapBlur intensity={0.22} luminanceThreshold={0.9} luminanceSmoothing={0.15} />
     <>{!light && <TiltShift2 blur={0.12} taper={0.6} start={[0.5, 0.0]} end={[0.5, 1.0]} />}</>
