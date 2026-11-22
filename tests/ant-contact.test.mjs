@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { antFixture } from '../scripts/probe_ant_colony.mjs'
-import { advanceInNest, antContactRadius, antMaterialError, antPosition, nestContains, resolveAntContacts, stepAntColony } from '../src/sim/colony.ts'
+import { advanceInNest, nestPace, antContactRadius, antMaterialError, antPosition, nestContains, resolveAntContacts, stepAntColony } from '../src/sim/colony.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
@@ -51,7 +51,7 @@ test('physical contact offsets cost departure distance and native continuation i
     const result = stepAntColony(world)
     for (const next of result.world.colony.workers) {
       const before = world.colony.workers.find((item) => item.id === next.id)
-      if (before) assert.ok(distance(antPosition(world.colony, before), antPosition(result.world.colony, next)) <= 0.14000001)
+      if (before) assert.ok(distance(antPosition(world.colony, before), antPosition(result.world.colony, next)) <= 0.14 * nestPace + 1e-8)
     }
     if (i % 11 === 0) assert.deepEqual(stepAntColony(parseSave(serializeSave(world))), result)
     world = { ...result.world, tick: world.tick + 1 }

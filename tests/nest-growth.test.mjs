@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {antFixture} from '../scripts/probe_ant_colony.mjs'
-import {introduceColony,stepAntColony,antMaterialError,antPosition,nestRoute} from '../src/sim/colony.ts'
+import {introduceColony,nestPace,stepAntColony,antMaterialError,antPosition,nestRoute} from '../src/sim/colony.ts'
 import {planExcavation,workExcavation,digRequired,growingRadius} from '../src/sim/excavation.ts'
 import {parseSave,serializeSave} from '../src/sim/saves.ts'
 
@@ -37,7 +37,7 @@ test('funded workers reach the face and excavate a connected functional resting 
   assert.ok(events.some(e=>e.action==='excavation'))
   assert.ok(events.some(e=>e.action==='chamber'))
   assert.ok(world.colony.nodes.some(n=>n.role==='rest'))
-  assert.ok(maximum<=0.14000001,maximum)
+  assert.ok(maximum<=0.14*nestPace+1e-8,maximum)
   assert.deepEqual(original,spatialFixture())
   for(const n of world.colony.nodes)assert.ok(nestRoute(world.colony,0,n.id).length)
   assert.deepEqual(parseSave(serializeSave(world)),world)

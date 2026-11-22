@@ -1,5 +1,6 @@
 import { introduceLife } from './ecosystem.ts'
-import { introduceColony } from './colony.ts'
+import { chamberSpread, introduceColony, nestChamberRadius } from './colony.ts'
+import { isLand, isLandSegment, soilRim } from './land.ts'
 import type { PlantKind, World } from './ecosystem.ts'
 
 /*
@@ -78,6 +79,20 @@ export function withStarterGarden(world: World): World {
   }
   // A seed-harvester colony on the front-right bank (owner's reference, 2026-11-07): its nest is shown in cutaway
   // through the glass in the natural look. Placed through the normal rules, so it is skipped if the spot is unsuitable.
-  planted = introduceColony(planted, 1.8, 2.0)
+  planted = introduceColony(planted, 1.97, 2.19)
+  // Its founding chambers were dug against the glass, the way a keeper sets up a colony to watch it:
+  // the chambers sit where the glass cuts through them and the shaft slants out to them from the
+  // entrance (2026-11-22, owner: show the nest realistically, only where it touches the glass).
+  const colony = planted.colony
+  if (colony) {
+    // Each chamber and the junction below the shaft are moved straight out at their own bearing.
+    const nodes = colony.nodes.map((node) => {
+      if (node.role === 'entrance' || node.id === 1) return node
+      const length = Math.hypot(node.x, node.z) || 1, out = soilRim + 0.02 - (node.role === 'junction' ? 0.2 : nestChamberRadius(node) * chamberSpread)
+      return { ...node, x: node.x / length * out, z: node.z / length * out }
+    })
+    const moved = { ...colony, nodes }
+    if (nodes.every((node) => isLand(node.x, node.z, 0.12, node.role === 'entrance' ? 3.15 : soilRim)) && colony.edges.every(([a, b]) => isLandSegment(nodes[a].x, nodes[a].z, nodes[b].x, nodes[b].z, 0.12, soilRim))) planted = { ...planted, colony: moved }
+  }
   return planted
 }

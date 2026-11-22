@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { antFixture } from '../scripts/probe_ant_colony.mjs'
-import { antMaterial, antMaterialError, antPosition, exportColony, seedCover, seedMaterialAvailable, stepAntColony, workerLifespan } from '../src/sim/colony.ts'
+import { antMaterial, nestPace, antMaterialError, antPosition, exportColony, seedCover, seedMaterialAvailable, stepAntColony, workerLifespan } from '../src/sim/colony.ts'
 import { isLandSegment, walkOnLand } from '../src/sim/land.ts'
 import { removeLife, simulateStep } from '../src/sim/ecosystem.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
@@ -31,7 +31,7 @@ test('ant harvest transfers actual reproductive biomass, respects maturity/diet 
       const prior = before.colony.workers.find((item) => item.id === ant.id)
       if (!prior) continue
       const a = antPosition(before.colony, prior), b = antPosition(result.world.colony, ant)
-      assert.ok(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) <= 0.140001)
+      assert.ok(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) <= 0.14 * nestPace + 1e-6)
     }
     for (const event of result.events) if (event.action === 'delivery' && event.id === 1) { deliveries++; near(event.amount, 0.012) }
     near(antMaterialError(result.world.colony), 0)

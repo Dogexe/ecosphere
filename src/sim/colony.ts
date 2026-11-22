@@ -39,6 +39,8 @@ export const nestChamberRadius = (node: NestNode) => node.role === 'queen' ? 0.2
  * half-height is this share of its radius, and it reaches this much wider than the radius across the
  * floor (2026-11-21; were spheres).
  */
+/** How much farther and more cheaply a worker travels inside the nest than on the surface. */
+export const nestPace = 3
 export const chamberFlatness = 0.6
 export const chamberSpread = 1.25
 const isChamber = (node: NestNode) => node.role === 'queen' || node.role === 'brood' || node.role === 'food' || node.role === 'rest'
@@ -334,9 +336,15 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
   const foodNeeded = 0.06 + colony.brood.filter((cohort) => cohort.stage === 'larva').reduce((sum, cohort) => sum + Math.max(0, 0.04 * cohort.count - cohort.material) / 0.75, 0)
   function travel(ant: Ant, destination: number, stride: number, center = false) {
     ant.goal = { kind: 'chamber', id: destination }
-    const traveled = advanceInNest(colony, ant, destination, stride, center || destination === entry)
-    ant.energy -= traveled * 0.7
-    contactAllowance.set(ant.id, Math.max(0, 0.14 - traveled))
+    // Inside the nest a worker covers more ground in an hour and spends less doing it than out on the
+    // surface, where it searches and carries: real harvester workers run at about 3.4 cm/s (0.5-4.8)
+    // and walking only lifts their metabolism about threefold over rest (Pogonomyrmex rugosus,
+    // J Exp Biol 181:49, https://cob.silverchair.com/jeb/article/181/1/49/6643/). Crossing a jar-sized
+    // nest is seconds of real work, so in-nest travel is three times the surface stride at a third of
+    // its energy (2026-11-22; nests dug to the glass have longer shafts).
+    const traveled = advanceInNest(colony, ant, destination, stride * nestPace, center || destination === entry)
+    ant.energy -= traveled * 0.7 / nestPace
+    contactAllowance.set(ant.id, Math.max(0, 0.14 * nestPace - traveled))
   }
   function deliver(ant: Ant) {
     const amount = Math.min(ant.carried, 10 - colony.food)
