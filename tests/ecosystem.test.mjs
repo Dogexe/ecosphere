@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { emergeAge } from '../src/sim/butterfly.ts'
 import { createWorld, creatureCounts, introduceLife, intervene, interveneAt, isLand, nearestSoil, placementIssue, removeLife, stepWorld, vitality } from '../src/sim/ecosystem.ts'
 
 const advance = (world, steps) => Array.from({ length: steps }).reduce(stepWorld, world)
@@ -60,15 +61,18 @@ test('grazers move toward food and remove plant biomass when feeding', () => {
 
 test('a birth requires food and reserve energy and splits the parent reserve', () => {
   const initial = createWorld()
-  const parent = { ...initial.creatures[0], x: initial.plants[0].x, z: initial.plants[0].z, energy: 95 }
+  // Only the butterfly lays (2026-11-22): the parent is an adult cabbage white on its food plant.
+  const parent = { ...initial.creatures[0], x: initial.plants[0].x, z: initial.plants[0].z, energy: 95, age: emergeAge }
   const prepared = { ...initial, creatures: [parent] }
   const born = stepWorld(prepared)
   assert.equal(born.creatures.length, 2)
-  assert.ok(born.plants[0].biomass < initial.plants[0].biomass - 0.3)
-  // One bite of soft leaf is worth 20 energy a unit since the closed-jar pass (was 12), so the pair ends a little above 95.
-  assert.ok(born.creatures[0].energy + born.creatures[1].energy < 96.5)
+  // The egg's body (0.42) comes from the leaf, less the hour's growth; no caterpillar bite is added now.
+  assert.ok(born.plants[0].biomass < initial.plants[0].biomass - 0.2)
+  // The butterfly does not eat leaves, but this plant is in flower: one sip of nectar (2.2, paid from
+  // the plant) less an hour's upkeep is all the pair can gain.
+  assert.ok(born.creatures[0].energy + born.creatures[1].energy < 97.1)
   assert.ok(born.creatures[0].energy + born.creatures[1].energy > 94.58)
-  assert.equal(stepWorld({ ...prepared, creatures: [{ ...parent, energy: 40 }] }).creatures.length, 1)
+  assert.equal(stepWorld({ ...prepared, creatures: [{ ...parent, energy: 20 }] }).creatures.length, 1)
   assert.equal(stepWorld({ ...prepared, plants: initial.plants.map((plant) => ({ ...plant, biomass: 0.35 })) }).creatures.length, 1)
 })
 
@@ -82,7 +86,8 @@ test('starvation removes grazers and returns body material to the organic pool',
 })
 
 test('grazer population responds to abundance and depletion', () => {
-  const abundant = advance(createWorld(), 75)
+  // Started as butterflies, which lay on the leafy starter plants (2026-11-22).
+  const abundant = advance({ ...createWorld(), creatures: createWorld().creatures.map((creature) => creature.kind === 'grazer' ? { ...creature, age: emergeAge } : creature) }, 75)
   const depleted = advance(withSoil({ ...createWorld(), light: 0.18, plants: createWorld().plants.map((plant) => ({ ...plant, biomass: 0.35 })) }, (patch) => ({ ...patch, water: 0 })), 250)
   assert.ok(creatureCounts(abundant.creatures).grazer > 3)
   assert.equal(depleted.creatures.length, 0)
@@ -263,13 +268,14 @@ test('mature plants establish seeded offspring by transferring parent biomass', 
 })
 
 test('water and compost can sustain plants and grazers through later days', () => {
+  // Long enough for the caterpillars to pupate and the butterflies to lay (2026-11-22: was 480 hours).
   let tended = createWorld()
-  for (let tick = 0; tick < 480; tick += 1) {
+  for (let tick = 0; tick < 900; tick += 1) {
     if (tick > 0 && tick % 48 === 0) tended = intervene(tended, { type: 'water' })
     if (tick > 0 && tick % 72 === 0) tended = intervene(tended, { type: 'compost' })
     tended = stepWorld(tended)
   }
-  const neglected = advance(createWorld(), 480)
+  const neglected = advance(createWorld(), 900)
   assert.ok(vitality(tended) > vitality(neglected))
   assert.ok(creatureCounts(tended.creatures).grazer > creatureCounts(neglected.creatures).grazer)
 })

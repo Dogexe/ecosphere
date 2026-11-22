@@ -1,5 +1,6 @@
 import { pondLimits, algaeGrowth, defaultClimate, defaultPond, isAquatic, isPondPosition, isSwimmingPosition, lifespan, maturity, pondShape, rateAt, setPondShape, stepPond } from './pond.ts'
 import type { Climate, Pond } from './pond'
+import { butterflyEggEnergy, butterflyStride, butterflyUpkeep, emergeAge, grazerPhase, nectarSip, pupalUpkeep, pupateAge } from './butterfly.ts'
 import { addRemains, bodyStock, decayRemains, developmentRate, plantFlowering, plantLifetime, plantStage, woodlouseLife, woodlouseMate } from './life.ts'
 import type { Remains, WoodlouseLife } from './life'
 import { environmentAt, scheduledRest } from './climate.ts'
@@ -92,6 +93,7 @@ export type SimulationEvent =
   | { type: 'mating'; kind: 'woodlouse'; motherId: number; fatherId: number }
   | { type: 'predation'; predatorKind: 'beetle' | 'fish'; predatorId: number; preyId: number; preyKind: CreatureKind; x: number; z: number; preyMaterial: number; offspringMaterial: number; storedMaterial: number; litter: number; metabolized: number }
   | { type: 'rain'; retained: number; outflow: number }
+  | { type: 'metamorphosis'; id: number; kind: 'grazer'; phase: 'pupa' | 'butterfly' }
 
 export type StepResult = { world: World; events: SimulationEvent[] }
 
@@ -484,7 +486,7 @@ function preyTarget(prey: Creature[], hunter: Creature): Creature | null {
   let score = Infinity
   for (const creature of prey) {
     const kind = creatureKind(creature)
-    if (kind === 'beetle' || kind === 'worm' || isAquatic(kind) || creature.energy <= 0) continue
+    if (kind === 'beetle' || kind === 'worm' || isAquatic(kind) || creature.energy <= 0 || (kind === 'grazer' && grazerPhase(creature) === 'butterfly')) continue
     const distance = Math.hypot(creature.x - hunter.x, creature.z - hunter.z)
     if (distance > 2.6) continue
     const next = distance ** 2 / bodyStock(creature, bodyMaterial[kind])
@@ -496,6 +498,7 @@ function preyTarget(prey: Creature[], hunter: Creature): Creature | null {
 export function creatureIsFeeding(world: World, creature: Creature, events?: SimulationEvent[]): boolean {
   if (events) return events.some((event) => event.type === 'feeding' ? event.id === creature.id : event.type === 'predation' && event.predatorId === creature.id)
   if (creatureKind(creature) === 'beetle' || isAquatic(creatureKind(creature)) || predatorThreat(world, creature) || scheduledRest(world, creature)) return false
+  if (creatureKind(creature) === 'grazer' && grazerPhase(creature) !== 'larva') return false
   const target = creatureKind(creature) === 'woodlouse' ? litterTarget(soilFor(world), creature) : creatureKind(creature) === 'springtail' ? fungusTarget(soilFor(world), creature) : grazerTarget(world.plants, creature)
   return target !== null && Math.hypot(target.x - creature.x, target.z - creature.z) <= (creatureKind(creature) === 'woodlouse' ? woodlouseFeedReach : 0.24)
 }
@@ -729,6 +732,40 @@ export function simulateStep(world: World): StepResult {
     const maintenance = (kind === 'woodlouse' ? 0.24 + (1 - litterMoisture(local)) * 0.45 : kind === 'springtail' ? 0.08 + (1 - litterMoisture(local)) * 0.5 : kind === 'worm' ? wormUpkeep(local) : 0.42) * rate * (1 + 2 * (1 - breath))
     const resting = scheduledRest(world, { ...creature, energy: creature.energy - maintenance }) && !predatorThreat(world, creature)
     let energy = creature.energy - maintenance * (resting ? 0.5 : 1)
+    const phase = kind === 'grazer' ? grazerPhase(creature) : null
+    if (kind === 'grazer' && (creature.age === pupateAge || creature.age === emergeAge)) events.push({ type: 'metamorphosis', id: creature.id, kind: 'grazer', phase: creature.age === pupateAge ? 'pupa' : 'butterfly' })
+    if (phase === 'pupa' || phase === 'butterfly') {
+      // The chrysalis keeps still and breathes little; the butterfly flits between flowers and the leaves it lays on.
+      energy = creature.energy - (phase === 'pupa' ? maintenance * pupalUpkeep : butterflyUpkeep * rate * (1 + 2 * (1 - breath)) * (resting ? 0.5 : 1))
+      let { x, z, heading } = creature
+      if (phase === 'butterfly' && !scheduledRest(world, { ...creature, energy })) {
+        const host = energy >= butterflyEggEnergy ? plants.filter((plant) => plantTraits[plant.kind].palatability > 0.5 && plant.biomass > 1.35)
+          .sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z) || a.id - b.id)[0] : undefined
+        const flower = plants.filter((plant) => !isAquatic(plant.kind) && plantFlowering(plant) && plant.biomass > nectarSip.biomass * 10)
+          .sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z) || a.id - b.id)[0]
+        const target = energy < 70 && flower ? flower : host ?? flower
+        if (target && Math.hypot(target.x - x, target.z - z) > 0.3) {
+          const moved = walkOnLand(creature, target.x, target.z, Math.min(butterflyStride, Math.hypot(target.x - x, target.z - z) - 0.2))
+          ;({ x, z, heading } = moved)
+          energy -= moved.distance * 0.25
+        } else if (target && target === flower && energy < 100) {
+          heading = Math.atan2(target.x - x, target.z - z)
+          target.biomass -= nectarSip.biomass
+          energy = Math.min(100, energy + nectarSip.energy * rate)
+          events.push({ type: 'feeding', id: creature.id, kind, source: 'plant', amount: nectarSip.biomass })
+        } else if (!target) {
+          let turn: number
+          ;[seed, turn] = random(seed)
+          heading += (turn - 0.5) * 1.4
+          const moved = walkOnLand(creature, x + Math.sin(heading), z + Math.cos(heading), 0.4)
+          ;({ x, z, heading } = moved)
+          energy -= moved.distance * 0.25
+        }
+      }
+      if (energy <= 0) { depositBody(creature, x, z); events.push({ type: 'death', id: creature.id, kind, reason: 'energy' }); continue }
+      creatures.push({ ...creature, kind, x, z, heading, energy })
+      continue
+    }
     if (kind === 'woodlouse') {
       const life = woodlouseLife(creature)
       const digested = Math.min(life.gut, 0.04 * rate)
@@ -1075,7 +1112,9 @@ export function simulateStep(world: World): StepResult {
   for (const creature of survivors) {
     const kind = creatureKind(creature)
     if (kind === 'woodlouse') continue
-    if (populations[kind] >= creatureLimits[kind] || creature.energy < 82 || creature.stage === 'juvenile' || predatorThreat(world, creature) || scheduledRest(world, creature)) continue
+    // Only the butterfly lays: the caterpillar feeds, the pupa transforms (see butterfly.ts).
+    if (kind === 'grazer' && grazerPhase(creature) !== 'butterfly') continue
+    if (populations[kind] >= creatureLimits[kind] || creature.energy < (kind === 'grazer' ? butterflyEggEnergy : 82) || creature.stage === 'juvenile' || (kind !== 'grazer' && predatorThreat(world, creature)) || scheduledRest(world, creature)) continue
     if (kind === 'worm') {
       // Hermaphrodites, but they cross-fertilise: a worm needs a second adult in the jar. Each cocoon
       // gives one or two young here (2-4 in Eisenia), its body paid from the litter where it is laid.

@@ -1,3 +1,4 @@
+import { emergeAge, grazerPhase } from './sim/butterfly'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Terrarium } from './scene/Terrarium'
 import { ExperimentBook } from './ExperimentBook'
@@ -69,7 +70,7 @@ const nursery: { kind: Lifeform; name: string; niche: string }[] = [
   { kind: 'moss', name: 'Moss', niche: 'Wet · shade' },
   { kind: 'grass', name: 'Grass', niche: 'Sun · fast grazer food' },
   { kind: 'tree', name: 'Tree', niche: 'Makes local shade' },
-  { kind: 'grazer', name: 'Grazer', niche: 'Eats living leaves' },
+  { kind: 'grazer', name: 'Caterpillar', niche: 'Eats leaves · becomes a butterfly' },
   { kind: 'woodlouse', name: 'Woodlouse', niche: 'Moist · fallen leaves' },
   { kind: 'beetle', name: 'Ground beetle', niche: 'Hunts grazers & woodlice' },
   { kind: 'springtail', name: 'Springtail', niche: 'Moist · eats fungi' },
@@ -348,14 +349,16 @@ export function App() {
     const born = events.find((event) => event.type === 'birth')
     const died = events.find((event) => event.type === 'death')
     const mating = events.find((event) => event.type === 'mating')
+    const changed = events.find((event) => event.type === 'metamorphosis')
     const newChamber = events.find((event) => event.type === 'ant' && event.action === 'chamber')
     const antBirth = events.find((event) => event.type === 'ant' && event.action === 'birth')
     const queenDied = events.find((event) => event.type === 'ant' && event.action === 'death' && event.id === 0)
     if (queenDied) setNotice('The ant queen has died. Egg production and nest construction stop; her remaining material returns to the soil food web.')
     else if (newChamber) setNotice('The workers opened a new resting chamber. Its tunnel is now part of their living nest.')
     else if (antBirth) setNotice('A pale worker emerges from its pupa. Larval food funded its body; its cuticle will mature in the nest.')
+    else if (changed && changed.type === 'metamorphosis') setNotice(changed.phase === 'pupa' ? 'A full-grown caterpillar has stopped feeding and spun a silk girdle. It is now a chrysalis; in about ten days a butterfly comes out.' : 'A cabbage white has come out of its chrysalis. It will sip nectar from flowers and lay eggs on leaves.')
     else if (caught) setNotice(`A ${caught.predatorKind} caught a ${caught.preyKind === 'flea' ? 'water flea' : caught.preyKind}. Part of its meal returns to organic matter.`)
-    else if (born) setNotice(born.kind === 'grazer' ? 'A new grazer has joined the world.' : born.kind === 'woodlouse' ? 'A mother releases a tiny woodlouse from her brood pouch.' : born.kind === 'springtail' ? 'Fungal food supports a new springtail.' : born.kind === 'worm' ? 'A thread-thin young earthworm wriggles out of its lemon-shaped cocoon.' : born.kind === 'beetle' ? 'A well-fed beetle funds a new generation.' : born.kind === 'snail' ? 'A tiny ramshorn snail hatches from a jelly egg clutch on the pond bed.' : born.kind === 'shrimp' ? 'A shrimplet the size of a grain of rice leaves its mother: a tiny copy of the adult.' : born.kind === 'fish' || born.kind === 'flea' ? 'A new aquatic generation begins.' : 'A propagule settles near its parent.')
+    else if (born) setNotice(born.kind === 'grazer' ? (born.parentId >= 0 ? 'A cabbage white laid an egg on a leaf. A tiny caterpillar hatches and starts to feed.' : 'A caterpillar hatches from an egg left on the leaves.') : born.kind === 'woodlouse' ? 'A mother releases a tiny woodlouse from her brood pouch.' : born.kind === 'springtail' ? 'Fungal food supports a new springtail.' : born.kind === 'worm' ? 'A thread-thin young earthworm wriggles out of its lemon-shaped cocoon.' : born.kind === 'beetle' ? 'A well-fed beetle funds a new generation.' : born.kind === 'snail' ? 'A tiny ramshorn snail hatches from a jelly egg clutch on the pond bed.' : born.kind === 'shrimp' ? 'A shrimplet the size of a grain of rice leaves its mother: a tiny copy of the adult.' : born.kind === 'fish' || born.kind === 'flea' ? 'A new aquatic generation begins.' : 'A propagule settles near its parent.')
     else if (mating) setNotice('Two woodlice paired. The female is carrying a funded brood.')
     else if (died) setNotice(died.reason === 'decline' ? 'A plant died; its remains slowly return to the soil.' : died.reason === 'age' ? `A ${died.kind} reached the end of its life; its remains begin to decay.` : died.reason === 'desiccation' ? 'A woodlouse dried out. Its remains can decompose when moisture returns.' : `A ${died.kind} ran out of energy; its remains begin to decay.`)
   }, [events])
@@ -576,6 +579,7 @@ export function App() {
   const focusedCreature = world.creatures.find((creature) => creature.id === selectedCreature)
   const focusedRemains = world.remains.find((item) => item.id === selectedRemains?.id && item.ant?.sourceId === selectedRemains.sourceId && item.ant.form === selectedRemains.form)
   const focusedKind = focusedCreature ? creatureKind(focusedCreature) : null
+  const focusedPhase = focusedCreature && focusedKind === 'grazer' ? grazerPhase(focusedCreature) : null
   const focusedLife = focusedCreature && focusedKind === 'woodlouse' ? woodlouseLife(focusedCreature) : null
   const offspring = focusedCreature ? world.creatures.find((creature) => creature.life?.parentId === focusedCreature.id) : undefined
   const creatureSoil = focusedCreature && world.soil?.length ? nearestSoil(world.soil, focusedCreature.x, focusedCreature.z) : null
@@ -684,7 +688,7 @@ export function App() {
         /> : focusedCreature ? (
           <div className="focus-view">
             <div className="panel-kicker">#{focusedCreature.id + 1} · {focusedCreature.stage ?? 'adult'} · {Math.floor((focusedCreature.age ?? 0) / 24)} model days old</div>
-            <h2>{focusedKind === 'fish' ? 'Little fish' : focusedKind === 'snail' ? 'Ramshorn snail' : focusedKind === 'shrimp' ? 'Cherry shrimp' : focusedKind === 'flea' ? 'Water flea' : focusedKind === 'springtail' ? 'Little springtail' : focusedKind === 'worm' ? 'Red earthworm' : focusedKind === 'woodlouse' ? 'Little woodlouse' : focusedKind === 'beetle' ? 'Ground beetle' : 'Little forager'}</h2>
+            <h2>{focusedKind === 'fish' ? 'Little fish' : focusedKind === 'snail' ? 'Ramshorn snail' : focusedKind === 'shrimp' ? 'Cherry shrimp' : focusedKind === 'flea' ? 'Water flea' : focusedKind === 'springtail' ? 'Little springtail' : focusedKind === 'worm' ? 'Red earthworm' : focusedKind === 'woodlouse' ? 'Little woodlouse' : focusedKind === 'beetle' ? 'Ground beetle' : focusedPhase === 'pupa' ? 'Cabbage white chrysalis' : focusedPhase === 'butterfly' ? 'Cabbage white butterfly' : 'Cabbage white caterpillar'}</h2>
             <p>{resting ? `${focusedKind === 'woodlouse' || focusedKind === 'springtail' ? 'Resting through the brighter hours.' : 'Resting through the dark hours.'} It still spends energy; severe hunger or danger can interrupt rest.` : focusedKind === 'fish' ? 'Hunts water fleas in the pond. Oxygen and a continuing prey population both matter.' : focusedKind === 'flea' ? 'Grazes the pond’s algae and is food for fish. Low oxygen or a dry pond can end its life.' : focusedKind === 'snail' || focusedKind === 'shrimp' ? 'Picks over the pond bed for algae film and settled detritus, returning nutrients the algae reuse. Low oxygen or a dry pond can end its life.' : focusedKind === 'beetle'
               ? focusedCreatureFeeding ? 'Just caught a meal. Prey material supplies energy and a little returns to the litter.' : beetleIsHunting(world, focusedCreature) ? 'Searching nearby for grazers and woodlice. A catch must be close enough to touch.' : 'Resting after feeding, conserving energy until it needs another meal.'
               : fleeing ? 'Keeping away from a nearby beetle. Escape takes energy and time away from feeding.'
@@ -692,6 +696,8 @@ export function App() {
               : focusedKind === 'springtail' ? focusedCreatureFeeding ? 'Grazing living fungi and returning some material to litter and nutrients.' : 'Seeking fungi in moist ground. It cannot live on leaves or mineral nutrients alone.'
               : focusedKind === 'woodlouse'
               ? focusedLife?.activity === 'courting' ? 'Seeking a ready mate. Pairing needs close contact, reserves and a safe patch of ground.' : focusedLife?.activity === 'rehydrating' ? 'Moving toward wetter ground to replace lost body water.' : focusedLife?.activity === 'resting' ? focusedCreature.energy > 82 ? 'Resting with a full reserve, reducing the energy spent on movement.' : 'Pausing between movements. Food, moisture and possible mates shape its next choice.' : focusedLife?.brood ? 'Carrying young in a brood pouch. They need time and a moist litter refuge before release.' : creatureSoil && creatureSoil.water < 22 ? 'Dry ground raises its energy costs. It needs moisture and fallen leaves.' : focusedLife && focusedLife.gut > 0 ? 'Digesting leaf litter into energy, growing body material and waste returned to the soil.' : 'Searching the forest floor for moist leaf litter.'
+              : focusedPhase === 'pupa' ? `Inside the case the caterpillar is turning into a butterfly. It does not move or feed; about ${Math.max(1, Math.ceil((emergeAge - (focusedCreature.age ?? 0)) / 24))} model days until it comes out.`
+              : focusedPhase === 'butterfly' ? focusedCreatureFeeding ? 'Sipping nectar from a flower to fuel its flight.' : 'Flying between flowers and the leaves it lays its eggs on. A butterfly lives about ten model days.'
               : focusedCreature.energy < 24 ? 'Running low on energy. It needs living plants to survive.' : focusedCreatureFeeding ? 'Nibbling nearby leaves and storing energy from its meal.' : 'Searching the terrarium for its next meal.'}</p>
             <Meter label="Energy" value={focusedCreature.energy} display={`${Math.round(focusedCreature.energy)}%`} tone="gold" />
             {focusedLife && <><div className="patch-litter">{focusedLife.sex} · {resting ? 'resting' : focusedLife.activity}{focusedLife.gut > 0 ? ' · digesting' : ''}<br />Body {focusedLife.mass.toFixed(3)} units{focusedLife.parentId !== null ? ` · Mother #${focusedLife.parentId + 1}` : ''}{focusedLife.brood > 0 ? ` · Brood ${focusedLife.gestation} h to release` : ''}</div><Meter label="Hydration" value={focusedLife.hydration} display={`${Math.round(focusedLife.hydration)}%`} tone="blue" /></>}

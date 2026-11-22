@@ -165,3 +165,5 @@ Gravel irregularity (2026-11-08, owner: the gravel still read as a pattern): sta
 Worms and ant nest (2026-11-21, owner): worms visit the glass only part of the time; the Underground view shows them ghosted at their real positions through see-through soil. Ant-nest audit against Tschinkel 2004: chambers are now flat-floored slabs (sim, mesh and glass window), and growth branches from the shallowest point first (top-heavy). Chambers still do not enlarge with colony size (would need a save field). See ECOLOGY.md.
 
 Ten-year jar (2026-11-22, owner pick): woodlouse feeding reach 0.24 -> 0.45 (only 4 fitted round a litter pocket), lily rhizome in the dormant bank, caterpillar pupae wait for 2 leafy food plants. Sealed starter keeps every kind 10 years in 11 of 12 seeds. See ECOLOGY.md.
+
+Butterflies (2026-11-22, owner): grazers pupate at 20 days and come out as cabbage whites at 30 (src/sim/butterfly.ts, src/scene/Pierid3D.tsx); only butterflies lay. 10-year sealed starter still 11/12 every kind.

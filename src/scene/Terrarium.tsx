@@ -12,6 +12,8 @@ import type { Ray } from 'three'
 import { NatureAsset } from './NatureAsset'
 import { drawnAnimals, naturalLook, PaperAnimal, paperLook } from './PaperCritter'
 import { Earthworm3D } from './Earthworm3D'
+import { Pierid3D } from './Pierid3D'
+import { emergeAge, grazerPhase } from '../sim/butterfly'
 import { PondCrew3D } from './PondCrew3D'
 import { cutUniform, nestWindow, rootWindow } from './LayeredGround'
 import { buildRoots } from './soilRoots'
@@ -474,6 +476,21 @@ function WormsInSoil({ world, events, speed, selected, onSelect }: { world: Worl
   </>
 }
 
+/** A cabbage white chrysalis, or the butterfly that comes out of it (Pierid3D.tsx). */
+function PieridAnimal({ creature, world, events, selected, onSelect, speed }: CreatureProps) {
+  const phase = grazerPhase(creature) === 'pupa' ? 'pupa' : 'butterfly'
+  const last = useRef({ x: creature.x, z: creature.z, tick: world.tick, flying: false })
+  if (last.current.tick !== world.tick) {
+    last.current = { x: creature.x, z: creature.z, tick: world.tick, flying: Math.hypot(creature.x - last.current.x, creature.z - last.current.z) > 0.02 }
+  }
+  const feeding = events.some((event) => event.type === 'feeding' && event.id === creature.id)
+  const emerging = phase === 'pupa' ? MathUtils.clamp(1 - (emergeAge - (creature.age ?? 0)) / 24, 0, 1) : 0
+  return <Pierid3D id={creature.id} x={creature.x} z={creature.z} heading={creature.heading} phase={phase} flying={last.current.flying} feeding={feeding}
+    resting={scheduledRest(world, creature)} emerging={emerging} speed={speed} onClick={(event) => onSelect(event.ray)}>
+    <AnimalInteraction scale={1} y={0.06} selected={selected} markerRadius={0.2} />
+  </Pierid3D>
+}
+
 /** Red earthworm, drawn in its burrow against the glass (Earthworm3D.tsx). */
 function EarthwormAnimal({ creature, world, events, selected, onSelect, speed, inSoil = false }: CreatureProps & { inSoil?: boolean }) {
   const feeding = creatureIsFeeding(world, creature, events)
@@ -756,7 +773,7 @@ function Fauna({ world, events, worldRevision, selectedCreature, placing, onPlac
   }
   return <>{world.creatures.map((creature) => {
     const kind = creatureKind(creature)
-    const Model = kind === 'fish' || kind === 'flea' ? AquaticAnimal : kind === 'snail' || kind === 'shrimp' ? BenthicAnimal : kind === 'woodlouse' ? Woodlouse : kind === 'beetle' ? Beetle : kind === 'springtail' ? Springtail : kind === 'worm' ? EarthwormAnimal : Grazer
+    const Model = kind === 'fish' || kind === 'flea' ? AquaticAnimal : kind === 'snail' || kind === 'shrimp' ? BenthicAnimal : kind === 'woodlouse' ? Woodlouse : kind === 'beetle' ? Beetle : kind === 'springtail' ? Springtail : kind === 'worm' ? EarthwormAnimal : grazerPhase(creature) !== 'larva' ? PieridAnimal : Grazer
     return <Model key={`${worldRevision}:${creature.id}`} creature={creature} world={world} events={events} selected={selectedCreature === creature.id} speed={speed} onSelect={(ray) => pickAnimal(ray, creature)} />
   })}</>
 }

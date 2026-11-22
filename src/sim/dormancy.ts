@@ -17,8 +17,8 @@ import { isAquatic, pondMiddle } from './pond.ts'
  *
  * - Earthworm cocoons (Eisenia fetida) lie in the soil and hatch in about three weeks, later if it is
  *   dry or cold (https://en.wikipedia.org/wiki/Eisenia_fetida).
- * - Caterpillars pupate at the end of larval life; the moth lays eggs on leaves in the
- *   same jar before it dies, so the next brood hatches there (the moth is not drawn).
+ * - Caterpillars pupate and come out as butterflies that lay on leaves in the jar (butterfly.ts). A few
+ *   pupae from each brood also wait here in diapause, a reserve for when the line starves out.
  * - Land plants leave a soil seed bank: seeds of Viola, clover and grasses stay viable in
  *   soil for years (https://en.wikipedia.org/wiki/Soil_seed_bank), so a kind that died back
  *   comes up again when a gap opens. This is how a real terrarium keeps its species.

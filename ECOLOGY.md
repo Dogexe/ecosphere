@@ -234,3 +234,12 @@ A 10-year run of the sealed starter jar (6 seeds) lost woodlice in 2 jars and th
 - **Pond:** lilies had no reserve. Once the last one died back, the pond stayed bare and its snails and shrimp starved. Water lilies keep a rhizome in the mud and also seed into it ([*Nymphaea*](https://en.wikipedia.org/wiki/Nymphaea)), so a dead lily now leaves a rhizome in the dormant bank. A new shoot comes up when the pond has no lily, has standing water, and has mud to pay for it (0.55 of pond organic matter).
 - **Caterpillars:** a pupa used to hatch onto the one leafy plant of a grazed-down garden, and the caterpillar starved. That used up the whole reserve. Pupae now wait until at least two food plants are leafy again; *Pieris rapae* pupae can stay in diapause for months ([Wikipedia](https://en.wikipedia.org/wiki/Pieris_rapae)).
 - **Result (sealed starter, 10 years, 12 seeds):** every kind is kept in 11 of 12 jars. In the twelfth, caterpillars die out at 9.8 years. Before these fixes, every kind was kept in 3 of 6 jars.
+
+## Caterpillar to butterfly — 2026-11-22
+
+The grazer is a cabbage white caterpillar (*Pieris rapae*). It now goes through its whole life cycle in the jar, and the phase is read from age, so saves have no new field (`src/sim/butterfly.ts`). Real larvae take about 2–3 weeks, pupae about 1–2 weeks, and adults live about 3 weeks ([Wikipedia](https://en.wikipedia.org/wiki/Pieris_rapae)). The game splits the grazer's 40 days into:
+- **Caterpillar, 20 days:** eats leaves.
+- **Chrysalis, 10 days:** does not move or feed, and spends only 12% of a caterpillar's upkeep.
+- **Butterfly, 10 days:** sips nectar from flowering plants. Each sip gives 2.2 energy and costs the plant 0.006 biomass. It lays single eggs on leafy food plants while it has 30 energy or more. Each egg's body comes from the leaf.
+
+Only butterflies lay eggs now; before, a well-fed caterpillar bred. Beetles cannot catch butterflies in flight, but they can catch chrysalises. **Result (sealed starter, 10 years, 12 seeds):** every kind is kept in 11 of 12 jars, the same as before this change.

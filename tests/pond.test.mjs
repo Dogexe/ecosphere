@@ -4,6 +4,7 @@ import { createWorld, creatureCounts, introduceLife, intervene, isLand, placemen
 import { createHabitatWorld } from '../src/sim/habitats.ts'
 import { defaultClimate, defaultPond, isAquatic, isPondPosition, isSwimmingPosition, lifespan, maturity, pondCenter, stepPond, swimmingClearance } from '../src/sim/pond.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
+import { emergeAge } from '../src/sim/butterfly.ts'
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
 const animal = (id, kind, x, z, energy = 55) => ({ id, kind, x, z, energy, heading: 0, age: maturity[kind], stage: 'adult', materialReserve: 0 })
@@ -165,7 +166,10 @@ test('juveniles mature before reproducing; age death returns body material and p
   assert.equal(simulateStep({ ...base, creatures: [grazer] }).events.some((event) => event.type === 'birth'), false)
   const mature = simulateStep({ ...base, creatures: [{ ...grazer, age: maturity.grazer - 1 }] })
   assert.equal(mature.world.creatures[0].stage, 'adult')
-  assert.ok(mature.events.some((event) => event.type === 'birth'))
+  // A grown caterpillar still only feeds; the butterfly it becomes lays the eggs (2026-11-22).
+  assert.equal(mature.events.some((event) => event.type === 'birth'), false)
+  const butterfly = simulateStep({ ...base, creatures: [{ ...grazer, age: emergeAge, stage: 'adult' }] })
+  assert.ok(butterfly.events.some((event) => event.type === 'birth'))
   const aged = simulateStep({ ...base, creatures: [{ ...grazer, age: lifespan.grazer - 1, stage: 'adult' }] })
   assert.equal(aged.world.creatures.length, 0)
   assert.ok(aged.events.some((event) => event.type === 'death' && event.reason === 'age'))

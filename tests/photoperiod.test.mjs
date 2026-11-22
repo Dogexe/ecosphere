@@ -50,6 +50,7 @@ test('constant mode retains the twelve explicit living-jar-correction trajectori
     // grazer refuge, woodlouse sperm storage and sibling pairs, ant upkeep and pond-plant water.
     // Regenerated 2026-11-21 (earthworms): female-biased woodlouse broods and a caterpillar pupal reserve.
     // Regenerated 2026-11-22 (ten-year jar): wider woodlouse feeding reach, lily rhizome reserve, pupae wait for leaves.
+    // Regenerated 2026-11-22 (butterflies): caterpillars pupate and only butterflies lay.
     let world = createHabitatWorld(item.habitat, item.seed)
     for (let i = 0; i < 240; i++) world = stepWorld(world)
     assert.equal(createHash('sha256').update(JSON.stringify(world)).digest('hex'), item.sha256)
