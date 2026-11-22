@@ -111,12 +111,13 @@ test('courtship requires a pair, gestation delays birth, and offspring carry fun
 
 test('the playable forest start supports an observable brooded generation growing into adulthood', () => {
   let world = createHabitatWorld('woodland', 2217)
-  const born = []
+  const born = [], births = new Map()
   // Five days of broods (2026-11-21: was about three; the first young of this jar happen to starve).
   for (let i = 0; i < 120; i++) {
     const result = simulateStep(world)
     for (const birth of result.events.filter((event) => event.type === 'birth' && event.kind === 'woodlouse')) {
-      born.push(birth.id); assert.equal(result.world.creatures.find((c) => c.id === birth.id).stage, 'juvenile')
+      const newborn = result.world.creatures.find((c) => c.id === birth.id)
+      born.push(birth.id); births.set(birth.id, newborn); assert.equal(newborn.stage, 'juvenile')
     }
     world = result.world
   }
@@ -125,7 +126,8 @@ test('the playable forest start supports an observable brooded generation growin
   const later = advance(world, 170)
   const childId = born.find((id) => later.creatures.some((c) => c.id === id))
   assert.notEqual(childId, undefined)
-  const young = world.creatures.find((c) => c.id === childId)
+  // Measured at birth: well-fed young can already be grown by the end of the five days (2026-11-22).
+  const young = births.get(childId)
   assert.ok(young.life.mass < 0.2)
   const adult = later.creatures.find((c) => c.id === childId)
   assert.equal(adult.stage, 'adult')

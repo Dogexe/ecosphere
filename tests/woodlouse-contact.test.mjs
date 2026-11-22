@@ -68,11 +68,12 @@ test('courtship retains close contact and repeated save continuation does not co
 test('a real litter community still feeds, pairs, produces funded young and grows while avoiding severe overlap', () => {
   let world = beginDaylitWorld(createHabitatWorld('woodland', 2217))
   let birth = null, mating = false, feeding = 0, severe = 0
+  const born = []
   for (let i = 0; i < 300; i++) {
     const result = simulateStep(world)
     world = result.world
     for (const event of result.events) if (event.kind === 'woodlouse') {
-      if (event.type === 'birth') { birth = event.id; assert.equal(world.creatures.find((creature) => creature.id === birth).life.mass, 0.055) }
+      if (event.type === 'birth') { birth = event.id; born.push(birth); assert.equal(world.creatures.find((creature) => creature.id === birth).life.mass, 0.055) }
       if (event.type === 'mating') mating = true
       if (event.type === 'feeding') feeding++
     }
@@ -80,7 +81,9 @@ test('a real litter community still feeds, pairs, produces funded young and grow
     if (actors.some((a, index) => actors.slice(index + 1).some((b) => apart(a, b) < 0.1))) severe++
   }
   assert.ok(mating && birth !== null && feeding > 20)
-  const grown = world.creatures.find((creature) => creature.id === birth)
+  // Better-fed jars now raise several broods, so the latest young may still be small (2026-11-22):
+  // follow the earliest born young still alive.
+  const grown = born.map((id) => world.creatures.find((creature) => creature.id === id)).find(Boolean)
   assert.equal(grown.stage, 'adult')
   assert.ok(grown.life.mass >= 0.2)
   assert.ok(severe < 5, `${severe} severe overlap steps`)

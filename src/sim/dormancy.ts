@@ -23,10 +23,14 @@ import { isAquatic, pondMiddle } from './pond.ts'
  *   soil for years (https://en.wikipedia.org/wiki/Soil_seed_bank), so a kind that died back
  *   comes up again when a gap opens. This is how a real terrarium keeps its species.
  *
+ * - Water lilies keep a rhizome in the pond mud that sends up new leaves after the old plant dies back,
+ *   and they also seed into the mud (https://en.wikipedia.org/wiki/Nymphaea). Without that reserve a pond
+ *   whose lilies all died stayed bare, and its snails and shrimp starved after them (2026-11-22).
+ *
  * The eggs and seeds carry no material of their own: as with any birth, the newcomer's
  * body is paid from food at the spot (algae, fungi, leaf, or soil organic matter).
  */
-export const dormantKinds = ['flea', 'springtail', 'worm', 'grazer', 'clover', 'grass', 'bloom', 'fern', 'moss', 'tree'] as const
+export const dormantKinds = ['flea', 'springtail', 'worm', 'grazer', 'clover', 'grass', 'bloom', 'fern', 'moss', 'tree', 'lily'] as const
 export type DormantKind = typeof dormantKinds[number]
 export type DormantBank = Partial<Record<DormantKind, number>>
 const seedBankKinds = ['clover', 'grass', 'bloom', 'fern', 'moss', 'tree'] as const satisfies readonly PlantKind[]
@@ -40,13 +44,15 @@ const springtailHatch = { fungi: 0.6, body: 0.08, moisture: 0.6 }
 /** A worm hatchling's body comes from the litter its cocoon lies in (bodyMaterial.worm). */
 const wormHatch = { organic: 1.0, body: 0.3, moisture: 0.6 }
 /** A hatching caterpillar's body comes from the leaf it hatched on (bodyMaterial.grazer). */
-const grazerHatch = { body: 0.42, cover: 0.5 }
+const grazerHatch = { body: 0.42, cover: 0.6, leaves: 2 }
 /** A seedling from the seed bank, paid from the soil's organic matter where it comes up. */
 const seedlingBody = 0.55
+/** A lily shoot from the rhizome, paid from the pond's organic mud; it needs standing water. */
+const lilyShoot = { body: 0.55, water: 25 }
 /** Plant slots in the jar (as in the solver). */
 const plantSlots = 32
 
-const isDormantKind = (kind: string): kind is DormantKind => kind === 'flea' || kind === 'springtail' || kind === 'worm' || kind === 'grazer' || (seedBankKinds as readonly string[]).includes(kind)
+const isDormantKind = (kind: string): kind is DormantKind => kind === 'flea' || kind === 'springtail' || kind === 'worm' || kind === 'grazer' || kind === 'lily' || (seedBankKinds as readonly string[]).includes(kind)
 
 /**
  * Every adult flea or springtail that dies leaves a resting egg; a caterpillar that reaches the
@@ -110,8 +116,12 @@ export function hatchRestingEggs(world: World): { world: World; events: Simulati
     }
   }
   if ((next.grazer ?? 0) > 0 && alive('grazer') < hatchBelow) {
-    const leaf = world.plants.filter((plant) => ['clover', 'grass', 'bloom'].includes(plant.kind) && plant.biomass >= plant.capacity * grazerHatch.cover)
-      .sort((a, b) => b.biomass - a.biomass || a.id - b.id)[0]
+    // A resting pupa waits out a bare garden (Pieris rapae pupae can stay in diapause for months):
+    // the moth comes out only once several food plants are leafy again. Hatching onto one leaf of a
+    // grazed-down jar used up the whole reserve on caterpillars that starved (2026-11-22).
+    const leaves = world.plants.filter((plant) => ['clover', 'grass', 'bloom'].includes(plant.kind) && plant.biomass >= plant.capacity * grazerHatch.cover)
+      .sort((a, b) => b.biomass - a.biomass || a.id - b.id)
+    const leaf = leaves.length >= grazerHatch.leaves ? leaves[0] : undefined
     if (leaf) {
       const child = hatchling('grazer', leaf.x, leaf.z)
       creatures = [...creatures, child]
@@ -142,6 +152,23 @@ export function hatchRestingEggs(world: World): { world: World; events: Simulati
       events.push({ type: 'birth', id: planted.plants[planted.plants.length - 1].id, kind, parentId: -1 })
     }
     if (sown) break
+  }
+  if (!sown && (next.lily ?? 0) > 0 && plantsAfter.length < plantSlots && !plantsAfter.some((plant) => plant.kind === 'lily')
+    && pond.water >= lilyShoot.water && pond.organic >= lilyShoot.body + 0.5) {
+    const base = { ...world, pond, soil, creatures, plants: plantsAfter, sealed: null }
+    const middle = pondMiddle()
+    for (let n = 0; n < 12 && !sown; n += 1) {
+      const angle = n * 2.399 + world.tick * 0.0007, reach = (n % 3) * 0.35
+      const x = middle.x + Math.cos(angle) * reach, z = middle.z + Math.sin(angle) * reach
+      if (placementIssue(base, 'lily', x, z)) continue
+      const planted = introduceLife(base, 'lily', x, z)
+      if (planted === base) continue
+      pond = { ...pond, organic: pond.organic - lilyShoot.body }
+      sown = planted
+      plantsAfter = planted.plants
+      next.lily = (next.lily ?? 0) - 1
+      events.push({ type: 'birth', id: planted.plants[planted.plants.length - 1].id, kind: 'lily', parentId: -1 })
+    }
   }
   if (!events.length) return { world, events }
   return { world: { ...world, pond, soil, creatures, plants: plantsAfter, ...(sown ? { nextPlantId: sown.nextPlantId } : {}), dormant: next, nextCreatureId: nextId }, events }

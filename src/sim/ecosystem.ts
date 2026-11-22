@@ -131,8 +131,18 @@ export const wormCastMinerals = 0.45
 const wormRefuge = 0.6
 /** Fraction of soil litter that bacteria mineralise per model hour at full moisture and 22 C. */
 export const bacterialDecay = 0.0008
+/** Energy a female needs before she carries a brood. */
+export const woodlouseBroodEnergy = 40
 /** Energy a woodlouse gains per unit of litter it digests. */
 export const woodlouseDigestion = 22
+/**
+ * How far from a litter pocket's centre a woodlouse can still feed on it. A pocket of leaf litter is a
+ * few centimetres across, wider than one woodlouse (P. scaber is about 1.5 cm long,
+ * https://en.wikipedia.org/wiki/Porcellio_scaber). It was 0.24 units (4.5 mm): bodies push each other
+ * apart, so only four woodlice fitted round a pocket and a fifth starved beside a full meal,
+ * which repeatedly starved whole jars of females (2026-11-22). Eight now fit.
+ */
+export const woodlouseFeedReach = 0.45
 /**
  * Waterlogged soil in a sealed jar, where the water cannot escape, rots
  * land plants' roots: extra hourly loss above 85% soil water.
@@ -487,7 +497,7 @@ export function creatureIsFeeding(world: World, creature: Creature, events?: Sim
   if (events) return events.some((event) => event.type === 'feeding' ? event.id === creature.id : event.type === 'predation' && event.predatorId === creature.id)
   if (creatureKind(creature) === 'beetle' || isAquatic(creatureKind(creature)) || predatorThreat(world, creature) || scheduledRest(world, creature)) return false
   const target = creatureKind(creature) === 'woodlouse' ? litterTarget(soilFor(world), creature) : creatureKind(creature) === 'springtail' ? fungusTarget(soilFor(world), creature) : grazerTarget(world.plants, creature)
-  return target !== null && Math.hypot(target.x - creature.x, target.z - creature.z) <= 0.24
+  return target !== null && Math.hypot(target.x - creature.x, target.z - creature.z) <= (creatureKind(creature) === 'woodlouse' ? woodlouseFeedReach : 0.24)
 }
 
 function random(seed: number): [number, number] {
@@ -844,7 +854,7 @@ export function simulateStep(world: World): StepResult {
         if (waterTarget) life.activity = 'rehydrating'
         else if (mate) life.activity = 'courting'
         const distance = Math.hypot(target.x - x, target.z - z)
-        if (distance > 0.24) {
+        if (distance > (mate || waterTarget ? 0.24 : woodlouseFeedReach)) {
           // A woodlouse walking with purpose covers about a centimetre a second (P. scaber),
           // so a courting adult crosses the jar in a night; foraging stays an amble (2026-11-20).
           const moved = walkOnLand(creature, target.x, target.z, Math.min((mate ? 0.3 : 0.075) * clamp(energy / 30, 0.25, 1), distance - 0.2))
@@ -992,7 +1002,7 @@ export function simulateStep(world: World): StepResult {
       const refuge = nearestSoil(soil, mother.x, mother.z)
       // Brooded young are retained until a moist litter refuge is reached;
       // release does not teleport food to them or grant extra energy.
-      if (Math.hypot(refuge.x - mother.x, refuge.z - mother.z) > 0.3 || litterMoisture(refuge) < 0.45 || refuge.organic < 0.2) continue
+      if (Math.hypot(refuge.x - mother.x, refuge.z - mother.z) > woodlouseFeedReach || litterMoisture(refuge) < 0.45 || refuge.organic < 0.2) continue
       while (life.brood >= 0.055 - 1e-9 && populations.woodlouse < creatureLimits.woodlouse && mother.energy > 20) {
         const energy = mother.energy * 0.22
         mother.energy -= energy
@@ -1047,7 +1057,11 @@ export function simulateStep(world: World): StepResult {
     paired.add(father.id)
     const brood = Math.min(2, creatureLimits.woodlouse - populations.woodlouse) * 0.055
     const nursery = nearestSoil(soil, mother.x, mother.z)
-    if (life.courtship >= 4 && brood > 0 && nursery.organic >= brood + 0.05) {
+    // Only a well-fed female carries a brood: an underfed woodlouse produces fewer or no young
+    // (leaf-litter quality sets Porcellio scaber growth and reproduction,
+    // https://agris.fao.org/search/ru/records/65df6cc20f3e94b9e5d86c43). Without this a jar's woodlice
+    // bred past what their litter feeds and all starved at once, leaving one sex (2026-11-22).
+    if (life.courtship >= 4 && brood > 0 && nursery.organic >= brood + 0.05 && mother.energy >= woodlouseBroodEnergy) {
       nursery.organic -= brood
       life.brood = brood
       life.gestation = 24
