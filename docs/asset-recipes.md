@@ -14,6 +14,9 @@ Keep entries short: the symptom, the cause, the fix, and where it lives.
   leak in (Kossarev, https://dev.to/aleksandr_kossarev_e23623/ai-orchestrated-3d-asset-pipeline-from-jpeg-to-game-ready-glb-without-touching-blender-1akf).
 - **Check every asset with the sheet.** `npm run visual -- --label <name> --models <glb names>` gives six views
   plus triangle and material counts, next to the in-jar shots. See `docs/visual-rubric.md`.
+- **Stray "Icosphere" after a GLB import into Blender.** The glTF importer adds an unparented icosphere as the
+  bone display shape for rigged models. It is not in the GLB (woodlouse.glb has one mesh node); ignore it when
+  measuring bounds or triangles in Blender.
 - **Textures.** Keep at 1k to 2k; large downloads block Blender's main thread.
 
 ## Geometry
