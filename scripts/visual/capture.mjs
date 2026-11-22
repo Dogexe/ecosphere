@@ -65,17 +65,22 @@ async function gamePage(hour) {
 }
 const hideUi = (page) => page.evaluate(() => { const canvas = document.querySelector('canvas'); document.querySelectorAll('body *').forEach((node) => { if (!node.contains(canvas) && !canvas.contains(node)) node.style.visibility = 'hidden' }) })
 const showUi = (page) => page.evaluate(() => document.querySelectorAll('body *').forEach((node) => { node.style.visibility = '' }))
+// Averaged over five frames: the composer calls render several times a frame, and requestAnimationFrame
+// does not line up with the renderer's own loop, so one reading over-counts.
 const frameStats = (page) => page.evaluate(() => new Promise((done) => {
   const { gl } = window.__three
-  gl.info.autoReset = false; gl.info.reset()
-  requestAnimationFrame(() => requestAnimationFrame(() => {
+  let frames = 0
+  const tick = () => {
+    if (++frames < 6) { requestAnimationFrame(tick); return }
     const { calls, triangles } = gl.info.render
     gl.info.autoReset = true
-    done({ calls, triangles, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures })
-  }))
+    done({ calls: Math.round(calls / 5), triangles: Math.round(triangles / 5), geometries: gl.info.memory.geometries, textures: gl.info.memory.textures })
+  }
+  requestAnimationFrame(() => { gl.info.autoReset = false; gl.info.reset(); requestAnimationFrame(tick) })
 }))
 async function shoot(page, name, caption, { ui = false } = {}) {
   if (!ui) await hideUi(page)
+  await page.waitForTimeout(300)
   const file = join(out, `${name}.png`)
   await page.screenshot({ path: file })
   if (!ui) await showUi(page)

@@ -1,3 +1,4 @@
+import { RenderBudget } from './RenderBudget'
 import { fogLevel } from '../sim/seal'
 import { fallenLeaf, Mushroom } from './paperNature'
 import { Room } from './Room'
@@ -321,18 +322,18 @@ function PlantModel({ plant, fit, tick, selected, onSelect }: { plant: Plant; fi
           <meshBasicMaterial color="#f9f6d3" transparent opacity={0.88} />
         </mesh>
       )}
-      {stage === 'seed' ? <mesh geometry={propaguleGeometry} position={[0, seed.height / 2, 0]} scale={[seed.length, seed.height, seed.width]} castShadow><meshStandardMaterial color={plant.kind === 'moss' || plant.kind === 'fern' ? '#a6a27d' : '#aa8864'} roughness={1} flatShading /></mesh> : (stage === 'germinating' || stage === 'seedling') && !['moss', 'fern', 'lily', 'reed'].includes(plant.kind) ? <group>
+      {stage === 'seed' ? <mesh geometry={propaguleGeometry} position={[0, seed.height / 2, 0]} scale={[seed.length, seed.height, seed.width]} castShadow><meshStandardMaterial color={plant.kind === 'moss' || plant.kind === 'fern' ? '#a6a27d' : '#aa8864'} roughness={1} /></mesh> : (stage === 'germinating' || stage === 'seedling') && !['moss', 'fern', 'lily', 'reed'].includes(plant.kind) ? <group>
         <mesh position={[0, 0.13, 0]}><cylinderGeometry args={[0.013, 0.022, 0.26, 5]} /><meshStandardMaterial color="#88a174" roughness={1} /></mesh>
-        {[-1, 1].map((side) => <mesh key={side} position={[side * 0.075, 0.25, 0]} rotation={[0, 0, side * -0.35]} scale={[0.1, 0.027, 0.07]}><sphereGeometry args={[1, 8, 5]} /><meshStandardMaterial color={leafColor} roughness={1} flatShading /></mesh>)}
+        {[-1, 1].map((side) => <mesh key={side} position={[side * 0.075, 0.25, 0]} rotation={[0, 0, side * -0.35]} scale={[0.1, 0.027, 0.07]}><sphereGeometry args={[1, 8, 5]} /><meshStandardMaterial color={leafColor} roughness={1} /></mesh>)}
       </group> : <PlantAsset seed={plant.id} kind={plant.kind} cover={plant.biomass / plant.capacity} health={stage === 'senescent' ? 0.15 : MathUtils.clamp(fit / 0.45, 0, 1)} flowering={flowering} fallback={<group scale={plantModelScale(plant.kind)}>{plant.kind === 'lily' ? <group>
         {[0, 1, 2].map((index) => <mesh key={index} position={[Math.sin(index * 2.4) * 0.15, 0.025 + index * 0.003, Math.cos(index * 2.4) * 0.13]} rotation={[-Math.PI / 2, 0, index]} scale={[1, 0.85, 1]} receiveShadow><circleGeometry args={[0.18, 12, 0.15, Math.PI * 1.86]} /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={1} /></mesh>)}
         {flowering && <mesh position={[0, 0.06, 0]} scale={0.23}><primitive object={plantGeometry.bloom.petals} attach="geometry" /><meshStandardMaterial color="#dfb5a5" side={DoubleSide} roughness={1} /></mesh>}
-      </group> : plant.kind === 'reed' ? <mesh castShadow><primitive object={plantGeometry.grass} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={1} flatShading /></mesh> : plant.kind === 'tree' ? <group>
-        <mesh castShadow><primitive object={plantGeometry.tree.branches} attach="geometry" /><meshStandardMaterial color="#9a8062" roughness={1} flatShading /></mesh>
-        <mesh castShadow receiveShadow><primitive object={plantGeometry.tree.crown} attach="geometry" /><meshStandardMaterial color={leafColor} roughness={1} flatShading /></mesh>
-      </group> : plant.kind === 'grass' ? <mesh castShadow receiveShadow><primitive object={plantGeometry.grass} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={1} flatShading /></mesh> : plant.kind === 'moss' ? (
+      </group> : plant.kind === 'reed' ? <mesh castShadow><primitive object={plantGeometry.grass} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={1} /></mesh> : plant.kind === 'tree' ? <group>
+        <mesh castShadow><primitive object={plantGeometry.tree.branches} attach="geometry" /><meshStandardMaterial color="#9a8062" roughness={1} /></mesh>
+        <mesh castShadow receiveShadow><primitive object={plantGeometry.tree.crown} attach="geometry" /><meshStandardMaterial color={leafColor} roughness={1} /></mesh>
+      </group> : plant.kind === 'grass' ? <mesh castShadow receiveShadow><primitive object={plantGeometry.grass} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={1} /></mesh> : plant.kind === 'moss' ? (
         <group>
-          <mesh castShadow receiveShadow><primitive object={plantGeometry.moss} attach="geometry" /><meshStandardMaterial color={leafColor} roughness={1} flatShading /></mesh>
+          <mesh castShadow receiveShadow><primitive object={plantGeometry.moss} attach="geometry" /><meshStandardMaterial color={leafColor} roughness={1} /></mesh>
           {[0, 1, 2].map((index) => <group key={index} position={[Math.sin(index * 2.4) * 0.24, 0.12, Math.cos(index * 2.4) * 0.24]}>
             <mesh position={[0, 0.03, 0]}><cylinderGeometry args={[0.006, 0.009, 0.06, 4]} /><meshStandardMaterial color="#a19664" roughness={1} /></mesh>
             <mesh position={[0, 0.06, 0]} rotation={[0.2, 0, 0.3]} scale={[0.018, 0.027, 0.018]}><icosahedronGeometry args={[1, 0]} /><meshStandardMaterial color="#b6a76f" roughness={1} /></mesh>
@@ -340,17 +341,17 @@ function PlantModel({ plant, fit, tick, selected, onSelect }: { plant: Plant; fi
         </group>
       ) : plant.kind === 'fern' ? (
         <group scale={[1, 0.7 + Math.min(fit, 0.7) * 0.5, 1]}>
-          <mesh castShadow receiveShadow><primitive object={plantGeometry.fern.leaves} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={0.95} flatShading /></mesh>
+          <mesh castShadow receiveShadow><primitive object={plantGeometry.fern.leaves} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={0.95} /></mesh>
           <mesh castShadow><primitive object={plantGeometry.fern.stems} attach="geometry" /><meshStandardMaterial color="#71905b" roughness={1} /></mesh>
         </group>
       ) : plant.kind === 'bloom' ? (
         <group>
-          <mesh castShadow receiveShadow><primitive object={plantGeometry.bloom.leaves} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={0.95} flatShading /></mesh>
-          {flowering ? <><mesh castShadow><primitive object={plantGeometry.bloom.petals} attach="geometry" /><meshStandardMaterial color={fit < 0.16 ? flowerColor : plant.id % 2 ? '#e5d5a3' : '#dfab9c'} side={DoubleSide} roughness={0.95} flatShading /></mesh><mesh castShadow><primitive object={plantGeometry.bloom.centers} attach="geometry" /><meshStandardMaterial color={fit < 0.16 ? '#b9a27a' : '#d6b269'} roughness={1} flatShading /></mesh></> : <mesh position={[0.08, 0.76, -0.04]} scale={[0.05, 0.075, 0.05]}><icosahedronGeometry args={[1, 1]} /><meshStandardMaterial color="#a3ae7d" roughness={1} /></mesh>}
+          <mesh castShadow receiveShadow><primitive object={plantGeometry.bloom.leaves} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={0.95} /></mesh>
+          {flowering ? <><mesh castShadow><primitive object={plantGeometry.bloom.petals} attach="geometry" /><meshStandardMaterial color={fit < 0.16 ? flowerColor : plant.id % 2 ? '#e5d5a3' : '#dfab9c'} side={DoubleSide} roughness={0.95} /></mesh><mesh castShadow><primitive object={plantGeometry.bloom.centers} attach="geometry" /><meshStandardMaterial color={fit < 0.16 ? '#b9a27a' : '#d6b269'} roughness={1} /></mesh></> : <mesh position={[0.08, 0.76, -0.04]} scale={[0.05, 0.075, 0.05]}><icosahedronGeometry args={[1, 1]} /><meshStandardMaterial color="#a3ae7d" roughness={1} /></mesh>}
         </group>
       ) : (
         <group>
-          <mesh castShadow receiveShadow><primitive object={plantGeometry.clover.leaves} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={0.95} flatShading /></mesh>
+          <mesh castShadow receiveShadow><primitive object={plantGeometry.clover.leaves} attach="geometry" /><meshStandardMaterial color={leafColor} side={DoubleSide} roughness={0.95} /></mesh>
           <mesh castShadow><primitive object={plantGeometry.clover.stems} attach="geometry" /><meshStandardMaterial color="#6b8957" roughness={1} /></mesh>
         </group>
       )}</group>} />}
@@ -1029,6 +1030,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       style={{ cursor: placing ? 'crosshair' : 'grab' }}
     >
       <DebugHandle />
+      <RenderBudget />
       {/* Drop to 1x pixels while frames run slow, and go back up once they recover. */}
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(maxDpr)} flipflops={3} onFallback={() => setDpr(1)} />
       {paperLook && watercolorLook && !naturalLook && <Watercolor />}

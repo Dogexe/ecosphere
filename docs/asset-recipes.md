@@ -31,6 +31,12 @@ Keep entries short: the symptom, the cause, the fix, and where it lives.
 
 ## Look
 
+- **Plants stuck on their hard-faceted fallback.** A GLB fetch past its timeout left the fallback up for good,
+  with no Retry label for plants. Timeout is now 15 s and `OrganismAsset` retries by itself 3 times.
+- **Quaternius low-poly plants look hard under the toon ramp.** Average normals by position, ignoring UV and
+  colour seams (`smoothNormalsByPosition` in `OrganismAsset.tsx`, list in `softShaded`). `mergeVertices` does
+  not weld them because seams differ.
+
 - **Soft, not faceted.** Use smooth normals on low-poly meshes; `flatShading` reads as harsh facets (clover,
   lily). Keep roughness high and colours from the shared palette.
 - **Moss far away.** Alpha-tested cards defeat early-z; keep opaque near LODs and one shared cutout material

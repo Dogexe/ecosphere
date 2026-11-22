@@ -11,7 +11,7 @@ function loadModel(file: string) {
   if (!pending) {
     pending = (async () => {
       const controller = new AbortController()
-      const timer = window.setTimeout(() => controller.abort(), 6000)
+      const timer = window.setTimeout(() => controller.abort(), 15000)
       try {
         const response = await fetch(`${import.meta.env.BASE_URL}assets/kenney/${file}.glb`, { signal: controller.signal })
         if (!response.ok) return null

@@ -35,18 +35,20 @@ GLB with `--lineup`. Captions carry draw calls and triangles per frame; `stats.j
 
 ## Budgets (from stats.json)
 
-| Measure | Target | Baseline 2026-11-22 |
+| Measure | Target | Phase 1 (2026-11-22) |
 |---|---|---|
-| Draw calls, overview | ≤ 300 | 880 |
-| Triangles, overview | ≤ 400k | 957k |
-| Triangles, macro | ≤ 600k | 1,279k |
-| Triangles, underwater | ≤ 600k | 1,574k |
+| Draw calls per frame, overview | ≤ 300 | 543 |
+| Triangles per frame, overview | ≤ 400k | 667k |
+| Triangles per frame, macro | ≤ 600k | 820k |
+| Triangles per frame, underwater | ≤ 600k | 878k |
 | One animal GLB | ≤ 6k tris, ≤ 4 materials | woodlouse 5.4k / 4, daphnia 5.7k / 8 |
 
-Counts come from `renderer.info` over one frame under software rendering, so they include shadow passes.
+Counts are `renderer.info` averaged over five frames (all passes: shadow, scene, AO and finishing).
+The first baseline sheet counted about two frames and is not comparable.
 
 ## Score log
 
 | Date | Label | Glass | Room | Soil | Cutaway | Water | Plants | Animals | Cohesion | UI | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-11-22 | baseline-2026-11-22 | 3 | 3 | 2 | 2 | 2 | 2 | 3 | 2 | 4 | Plants mix painted cards with hard-faceted clover/lily; underground view floats the nest on a pale backdrop; triangle and draw-call counts well over budget |
+| 2026-11-22 | baseline-2026-11-22 | 3 | 3 | 2 | 2 | 2 | 2 | 3 | 2 | 4 | Not representative: under software rendering most plant and animal GLBs timed out at 6 s and stayed on their hard-faceted fallbacks |
+| 2026-11-22 | phase1-final | 3 | 3 | 2 | 2 | 2 | 3 | 3 | 3 | 4 | Models now load (retry), clover/fern smooth-shaded, shadow pass every other frame. Still: painted Fittonia/violet cards, flat soil, underwater reads as brown murk, underground floats on a pale backdrop |
