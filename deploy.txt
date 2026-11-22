@@ -1,1 +1,1 @@
-Deployed from claude/project-thread-t793yy 33e417e (2026-11-22): realistic nest windows; nests dig to the glass; worm glass visits; flat chambers; top-heavy growth
+Deployed from claude/project-thread-t793yy 33998bb (2026-11-22): starter nest at the glass; in-nest travel pace; realistic nest windows; worms; flat chambers
