@@ -44,6 +44,9 @@ Keep entries short: the symptom, the cause, the fix, and where it lives.
 - **Per-pixel loops in shaders.** Segment loops per pixel cost +61% GPU at iPad resolution; bake into a canvas
   texture once when inputs change (`soilRoots.ts`).
 
+- **Fog does not reach custom shaders.** Scene fog skipped the soil/gravel shader, so underwater looked like
+  dry bank under a black sky. Do water haze as a depth-based post effect (`UnderwaterEffect.tsx`) instead.
+
 ## Testing and deploy
 
 - **Clicks fail in scripts.** Buttons with emoji spans do not match `getByText` exactly. Give buttons a

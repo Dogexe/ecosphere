@@ -11,6 +11,16 @@ import { animalWaterY } from './scale'
 
 export type SurfacePose = { position: Vector3; target: Vector3; ready: boolean; width: number; height: number }
 
+/** How the water reads from inside: clarity from algae and organic matter, light from the daylight. */
+export function pondWaterLook(world: World) {
+  const pond = world.pond ?? defaultPond()
+  const cloudiness = Math.min(1, pond.algae / 18 + pond.organic / 110)
+  const daylight = environmentAt(world)
+  const light = daylight.cycling ? 0.35 + daylight.solar * 0.65 : 1
+  const tint = '#' + new Color('#6fa89a').lerp(new Color('#7c8f5e'), cloudiness).getHexString()
+  return { clarity: 1 - cloudiness * 0.8, light, tint }
+}
+
 export function PondAtmosphere({ world }: { world: World }) {
   const pond = world.pond ?? defaultPond()
   const cloudiness = Math.min(1, pond.algae / 18 + pond.organic / 110)

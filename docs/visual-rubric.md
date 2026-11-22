@@ -52,3 +52,4 @@ The first baseline sheet counted about two frames and is not comparable.
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-11-22 | baseline-2026-11-22 | 3 | 3 | 2 | 2 | 2 | 2 | 3 | 2 | 4 | Not representative: under software rendering most plant and animal GLBs timed out at 6 s and stayed on their hard-faceted fallbacks |
 | 2026-11-22 | phase1-final | 3 | 3 | 2 | 2 | 2 | 3 | 3 | 3 | 4 | Models now load (retry), clover/fern smooth-shaded, shadow pass every other frame. Still: painted Fittonia/violet cards, flat soil, underwater reads as brown murk, underground floats on a pale backdrop |
+| 2026-11-22 | phase2-b | 3 | 3 | 3 | 2 | 3 | 3 | 3 | 3 | 4 | Underwater pass (depth haze, caustic net, Snell's window) for every material; open soil in humus/ochre/rust patches with clustered crumbs. Still: underground floats on a pale backdrop, painted Fittonia/violet cards |

@@ -173,3 +173,4 @@ Butterflies (2026-11-22, owner): grazers pupate at 20 days and come out as cabba
 - View buttons carry data-testid. Rubric and score log: docs/visual-rubric.md. Solved-problem recipes: docs/asset-recipes.md.
 - Baseline 2026-11-22: overview 880 draw calls / 957k triangles, underwater 1.57M triangles (budget 300 / 400k).
 - Phase 1 (2026-11-22): RenderBudget (shadow map every other frame, no shadows from meshes under ~1 mm), GLB loads retry by themselves (15 s timeout, 3 retries) so plants no longer stay on fallbacks, smooth normals for Quaternius clover/fern, no flatShading on fallback plants. Overview 543 calls / 667k tris per frame.
+- Phase 2 (2026-11-22): UnderwaterEffect (depth haze, caustics, Snell's window; clarity from pond algae/organic, light from daylight) in Polish when underwater; open soil tones (humus/ochre/rust world-space patches, clustered crumbs) in LayeredGround natural look.

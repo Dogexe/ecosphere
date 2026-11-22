@@ -348,6 +348,20 @@ export function useLayerMaterials() {
             float crumb = fract(sin(dot(crumbCell, vec2(41.3, 289.1))) * 15731.7);
             vec3 earth = vec3(0.2, 0.11, 0.055) * mix(vec3(1.0), ratio, 0.5);
             soil = earth * (0.95 + 0.07 * crumb);
+            // Phase 2 of the target-look plan (2026-11-22): the open soil read as one flat brown. Broad patches
+            // of dark humus, warm ochre and reddish earth (world-space, so they do not stretch on banks) and
+            // clustered crumbs give it 3+ tones, as real potting soil has.
+            vec2 sp = vCutWorld.xz;
+            float broad = soilNoise(sp * 1.2 + vec2(4.0, 1.0)) * 0.7 + soilNoise(sp * 3.1 + vec2(9.0, 2.0)) * 0.3;
+            float rusty = smoothstep(0.55, 0.9, soilNoise(sp * 2.2 + vec2(17.0, 5.0)));
+            vec3 humus = vec3(0.12, 0.065, 0.032), ochre = vec3(0.25, 0.15, 0.074), rust = vec3(0.23, 0.105, 0.05);
+            vec3 topTone = mix(humus, ochre, smoothstep(0.32, 0.78, broad));
+            topTone = mix(topTone, rust, rusty * 0.55) * mix(vec3(1.0), ratio, 0.5);
+            soil = mix(soil, topTone * (0.92 + 0.1 * crumb), 0.85);
+            float topPx = length(fwidth(sp));
+            float clump = smoothstep(0.35, 0.8, soilNoise(sp * 5.0 + vec2(2.0, 13.0)));
+            soil = soilCrumbs(soil, sp / 0.045, 0.08 + 0.4 * clump, 1.0 - smoothstep(0.25, 0.6, topPx / 0.045));
+            soil = soilCrumbs(soil, sp / 0.1 + 7.3, 0.03 + 0.2 * clump, 1.0 - smoothstep(0.25, 0.6, topPx / 0.1));
             grit = vec3(0.12, 0.1, 0.09);
             gravel = mix(vec3(0.36, 0.33, 0.29), vec3(0.62, 0.55, 0.45), smoothstep(0.25, 0.7, pebbleScan.g)) * clamp(vColor.rgb / gravelRef, 0.0, 1.2);
             ${pebbleScale < 0.2 ? `

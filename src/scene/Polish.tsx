@@ -1,5 +1,6 @@
 import { Bloom, BrightnessContrast, EffectComposer, N8AO, TiltShift2, ToneMapping, Vignette } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
+import { Underwater } from './UnderwaterEffect'
 
 /**
  * Finishing passes for the paper look, the ones HD-2D style games lean on
@@ -23,9 +24,10 @@ import { ToneMappingMode } from 'postprocessing'
  */
 export const polishLook = (() => { try { return new URLSearchParams(window.location.search).get('polish') !== '0' } catch { return true } })()
 
-export function Polish({ light }: { light: boolean }) {
+export function Polish({ light, water }: { light: boolean; water?: { clarity: number; light: number; tint: string } | null }) {
   return <EffectComposer multisampling={light ? 0 : 2} enableNormalPass={false}>
     <N8AO halfRes quality="performance" aoRadius={0.45} distanceFalloff={0.6} intensity={light ? 2.2 : 2.6} color="#1a120c" />
+    <>{water && <Underwater clarity={water.clarity} light={water.light} tint={water.tint} />}</>
     <Bloom mipmapBlur intensity={0.22} luminanceThreshold={0.9} luminanceSmoothing={0.15} />
     <>{!light && <TiltShift2 blur={0.12} taper={0.6} start={[0.5, 0.0]} end={[0.5, 1.0]} />}</>
     <Vignette offset={0.38} darkness={0.3} />

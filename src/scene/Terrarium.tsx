@@ -33,7 +33,7 @@ import { modelUnavailable, OrganismAsset, PlantAsset } from './OrganismAsset'
 import { worldPickRadius, animalTargetPixels } from './picking'
 import { terrainGeometry } from './terrainGeometry'
 import { Daylight } from './Daylight'
-import { PondAtmosphere, PondControls } from './PondView'
+import { PondAtmosphere, PondControls, pondWaterLook } from './PondView'
 import { AntColonyScene } from './AntColony'
 import { NestControls } from './NestView'
 import { antPosition, nestChamberRadius, seedMaterialAvailable } from '../sim/colony'
@@ -1036,7 +1036,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       {paperLook && watercolorLook && !naturalLook && <Watercolor />}
       {!underground && <Daylight world={world} dramatic={paperLook && watercolorLook} room={paperLook && watercolorLook && !underwater} />}
       {paperLook && watercolorLook && !underground && !underwater && <Room world={world} />}
-      {paperLook && watercolorLook && polishLook && <Polish light={coarsePointer} />}
+      {paperLook && watercolorLook && polishLook && <Polish light={coarsePointer} water={underwater ? pondWaterLook(world) : null} />}
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><color attach="background" args={['#ded9c8']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
