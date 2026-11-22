@@ -39,7 +39,13 @@ export const nestChamberRadius = (node: NestNode) => node.role === 'queen' ? 0.2
  * half-height is this share of its radius, and it reaches this much wider than the radius across the
  * floor (2026-11-21; were spheres).
  */
-/** How much farther and more cheaply a worker travels inside the nest than on the surface. */
+/**
+ * Worker travel per model hour, as a multiple of the old 0.14-unit (2.7 mm) stride, with energy per unit
+ * distance divided by the same factor. Real harvester workers run at about 3.4 cm/s (0.5-4.8) and
+ * walking lifts their metabolism only about threefold over rest (Pogonomyrmex rugosus, J Exp Biol
+ * 181:49, https://cob.silverchair.com/jeb/article/181/1/49/6643/), so crossing a 12 cm jar is seconds
+ * of cheap work. The old stride left nests dug to the glass and far seed out of reach (2026-11-22).
+ */
 export const nestPace = 3
 export const chamberFlatness = 0.6
 export const chamberSpread = 1.25
@@ -231,8 +237,16 @@ export function seedMaterialAvailable(plant: Plant): number {
   return Math.max(0, plant.biomass - plant.capacity * seedCover)
 }
 
+/**
+ * How far from a worker the colony can find food. Harvester foragers range many metres from the nest
+ * along trails that scouts set up (Pogonomyrmex barbatus, Adler & Gordon 2003,
+ * https://www.math.utah.edu/~adler/myreprints/adler_gordon2003.pdf), so a 12 cm jar is all within
+ * reach; the trail stands for the scouts' search (2026-11-22; was 2.8 units, 5 cm, which left a
+ * colony near the glass starving beside seed on the far bank).
+ */
+export const antForageReach = 7.6
 export function antFoodSources(plants: Plant[], x: number, z: number): Plant[] {
-  return plants.filter((plant) => seedMaterialAvailable(plant) > 0.00001 && Math.hypot(plant.x - x, plant.z - z) <= 2.8)
+  return plants.filter((plant) => seedMaterialAvailable(plant) > 0.00001 && Math.hypot(plant.x - x, plant.z - z) <= antForageReach)
 }
 
 /**
@@ -241,7 +255,7 @@ export function antFoodSources(plants: Plant[], x: number, z: number): Plant[] {
  * woodlice, springtails and caterpillars feed the colony when seed is short (2026-11-20).
  */
 export function antScavengeSources(remains: readonly Remains[], x: number, z: number): Remains[] {
-  return remains.filter((item) => scavengeKinds.has(item.kind) && item.patchId !== 4 && item.material >= 0.002 && Math.hypot(item.x - x, item.z - z) <= 2.8)
+  return remains.filter((item) => scavengeKinds.has(item.kind) && item.patchId !== 4 && item.material >= 0.002 && Math.hypot(item.x - x, item.z - z) <= antForageReach)
 }
 const scavengeKinds = new Set(['grazer', 'woodlouse', 'springtail', 'beetle', 'worm'])
 
@@ -336,13 +350,7 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
   const foodNeeded = 0.06 + colony.brood.filter((cohort) => cohort.stage === 'larva').reduce((sum, cohort) => sum + Math.max(0, 0.04 * cohort.count - cohort.material) / 0.75, 0)
   function travel(ant: Ant, destination: number, stride: number, center = false) {
     ant.goal = { kind: 'chamber', id: destination }
-    // Inside the nest a worker covers more ground in an hour and spends less doing it than out on the
-    // surface, where it searches and carries: real harvester workers run at about 3.4 cm/s (0.5-4.8)
-    // and walking only lifts their metabolism about threefold over rest (Pogonomyrmex rugosus,
-    // J Exp Biol 181:49, https://cob.silverchair.com/jeb/article/181/1/49/6643/). Crossing a jar-sized
-    // nest is seconds of real work, so in-nest travel is three times the surface stride at a third of
-    // its energy (2026-11-22; nests dug to the glass have longer shafts).
-    const traveled = advanceInNest(colony, ant, destination, stride * nestPace, center || destination === entry)
+    const traveled = advanceInNest(colony, ant, destination, stride, center || destination === entry)
     ant.energy -= traveled * 0.7 / nestPace
     contactAllowance.set(ant.id, Math.max(0, 0.14 * nestPace - traveled))
   }
@@ -353,7 +361,7 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
     ant.activity = 'depositing'
   }
   for (const ant of colony.workers) {
-    const stride = 0.14 * Math.max(0.35, Math.min(1, ant.energy / 25)) * (ant.carried > 0 ? 0.75 : 1)
+    const stride = 0.14 * nestPace * Math.max(0.35, Math.min(1, ant.energy / 25)) * (ant.carried > 0 ? 0.75 : 1)
     // Like the other functional groups, hungry adults can interrupt their
     // normal rest schedule. Teneral confinement and dangerous heat still win.
     const sleepy = ant.stage === 'teneral' || forcing.cycling && forcing.solar < 0.15 && ant.energy >= 25 && colony.food >= foodNeeded || forcing.temperatureC > 34
@@ -366,7 +374,7 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
         if (distance <= 0.025) ant.location = { kind: 'nest', from: entry, to: entry, progress: 0 }
         else {
           const moved = walkOnLand({ ...position, id: ant.id }, colony.entrance.x, colony.entrance.z, Math.min(stride, distance), antLimits.surfaceClearance)
-          ant.location = { kind: 'surface', x: moved.x, z: moved.z, heading: moved.heading }; ant.energy -= moved.distance * 0.7
+          ant.location = { kind: 'surface', x: moved.x, z: moved.z, heading: moved.heading }; ant.energy -= moved.distance * 0.7 / nestPace
         }
       } else {
         ant.activity = 'foraging'
@@ -392,7 +400,7 @@ export function stepAntColony(world: World, forcing = environmentAt(world)): { w
           const x = target?.x ?? position.x + Math.sin(angle), z = target?.z ?? position.z + Math.cos(angle)
           const reach = target ? Math.min(stride, Math.max(0, Math.hypot(x - position.x, z - position.z) - 0.1)) : Math.min(stride, 0.055)
           const moved = walkOnLand({ ...position, id: ant.id }, x, z, reach, antLimits.surfaceClearance)
-          ant.location = { kind: 'surface', x: moved.x, z: moved.z, heading: moved.heading }; ant.energy -= moved.distance * 0.7
+          ant.location = { kind: 'surface', x: moved.x, z: moved.z, heading: moved.heading }; ant.energy -= moved.distance * 0.7 / nestPace
         }
       }
       continue
