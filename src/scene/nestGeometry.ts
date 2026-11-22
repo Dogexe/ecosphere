@@ -82,7 +82,8 @@ export function makeNestGeometry(colony: NestShape) {
     positions.push(p.x, p.y, p.z)
     const band = Math.sin(p.y * 52 + Math.sin(p.x * 5) * 0.6 + Math.cos(p.z * 7) * 0.4) * 0.022
     const depth = Math.min(1, Math.max(0, -p.y / 1.5))
-    colors.push(0.46 + depth * 0.16 + band, 0.31 + depth * 0.13 + band, 0.19 + depth * 0.11 + band)
+    // Linear-space soil (vertex colours are not sRGB-decoded): packed humus near the top, warmer clay deeper.
+    colors.push(0.2 + depth * 0.1 + band, 0.115 + depth * 0.06 + band * 0.7, 0.06 + depth * 0.03 + band * 0.45)
   }
   const triangle = (a: Vector3, b: Vector3, c: Vector3, outward: Vector3) => {
     if (b.clone().sub(a).cross(c.clone().sub(a)).dot(outward) < 0) [b, c] = [c, b]
@@ -114,6 +115,26 @@ export function makeNestGeometry(colony: NestShape) {
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
-  geometry.computeVertexNormals(); geometry.computeBoundingSphere()
+  geometry.computeVertexNormals()
+  smoothByPosition(geometry)
+  geometry.computeBoundingSphere()
   return geometry
+}
+
+// Marching tetrahedra emit unshared vertices, so computeVertexNormals alone gives a faceted, stair-stepped
+// wall. Average normals of vertices at the same position so tunnels read as smooth burrowed soil.
+function smoothByPosition(geometry: BufferGeometry) {
+  const position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal')
+  const sums = new Map<string, number[]>()
+  const key = (i: number) => `${position.getX(i).toFixed(5)},${position.getY(i).toFixed(5)},${position.getZ(i).toFixed(5)}`
+  for (let i = 0; i < position.count; i++) {
+    const k = key(i), sum = sums.get(k) ?? [0, 0, 0]
+    sum[0] += normal.getX(i); sum[1] += normal.getY(i); sum[2] += normal.getZ(i)
+    sums.set(k, sum)
+  }
+  for (let i = 0; i < position.count; i++) {
+    const [x, y, z] = sums.get(key(i))!, length = Math.hypot(x, y, z) || 1
+    normal.setXYZ(i, x / length, y / length, z / length)
+  }
+  normal.needsUpdate = true
 }

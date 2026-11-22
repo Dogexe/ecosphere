@@ -989,6 +989,19 @@ function RenderProbe({ onSample }: { onSample: (sample: RenderSample) => void })
   return null
 }
 
+/**
+ * Dark soil behind the cutaway nest (phase 5 of the target-look plan, 2026-11-22). Set every frame rather than
+ * with <color attach>: switching views mounted the new <color> before the old one unmounted, and the old one's
+ * detach cleared scene.background, so the canvas went transparent and the cream page showed through.
+ */
+const undergroundColor = new Color('#33231a')
+function UndergroundBackdrop() {
+  const { scene } = useThree()
+  useFrame(() => { if (scene.background !== undergroundColor) scene.background = undergroundColor })
+  useEffect(() => () => { if (scene.background === undergroundColor) scene.background = null }, [scene])
+  return null
+}
+
 /** ?debug: exposes the scene and renderer as window.__three for profiling scripts. */
 function DebugHandle() {
   const { scene, gl, camera, controls } = useThree()
@@ -1038,7 +1051,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       {paperLook && watercolorLook && !underground && !underwater && <Room world={world} />}
       {paperLook && watercolorLook && polishLook && <Polish light={coarsePointer} water={underwater ? pondWaterLook(world) : null} />}
       {underwater && <PondAtmosphere world={world} />}
-      {underground && <><color attach="background" args={['#33231a']} /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
+      {underground && <><UndergroundBackdrop /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
       <Terrain fog={fogLevel(world)} sealed={!!world.sealed} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
       {!underwater && (world.soil ?? []).map((patch) => <FungalPatch key={patch.id} patch={patch} />)}

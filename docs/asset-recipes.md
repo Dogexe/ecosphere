@@ -47,6 +47,13 @@ Keep entries short: the symptom, the cause, the fix, and where it lives.
 - **Fog does not reach custom shaders.** Scene fog skipped the soil/gravel shader, so underwater looked like
   dry bank under a black sky. Do water haze as a depth-based post effect (`UnderwaterEffect.tsx`) instead.
 
+- **Vertex colours look washed out.** Vertex colour values are linear, not sRGB: 0.46 renders pale cream. Write
+  linear values (roughly the sRGB value squared), as in the nest walls (`nestGeometry.ts`).
+- **Marching-cube walls look stair-stepped.** Unshared vertices give per-face normals; average normals by
+  position after `computeVertexNormals` (`smoothByPosition` in `nestGeometry.ts`).
+- **Background vanishes when swapping views.** Two `<color attach="background">` swapped in R3F clear it (old
+  detach runs after new attach). Set `scene.background` in `useFrame` instead (`UndergroundBackdrop`).
+
 ## Testing and deploy
 
 - **Clicks fail in scripts.** Buttons with emoji spans do not match `getByText` exactly. Give buttons a
