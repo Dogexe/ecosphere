@@ -22,7 +22,7 @@ export const antModelUnavailable = (retry: () => void) => modelUnavailable('Ant'
 // Faceted low-poly plants (Quaternius clover and fern) read as hard facets under the banded toon light.
 // Welding their vertices and averaging normals keeps the low-poly silhouette but shades the form softly,
 // as ART_DIRECTION.md's "soft organic low-poly" asks (phase 1 of the target-look plan, 2026-11-22).
-const softShaded = new Set<OrganismFile>(['natural-clover', 'natural-fern'])
+const softShaded = new Set<OrganismFile>(['natural-clover', 'natural-fern', 'leaf-grazer'])
 /** Plant kinds whose natural-look 3D model has shipped (phase 3). */
 const naturalPlantFiles = new Set<PlantKind>(['bloom', 'tree'])
 function softenNormals(root: Object3D) {

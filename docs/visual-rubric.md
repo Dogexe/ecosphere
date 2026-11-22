@@ -13,7 +13,7 @@ Claude Doc "ECOSPHERE หน้าตาสุดท้ายและแผน�
    asking for concrete fixes as well as scores. Between gates, score it yourself to save Codex quota.
 
 The sheet always shows the same shots: UI at 10:00, overview 10:00, three-quarter, macro, underground cutaway,
-underwater, overview 22:00, then six views of each `--models` GLB and one three-quarter view of every organism
+underwater, a close-up of each land animal kind, overview 22:00, then six views of each `--models` GLB and one three-quarter view of every organism
 GLB with `--lineup`. Captions carry draw calls and triangles per frame; `stats.json` keeps the numbers.
 
 ## Scores
@@ -54,3 +54,4 @@ The first baseline sheet counted about two frames and is not comparable.
 | 2026-11-22 | phase1-final | 3 | 3 | 2 | 2 | 2 | 3 | 3 | 3 | 4 | Models now load (retry), clover/fern smooth-shaded, shadow pass every other frame. Still: painted Fittonia/violet cards, flat soil, underwater reads as brown murk, underground floats on a pale backdrop |
 | 2026-11-22 | phase2-b | 3 | 3 | 3 | 2 | 3 | 3 | 3 | 3 | 4 | Underwater pass (depth haze, caustic net, Snell's window) for every material; open soil in humus/ochre/rust patches with clustered crumbs. Still: underground floats on a pale backdrop, painted Fittonia/violet cards |
 | 2026-11-22 | phase3-a | 3 | 3 | 3 | 3 | 3 | 4 | 3 | 4 | 4 | Violet and broadleaf are real 3D (Quaternius CC0 adapted, BlenderMCP/headless), no painted cards left in the natural look; underground backdrop now dark soil |
+| 2026-11-22 | phase4-b | 3 | 3 | 3 | 3 | 3 | 4 | 4 | 4 | 4 | Caterpillar repainted cabbage-white green (was a muted swallowtail texture) with smooth normals; sheet now has animal close-ups |

@@ -79,6 +79,7 @@ const frameStats = (page) => page.evaluate(() => new Promise((done) => {
   requestAnimationFrame(() => { gl.info.autoReset = false; gl.info.reset(); requestAnimationFrame(tick) })
 }))
 async function shoot(page, name, caption, { ui = false } = {}) {
+  console.log(new Date().toISOString().slice(11, 19), name)
   if (!ui) await hideUi(page)
   await page.waitForTimeout(300)
   const file = join(out, `${name}.png`)
@@ -120,6 +121,24 @@ for (const [id, name, caption] of [['view-underground', 'underground', 'Undergro
   await shoot(day, name, caption)
   await day.getByTestId('view-surface').click()
   await day.waitForTimeout(3000)
+}
+// One close-up per land animal kind present in the fixed save (first of each kind), camera aimed from the
+// ground height under it.
+for (const kind of ['grazer', 'woodlouse', 'springtail', 'beetle', 'worm']) {
+  const animal = world.creatures.find((creature) => creature.kind === kind)
+  if (!animal) continue
+  const ground = await day.evaluate(([x, z]) => {
+    const t = window.__three
+    const ray = new t.Raycaster(new (t.camera.position.constructor)(x, 6, z), new (t.camera.position.constructor)(0, -1, 0))
+    // Only the layered ground (it carries the 'below' attribute): raycasting skinned animals and
+    // instanced moss under software rendering takes minutes.
+    const ground = []
+    t.scene.traverse((node) => { if (node.isMesh && node.geometry?.attributes?.below) ground.push(node) })
+    const hit = ray.intersectObjects(ground, false)[0]
+    return hit ? hit.point.y : 0.2
+  }, [animal.x, animal.z])
+  await aim([animal.x + 0.55, ground + 0.45, animal.z + 0.55], [animal.x, ground + 0.05, animal.z])
+  await shoot(day, `animal-${kind}`, `Close-up: ${kind}`)
 }
 await day.close()
 
