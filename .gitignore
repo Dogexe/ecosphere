@@ -10,3 +10,5 @@ dist/
 # Third-party archive (re-downloadable from Kenney)
 /artifacts/kenney_nature-kit.zip
 *.log
+# Raw room-prop downloads (Kenney Furniture/Food kits, re-downloadable)
+/artifacts/candidates/room/raw/

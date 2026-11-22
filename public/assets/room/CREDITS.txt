@@ -1,0 +1,13 @@
+ECOSPHERE — room props
+
+sill-plant.glb  from "pottedPlant", Furniture Kit 2.0 by Kenney (www.kenney.nl)
+sill-books.glb  from "books", Furniture Kit 2.0 by Kenney (www.kenney.nl)
+  https://kenney.nl/assets/furniture-kit
+sill-mug.glb    from "cup", Food Kit by Kenney (www.kenney.nl)
+  https://kenney.nl/assets/food-kit
+License: Creative Commons Zero (CC0 1.0)
+https://creativecommons.org/publicdomain/zero/1.0/
+Credit is not required; given with thanks.
+Changes by ECOSPHERE: recoloured to the room palette, textures/UVs removed,
+soft shading, small bevel on book edges, origin at base centre.
+See ASSETS.md and scripts/adapt_room_props.py.
