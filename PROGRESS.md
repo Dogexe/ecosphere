@@ -167,3 +167,8 @@ Worms and ant nest (2026-11-21, owner): worms visit the glass only part of the t
 Ten-year jar (2026-11-22, owner pick): woodlouse feeding reach 0.24 -> 0.45 (only 4 fitted round a litter pocket), lily rhizome in the dormant bank, caterpillar pupae wait for 2 leafy food plants. Sealed starter keeps every kind 10 years in 11 of 12 seeds. See ECOLOGY.md.
 
 Butterflies (2026-11-22, owner): grazers pupate at 20 days and come out as cabbage whites at 30 (src/sim/butterfly.ts, src/scene/Pierid3D.tsx); only butterflies lay. 10-year sealed starter still 11/12 every kind.
+
+## 2026-11-22 Visual check tooling
+- `npm run visual -- --label <name>` (scripts/visual/capture.mjs + turntable.html): fixed-save game shots (day, night, three-quarter, macro, underground, underwater) and six-view GLB turntables on one captioned sheet with draw calls/triangles in artifacts/visual/<name>/.
+- View buttons carry data-testid. Rubric and score log: docs/visual-rubric.md. Solved-problem recipes: docs/asset-recipes.md.
+- Baseline 2026-11-22: overview 880 draw calls / 957k triangles, underwater 1.57M triangles (budget 300 / 400k).

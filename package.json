@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "build:pages": "tsc -b && vite build --base=./",
     "typecheck": "tsc -b --pretty false",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "visual": "node --experimental-strip-types scripts/visual/capture.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.0",
