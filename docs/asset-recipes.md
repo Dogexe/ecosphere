@@ -61,3 +61,12 @@ Keep entries short: the symptom, the cause, the fix, and where it lives.
 - **"model unavailable" labels in software rendering.** GLB fetches time out at 6 s when SwiftShader starves
   the page. The capture script presses Retry up to three times and reports only what still fails.
 - **Blank page on GitHub Pages.** Build with `npm run build:pages` (relative base), never plain `npm run build`.
+
+## Room props
+
+- **Kenney downloads from a script.** The asset page answers 403 without a browser User-Agent; with one, read
+  `data-download-id` from the page, GET `https://kenney.nl/download-link/<id>` (same cookies, Referer = page),
+  and fetch the returned `url` (`scripts/adapt_room_props.py` header lists the kits).
+- **All faces end up on material 0 after a recolour.** `mesh.materials.clear()` resets polygon material indices;
+  record the target index per polygon, rebuild the slots, then assign (`remap` in `adapt_room_props.py`).
+- **Leaf islands merge into one.** Leaves that touch at one point share a vertex; group islands by shared edges.
