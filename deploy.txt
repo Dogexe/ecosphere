@@ -1,1 +1,1 @@
-Deployed from claude/project-thread-t793yy 33998bb (2026-11-22): starter nest at the glass; in-nest travel pace; realistic nest windows; worms; flat chambers
+Deployed from claude/project-thread-t793yy a64e9df (2026-11-22): long-lived ant colony; starter nest at glass; realistic nest windows; worms; flat chambers
