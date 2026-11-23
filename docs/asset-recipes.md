@@ -67,6 +67,10 @@ Keep entries short: the symptom, the cause, the fix, and where it lives.
 - **Many flat-colour parts.** Bake part colours into vertex colours and merge opaque skinned parts sharing a
   skeleton at load (`mergeOpaqueSkinnedParts`, daphnia 8 → 2 draws); keep see-through shells separate.
 
+- **LOD pop-in.** Hard per-instance level switches pop. Give the level change hysteresis (8%) and dissolve
+  old into new over 0.5 s with complementary screen-space dither in separate fade materials, so only tufts
+  mid-change pay for discard and a second draw (`MossTuftField`, 2026-11-23).
+
 ## Testing and deploy
 
 - **Clicks fail in scripts.** Buttons with emoji spans do not match `getByText` exactly. Give buttons a

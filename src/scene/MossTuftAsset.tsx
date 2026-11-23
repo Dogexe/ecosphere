@@ -53,7 +53,7 @@ export function useMossTufts() {
 }
 files.forEach((file) => useGLTF.preload(file))
 
-const materials: Partial<Record<'opaque' | 'cutout', MeshStandardMaterial>> = {}
+const materials: Partial<Record<'opaque' | 'cutout' | 'opaque-fade' | 'cutout-fade', MeshStandardMaterial>> = {}
 let atlas: Texture | null = null
 /**
  * Two shared materials (optimisation brief 2026-11-08), both reading the baked shoot atlas
@@ -64,8 +64,9 @@ let atlas: Texture | null = null
  * - 'cutout' for the far levels, baked shoot cards: alpha test (no blending) with alpha-to-coverage.
  * Instance colour r browns the leaves toward dead moss after the texture lookup, g scales brightness.
  */
-export function mossTuftMaterial(kind: 'opaque' | 'cutout' = 'cutout') {
-  const made = materials[kind]
+export function mossTuftMaterial(kind: 'opaque' | 'cutout' = 'cutout', fade = false) {
+  const key = fade ? `${kind}-fade` as const : kind
+  const made = materials[key]
   if (made) return made
   if (!atlas) {
     atlas = new TextureLoader().load(`${import.meta.env.BASE_URL}assets/organisms/moss-atlas.png`)
@@ -73,24 +74,32 @@ export function mossTuftMaterial(kind: 'opaque' | 'cutout' = 'cutout') {
     atlas.colorSpace = SRGBColorSpace
     atlas.anisotropy = 4
   }
-  const material = materials[kind] = kind === 'cutout'
+  const material = materials[key] = kind === 'cutout'
     ? new MeshStandardMaterial({ map: atlas, vertexColors: true, roughness: 1, metalness: 0, side: DoubleSide, alphaTest: 0.4, alphaToCoverage: true })
     : new MeshStandardMaterial({ map: atlas, vertexColors: true, roughness: 1, metalness: 0, side: DoubleSide })
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying float vBrown;')
+      .replace('#include <common>', '#include <common>\nvarying float vBrown;\nvarying float vFade;')
       .replace('#include <color_vertex>', /* glsl */ `
         vColor = vec3(1.0);
         #ifdef USE_COLOR
           vColor *= color;
         #endif
         vBrown = 0.0;
+        vFade = 0.0;
         #ifdef USE_INSTANCING_COLOR
           vColor *= instanceColor.g;
           vBrown = instanceColor.r;
+          vFade = instanceColor.b;
         #endif`)
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vBrown;')
+      .replace('#include <common>', '#include <common>\nvarying float vBrown;\nvarying float vFade;')
+      .replace('#include <clipping_planes_fragment>', fade ? /* glsl */ `#include <clipping_planes_fragment>
+        // Level-of-detail cross-fade: a tuft between two levels is drawn by both, each keeping a
+        // complementary share of pixels (screen-space noise), so one level dissolves into the other
+        // instead of popping. vFade 0..1 keeps noise < vFade; 1..2 keeps noise >= vFade - 1.
+        float ditherNoise = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+        if (vFade < 1.0 ? ditherNoise >= vFade : ditherNoise < vFade - 1.0) discard;` : '#include <clipping_planes_fragment>')
       .replace('#include <color_fragment>', /* glsl */ `#include <color_fragment>
         // Drying moss turns olive (#85804A) then straw (#A49770), keeping its light and shade; soil stays soil.
         float luma = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
@@ -100,7 +109,7 @@ export function mossTuftMaterial(kind: 'opaque' | 'cutout' = 'cutout') {
         vec3 dead = mix(olive, straw, smoothstep(0.45, 1.0, vBrown));
         diffuseColor.rgb = mix(diffuseColor.rgb, dead, min(1.0, vBrown * 1.4) * leafy);`)
   }
-  material.customProgramCacheKey = () => 'moss-tuft'
+  material.customProgramCacheKey = () => fade ? 'moss-tuft-fade' : 'moss-tuft'
   return material
 }
 
@@ -121,6 +130,13 @@ export interface TuftSpot {
 }
 
 const up = new Vector3(0, 1, 0)
+/**
+ * Smooth level changes (owner, 2026-11-23: "smooth moss LOD, not so much pop-in"). When a tuft changes
+ * level it dissolves from the old level into the new one over `fadeTime` seconds, both drawn with
+ * complementary screen-space dither; only tufts mid-change pay for the second draw and the discard.
+ * `hysteresis` keeps a tuft on its level until its size is 8% past the boundary, so it never flickers.
+ */
+const fadeTime = 0.5, hysteresis = 1.08
 
 /**
  * Draws a set of tuft spots with per-instance level of detail chosen by on-screen size (world width
@@ -131,6 +147,7 @@ const up = new Vector3(0, 1, 0)
 export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: TuftSpot[]; near?: number; shadows?: boolean }) {
   const geometries = useMossTufts()
   const opaque = mossTuftMaterial('opaque'), cutout = mossTuftMaterial('cutout')
+  const opaqueFade = mossTuftMaterial('opaque', true), cutoutFade = mossTuftMaterial('cutout', true)
   const capacity = useMemo(() => Array.from({ length: tuftVariants }, (_, v) => Math.max(1, spots.filter((spot) => spot.variant % tuftVariants === v).length)), [spots])
   const meshes = useRef<(InstancedMesh | null)[]>([])
   const matrices = useMemo(() => spots.map((spot) => {
@@ -140,7 +157,8 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     return new Matrix4().compose(spot.position, tilt.multiply(turn), new Vector3(spot.width, height, spot.width))
   }), [spots])
   const colours = useMemo(() => spots.map((spot) => new Color(Math.min(1, Math.max(0, spot.brown)), spot.light ?? 1, 0)), [spots])
-  const state = useRef({ camera: new Vector3(Infinity, 0, 0), spots: null as TuftSpot[] | null, world: new Vector3(), origin: new Matrix4() })
+  const state = useRef({ camera: new Vector3(Infinity, 0, 0), spots: null as TuftSpot[] | null, world: new Vector3(), origin: new Matrix4(),
+    lod: { spots: null as TuftSpot[] | null, level: new Int8Array(0), previous: new Int8Array(0), since: new Float32Array(0), fading: false } })
   // Instance colours must exist before the first draw so the shader is compiled with them.
   useLayoutEffect(() => {
     meshes.current.forEach((mesh, index) => {
@@ -158,21 +176,50 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     const origin = first.parent?.matrixWorld ?? s.origin
     // Re-sort only when the camera moved noticeably or the spots changed.
     const local = s.world.copy(camera.position)
-    if (s.spots === spots && local.distanceToSquared(s.camera) < 0.04) return
+    const now = performance.now() / 1000
+    const lod = s.lod
+    if (lod.spots !== spots) { lod.spots = spots; lod.level = new Int8Array(spots.length).fill(-1); lod.previous = new Int8Array(spots.length).fill(-1); lod.since = new Float32Array(spots.length) }
+    // Re-sort when the camera moved, the spots changed, or a tuft is still dissolving between levels.
+    if (s.spots === spots && !lod.fading && local.distanceToSquared(s.camera) < 0.0025) return
     s.camera.copy(local); s.spots = spots
-    const counts = new Array(tuftVariants * levels).fill(0)
+    const counts = new Array(tuftVariants * levels * 2).fill(0)
     const scale = origin.getMaxScaleOnAxis(), close = 0.5 / near, nearest = close * 1.7, mid = close * 0.6   // measured (GPU timer): shingled lod1 costs more than cards beyond this
-    const p = new Vector3()
+    const thresholds = [nearest, close, mid]
+    const p = new Vector3(), tint = new Color()
+    const place = (level: number, variant: number, i: number, fade: number) => {
+      const slot = (fade ? levels * tuftVariants : 0) + level * tuftVariants + variant
+      const mesh = meshes.current[slot]
+      if (!mesh) return
+      const n = counts[slot]++
+      mesh.setMatrixAt(n, matrices[i])
+      mesh.setColorAt(n, tint.setRGB(colours[i].r, colours[i].g, fade))
+    }
+    lod.fading = false
     spots.forEach((spot, i) => {
       const variant = spot.variant % tuftVariants
       p.copy(spot.position).applyMatrix4(origin)
       const size = spot.width * scale / Math.max(0.01, p.distanceTo(camera.position))
-      const level = size > nearest ? 0 : size > close ? 1 : size > mid ? 2 : 3
-      const mesh = meshes.current[level * tuftVariants + variant]
-      if (!mesh) return
-      const n = counts[level * tuftVariants + variant]++
-      mesh.setMatrixAt(n, matrices[i])
-      mesh.setColorAt(n, colours[i])
+      // Hysteresis: a tuft keeps its level until its size is clearly past the boundary, so a camera
+      // resting on a boundary does not flicker between levels.
+      let level = lod.level[i]
+      const pick = (margin: number) => size > nearest * margin ? 0 : size > close * margin ? 1 : size > mid * margin ? 2 : 3
+      if (level < 0) { level = pick(1); lod.level[i] = level; lod.previous[i] = level }
+      else {
+        const finer = level > 0 && size > thresholds[level - 1] * hysteresis
+        const coarser = level < 3 && size < thresholds[level] / hysteresis
+        if (finer || coarser) { lod.previous[i] = level; level = pick(1); lod.level[i] = level; lod.since[i] = now }
+      }
+      // Dissolve from the old level into the new one over fadeTime (complementary dither in both).
+      const t = (now - lod.since[i]) / fadeTime
+      if (lod.previous[i] !== level && t < 1) {
+        const f = Math.max(0.001, t * t * (3 - 2 * t))
+        place(level, variant, i, f)
+        place(lod.previous[i], variant, i, 1 + f)
+        lod.fading = true
+        return
+      }
+      lod.previous[i] = level
+      place(level, variant, i, 0)
     })
     meshes.current.forEach((mesh, index) => {
       if (!mesh) return
@@ -183,7 +230,10 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     })
   })
   return <>
-    {geometries.flatMap((level, l) => level.map((geometry, v) => <instancedMesh key={`${l}:${v}:${capacity[v]}`} ref={(mesh) => { meshes.current[l * tuftVariants + v] = mesh }} args={[geometry, l < 2 ? opaque : cutout, capacity[v]]} castShadow={shadows && l === 0} receiveShadow raycast={() => undefined} />))}
+    {[false, true].flatMap((fade) => geometries.flatMap((level, l) => level.map((geometry, v) => {
+      const slot = (fade ? levels * tuftVariants : 0) + l * tuftVariants + v
+      return <instancedMesh key={`${fade ? 'f' : ''}${l}:${v}:${capacity[v]}`} ref={(mesh) => { meshes.current[slot] = mesh }} args={[geometry, l < 2 ? (fade ? opaqueFade : opaque) : (fade ? cutoutFade : cutout), capacity[v]]} castShadow={shadows && l === 0} receiveShadow raycast={() => undefined} />
+    })))}
   </>
 }
 
