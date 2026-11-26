@@ -51,6 +51,30 @@ import { plantFlowering, plantStage, woodlouseLife } from '../sim/life'
 import { scheduledRest } from '../sim/climate'
 import { animalGroundY, animalModelScale, animalWaterY, environmentScale, groundShape, plantGroundY, plantGrowthScale, plantModelScale, plantSeedDimensions, springtailTrackingRate } from './scale'
 import { plantCameraFocus } from './plantCamera'
+import { createMotor, disturb, drawnPosition, forgetMotor, stepMotor } from './behaviour'
+import type { Motor, MotorGoal, MotorKind } from './behaviour'
+
+/* One behaviour motor per land animal (behaviour.ts): stop-go walking, probing, huddling and startle,
+   leashed to where the ecology put the animal. */
+function useLandMotor(creature: Creature) {
+  const motor = useRef<Motor | null>(null)
+  if (!motor.current) motor.current = createMotor(creature.id, creature.x, creature.z, creature.heading)
+  useEffect(() => () => forgetMotor(creature.id), [creature.id])
+  return motor as { current: Motor }
+}
+function driveMotor(group: Group, motor: Motor, creature: Creature, kind: MotorKind, activity: MotorGoal['activity'], delta: number, speed: number, dryness?: number) {
+  if (speed > 0) stepMotor(motor, creature.id, kind, { x: creature.x, z: creature.z, heading: creature.heading, activity, dryness }, delta * Math.min(speed, 4), performance.now() / 1000)
+  group.position.x = motor.x
+  group.position.z = motor.z
+  group.rotation.y = motor.heading
+  return { ...creature, x: motor.x, z: motor.z }
+}
+/** Where an animal's body is drawn (its motor), or the ecology's point for animals without one. */
+function drawnAt(creature: Creature): Creature {
+  const at = drawnPosition(creature.id)
+  return at ? { ...creature, x: at.x, z: at.z } : creature
+}
+const restOrFeed = (resting: boolean, feeding: boolean): MotorGoal['activity'] => resting ? 'resting' : feeding ? 'feeding' : 'active'
 
 type SceneProps = {
   world: World
@@ -509,19 +533,19 @@ function Springtail({ creature, world, events, selected, onSelect, speed }: Crea
   const start = useRef<[number, number, number]>([creature.x, animalGroundY(creature), creature.z])
   const rotation = useRef<[number, number, number]>([0, creature.heading, 0])
   const feeding = creatureIsFeeding(world, creature, events)
+  const resting = scheduledRest(world, creature)
+  const motor = useLandMotor(creature)
   useFrame((_, delta) => {
     if (!group.current) return
-    motion.current = speed > 0 && Math.hypot(group.current.position.x - creature.x, group.current.position.z - creature.z) > 0.0003
     const factor = 1 - Math.exp(-delta * springtailTrackingRate)
     group.current.scale.setScalar(MathUtils.lerp(group.current.scale.x, size, factor))
-    group.current.position.x = MathUtils.lerp(group.current.position.x, creature.x, factor)
-    group.current.position.z = MathUtils.lerp(group.current.position.z, creature.z, factor)
-    group.current.position.y = animalGroundY(creature)
-    group.current.rotation.y += Math.atan2(Math.sin(creature.heading - group.current.rotation.y), Math.cos(creature.heading - group.current.rotation.y)) * factor
+    const at = driveMotor(group.current, motor.current, creature, 'springtail', restOrFeed(resting, feeding), delta, speed)
+    motion.current = speed > 0 && motor.current.speed > 0.004
+    group.current.position.y = animalGroundY(at)
   })
   return <group ref={group} position={start.current} rotation={rotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
     <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} markerRadius={0.018} />
-    {drawnAnimals ? <PaperAnimal animal="springtail" base={-0.07} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={scheduledRest(world, creature)} pooping={feeding} /> : <OrganismAsset file="springtail" shape={{ length: 0.39, base: -0.07 }} moving={motion} feeding={feeding} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={null} unavailable={(retry) => modelUnavailable('Springtail', retry)} />}
+    {drawnAnimals ? <PaperAnimal animal="springtail" base={-0.07} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={resting} pooping={feeding} /> : <OrganismAsset file="springtail" shape={{ length: 0.39, base: -0.07 }} moving={motion} feeding={feeding} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={null} unavailable={(retry) => modelUnavailable('Springtail', retry)} />}
   </group>
 }
 const grazerBody = new SphereGeometry(1, 10, 7)
@@ -541,6 +565,8 @@ function Grazer({ creature, world, events, selected, onSelect, speed }: Creature
   const startPosition = useRef<[number, number, number]>([creature.x, 0.18, creature.z])
   const startRotation = useRef<[number, number, number]>([0, creature.heading, 0])
   const feeding = creatureIsFeeding(world, creature, events)
+  const resting = scheduledRest(world, creature)
+  const motor = useLandMotor(creature)
   const strength = MathUtils.clamp((creature.energy - 10) / 40, 0, 1)
   const shellColor = new Color('#a8a38b').lerp(new Color(creature.id === 1 ? '#b98563' : '#d69b76'), strength)
   const shellHex = shellColor.getHex()
@@ -552,15 +578,14 @@ function Grazer({ creature, world, events, selected, onSelect, speed }: Creature
   useFrame((_, delta) => {
     const clock = animationClock.current
     if (!group.current) return
-    const moving = Math.hypot(group.current.position.x - creature.x, group.current.position.z - creature.z) > 0.01
-    motion.current = moving
     const factor = 1 - Math.exp(-delta * 7)
     group.current.scale.setScalar(MathUtils.lerp(group.current.scale.x, size, factor))
-    group.current.position.x = MathUtils.lerp(group.current.position.x, creature.x, factor)
-    group.current.position.z = MathUtils.lerp(group.current.position.z, creature.z, factor)
-    group.current.position.y = animalGroundY(creature) + (feeding ? Math.sin(clock.elapsedTime * 13) * 0.008 * size : 0)
-    const turn = Math.atan2(Math.sin(creature.heading - group.current.rotation.y), Math.cos(creature.heading - group.current.rotation.y))
-    group.current.rotation.y += turn * factor
+    const at = driveMotor(group.current, motor.current, creature, 'grazer', restOrFeed(resting, feeding), delta, speed)
+    const moving = speed > 0 && motor.current.speed > 0.01
+    motion.current = moving
+    group.current.position.y = animalGroundY(at) + (feeding ? Math.sin(clock.elapsedTime * 13) * 0.008 * size : 0)
+    // Head casting: the front sways side to side while it pauses to search (Dethier 1959).
+    if (motor.current.state === 'probe') group.current.rotation.y += Math.sin(clock.elapsedTime * 3.2) * 0.22
     const pose = transform.current
     for (let index = 0; index < 6; index += 1) {
       const wave = moving ? Math.sin(clock.elapsedTime * 15 - index * 0.8) : 0
@@ -591,7 +616,7 @@ function Grazer({ creature, world, events, selected, onSelect, speed }: Creature
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      {drawnAnimals ? <PaperAnimal animal="caterpillar" base={-0.145} moving={motion} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={scheduledRest(world, creature)} pooping={feeding} /> : <OrganismAsset file="leaf-grazer" shape={{ length: 0.87, base: -0.145, ...(naturalLook ? { recolor: '#7fa94e' } : {}) }} moving={motion} feeding={feeding} speed={speed} health={strength} fallback={<>
+      {drawnAnimals ? <PaperAnimal animal="caterpillar" base={-0.145} moving={motion} speed={speed} health={strength} juvenile={creature.stage === 'juvenile'} feeding={feeding} resting={resting} pooping={feeding} /> : <OrganismAsset file="leaf-grazer" shape={{ length: 0.87, base: -0.145, ...(naturalLook ? { recolor: '#7fa94e' } : {}) }} moving={motion} feeding={feeding} speed={speed} health={strength} fallback={<>
       <instancedMesh ref={body} args={[undefined, undefined, 6]} castShadow><primitive object={grazerBody} attach="geometry" /><meshStandardMaterial color="#ffffff" roughness={0.93} flatShading /></instancedMesh>
       <instancedMesh ref={legs} args={[undefined, undefined, 16]} castShadow><primitive object={grazerLeg} attach="geometry" /><meshStandardMaterial color="#9f8063" roughness={1} flatShading /></instancedMesh>
       <mesh position={[0, 0.015, 0.31]} scale={[0.145, 0.135, 0.13]} castShadow>
@@ -643,20 +668,21 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
   const life = woodlouseLife(creature)
   const size = animalModelScale(creature)
   const startScale = useRef(size)
+  const motor = useLandMotor(creature)
+  const activity: MotorGoal['activity'] = life.activity === 'fleeing' ? 'fleeing' : life.activity === 'resting' || life.activity === 'brooding' ? 'resting' : life.activity === 'feeding' || feeding ? 'feeding' : 'active'
+  const soilWater = world.soil?.length ? nearestSoil(world.soil, creature.x, creature.z).water : world.water
+  const dryness = MathUtils.clamp((60 - soilWater) / 40, 0, 1)
   if (creature.stage === 'juvenile') shell.lerp(new Color('#cfceb0'), 0.55)
   useFrame((_, delta) => {
     const clock = animationClock.current
     if (!group.current) return
-    const moving = Math.hypot(group.current.position.x - creature.x, group.current.position.z - creature.z) > 0.01
-    isMoving.current = moving && speed > 0
     const factor = 1 - Math.exp(-delta * 8)
-    group.current.position.x = MathUtils.lerp(group.current.position.x, creature.x, factor)
-    group.current.position.z = MathUtils.lerp(group.current.position.z, creature.z, factor)
-    const turn = Math.atan2(Math.sin(creature.heading - group.current.rotation.y), Math.cos(creature.heading - group.current.rotation.y))
-    group.current.rotation.y += turn * factor
+    const at = driveMotor(group.current, motor.current, creature, 'woodlouse', activity, delta, speed, dryness)
+    const moving = speed > 0 && motor.current.speed > 0.03
+    isMoving.current = moving
     yaw.current = group.current.rotation.y
     group.current.scale.setScalar(MathUtils.lerp(group.current.scale.x, size, factor))
-    group.current.position.y = animalGroundY(creature)
+    group.current.position.y = animalGroundY(at)
     if (legs.current) {
       const pose = legTransform.current
       for (let index = 0; index < 14; index += 1) {
@@ -715,18 +741,17 @@ function Beetle({ creature, world, events, selected, onSelect, speed }: Creature
   const startRotation = useRef<[number, number, number]>([0, creature.heading, 0])
   const meal = events.find((event): event is Extract<SimulationEvent, { type: 'predation' }> => event.type === 'predation' && event.predatorId === creature.id)
   const shell = new Color('#999a89').lerp(new Color('#526774'), MathUtils.clamp(creature.energy / 50, 0, 1))
+  const resting = scheduledRest(world, creature)
+  const motor = useLandMotor(creature)
   useFrame((_, delta) => {
     const clock = animationClock.current
     if (!group.current) return
-    const moving = Math.hypot(group.current.position.x - creature.x, group.current.position.z - creature.z) > 0.01
-    motion.current = moving
     const factor = 1 - Math.exp(-delta * 8)
     group.current.scale.setScalar(MathUtils.lerp(group.current.scale.x, size, factor))
-    group.current.position.x = MathUtils.lerp(group.current.position.x, creature.x, factor)
-    group.current.position.z = MathUtils.lerp(group.current.position.z, creature.z, factor)
-    const turn = Math.atan2(Math.sin(creature.heading - group.current.rotation.y), Math.cos(creature.heading - group.current.rotation.y))
-    group.current.rotation.y += turn * factor
-    group.current.position.y = animalGroundY(creature) + (moving ? Math.sin(clock.elapsedTime * 20) * 0.007 * size : 0)
+    const at = driveMotor(group.current, motor.current, creature, 'beetle', restOrFeed(resting, !!meal), delta, speed)
+    const moving = speed > 0 && motor.current.speed > 0.05
+    motion.current = moving
+    group.current.position.y = animalGroundY(at) + (moving ? Math.sin(clock.elapsedTime * 20) * 0.007 * size : 0)
     for (let index = 0; index < legs.current.length; index += 1) {
       const leg = legs.current[index]
       if (leg) leg.rotation.y = moving ? Math.sin(clock.elapsedTime * 22 + (index % 2) * Math.PI) * 0.23 : 0
@@ -736,7 +761,7 @@ function Beetle({ creature, world, events, selected, onSelect, speed }: Creature
   return (
     <group ref={group} position={startPosition.current} rotation={startRotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
       <AnimalInteraction scale={size} y={animalGroundY(creature)} selected={selected} />
-      {drawnAnimals ? <PaperAnimal animal="tiger-beetle" base={-0.145} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={!!meal} resting={scheduledRest(world, creature)} /> : <OrganismAsset file="tiger-beetle" shape={{ length: 0.75, base: -0.145 }} moving={motion} feeding={!!meal} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={<>
+      {drawnAnimals ? <PaperAnimal animal="tiger-beetle" base={-0.145} moving={motion} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} juvenile={creature.stage === 'juvenile'} feeding={!!meal} resting={resting} /> : <OrganismAsset file="tiger-beetle" shape={{ length: 0.75, base: -0.145 }} moving={motion} feeding={!!meal} speed={speed} health={MathUtils.clamp(creature.energy / 50, 0, 1)} fallback={<>
       {[-1, 1].map((side, sideIndex) => <group key={side}>
         {[0, 1, 2].map((index) => <group key={index} ref={(leg) => { legs.current[sideIndex * 3 + index] = leg }} position={[side * 0.14, -0.035, index * 0.17 - 0.2]}>
           <mesh position={[side * 0.075, -0.015, 0]} rotation={[0, 0, side * 1.2]}><cylinderGeometry args={[0.018, 0.02, 0.19, 5]} /><meshStandardMaterial color="#9b876d" roughness={0.95} /></mesh>
@@ -765,7 +790,8 @@ function Fauna({ world, events, worldRevision, selectedCreature, placing, onPlac
     let closest = animalTargetPixels / 2
     let chosen = fallback
     for (const candidate of world.creatures) {
-      const center = new Vector3(candidate.x, isAquatic(candidate.kind) ? animalWaterY(candidate.kind) : animalGroundY(candidate), candidate.z).project(camera)
+      const body = drawnAt(candidate)
+      const center = new Vector3(body.x, isAquatic(candidate.kind) ? animalWaterY(candidate.kind) : animalGroundY(body), body.z).project(camera)
       if (center.z < -1 || center.z > 1) continue
       const distance = new Vector2((center.x - pointer.x) * size.width / 2, (center.y - pointer.y) * size.height / 2).length()
       if (distance < closest) { closest = distance; chosen = candidate }
@@ -906,11 +932,12 @@ function WatchingControls({ creature, plant, ant, surfacePose, remains }: { crea
       focus.current = { ...focus.current, id, remaining: micro ? 3.2 : 1.4, distance: subject ? 0.65 : creature ? micro ? 0.12 : 3.2 : plantFrame?.distance ?? focus.current.previous }
     }
     const factor = 1 - Math.exp(-delta * (micro ? springtailTrackingRate : 3))
+    const followed = creature ? drawnAt(creature) : null
     const trackingPlant = plantFrame && autoPlant.current
     const tracking = subject && (!remains || autoPlant.current) || creature || trackingPlant || focus.current.remaining > 0
-    const dx = tracking ? ((subject?.x ?? creature?.x ?? plantFrame?.x ?? 0) - target.x) * factor : 0
-    const dz = tracking ? ((subject?.z ?? creature?.z ?? plantFrame?.z ?? 0) - target.z) * factor : 0
-    const targetY = subject?.y ?? (creature ? isAquatic(creature.kind) ? animalWaterY(creature.kind) : animalGroundY(creature) : plantFrame?.y ?? (frontView ? 0.4 : -0.4))
+    const dx = tracking ? ((subject?.x ?? followed?.x ?? plantFrame?.x ?? 0) - target.x) * factor : 0
+    const dz = tracking ? ((subject?.z ?? followed?.z ?? plantFrame?.z ?? 0) - target.z) * factor : 0
+    const targetY = subject?.y ?? (followed ? isAquatic(followed.kind) ? animalWaterY(followed.kind) : animalGroundY(followed) : plantFrame?.y ?? (frontView ? 0.4 : -0.4))
     const dy = tracking ? (targetY - target.y) * factor : 0
     target.x += dx; target.y += dy; target.z += dz
     camera.position.x += dx; camera.position.y += dy; camera.position.z += dz
@@ -1053,7 +1080,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><UndergroundBackdrop /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
-      <Terrain fog={fogLevel(world)} sealed={!!world.sealed} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
+      <Terrain fog={fogLevel(world)} sealed={!!world.sealed} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; disturb(x, z); if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
       {!underwater && (world.soil ?? []).map((patch) => <FungalPatch key={patch.id} patch={patch} />)}
       <RemainsField world={viewWorld} />
       {naturalLook && <RootsOnGlass plants={viewWorld.plants} />}

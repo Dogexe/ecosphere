@@ -1,5 +1,18 @@
 # ECOSPHERE development progress
 
+## Living behaviour, land animals — 2026-11-26
+
+Owner asked for creature behaviour that is "realistic and very dynamic, nice to just watch", and picked land animals first. The ecology still decides once per model hour where an animal is and what it is doing; a new per-frame layer (`src/scene/behaviour.ts`) gives each woodlouse, springtail, tiger beetle, caterpillar and surface ant a "motor" that moves like the real animal while staying leashed to that point. Visual only: no change to the sim, the food web or the save.
+
+- Woodlice walk in bouts and stop, sweep their front end while pausing, walk more and faster in dry soil (orthokinesis, Gunn 1937, J Exp Biol 14:178) and crowd together touching when they rest (Broly, Deneubourg & Devigne 2013, Insectes Sociaux 60:419).
+- Springtails (Mesaphorura, reduced springing organ) creep slowly with long pauses and flinch instead of jumping (Hopkin 1997, Biology of the Springtails).
+- Tiger beetles run in short run-stop-run bursts (Gilbert 1997, J Comp Physiol A 181:217).
+- Caterpillars crawl slowly and cast their head side to side while they pause (Dethier 1959, Can Entomol 91:554).
+- Surface ants run the colony's trails at a real harvester pace (3.4 cm/s, J Exp Biol 181:49) and stop for a moment of antennal contact when they meet a nestmate (Greene & Gordon 2003, Nature 423:32).
+- Tapping the ground startles nearby animals: woodlice, beetles and ants spin and bolt away; springtails and caterpillars flinch.
+- Animals turn at a limited rate, ease into and out of walking, keep their own space and never step into the pond or through the glass. Picking and the follow camera aim at the drawn body.
+- Paused time freezes them, as before. Measured in the starter jar at 1x: woodlice are still 31-47% of the time with 4 walking bouts per 30 s instead of a constant glide.
+
 ## Earthworms — 2026-11-21
 
 Owner's pick from the new-species card. Red earthworms (Eisenia fetida, kind `worm`, jar holds 3) live in the soil:

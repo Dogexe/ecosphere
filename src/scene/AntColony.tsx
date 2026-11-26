@@ -11,6 +11,8 @@ import { animalTargetPixels, worldPickRadius } from './picking'
 import { chamberRadius, nestFrame, prepareField } from './nestGeometry'
 import { antSupportTranslation } from './antSupport'
 import { groundShape } from './scale'
+import { createMotor, forgetMotor, stepMotor } from './behaviour'
+import type { Motor } from './behaviour'
 import { useNestGeometry } from './useNestGeometry'
 import type { Remains } from '../sim/life'
 import { antRemainsInView } from './AntRemains'
@@ -61,6 +63,9 @@ function AntModel({ colony, ant, speed, selected, feeding, onPick, field, center
   const body = useRef<Group>(null), marker = useRef<Group>(null), envelope = useRef<Box3 | null>(null)
   const localCenter = useRef(new Vector3())
   const lastPose = useRef('')
+  // Surface ants get a behaviour motor (behaviour.ts): trail running with brief antennal contacts.
+  const motor = useRef<Motor | null>(null), motorId = 1_000_000 + ant.id
+  useEffect(() => () => forgetMotor(motorId), [motorId])
   const measure = useCallback((bounds: Box3) => { envelope.current = bounds.clone().expandByScalar(0.012); bounds.getCenter(localCenter.current); lastPose.current = '' }, [])
   const bornScale = ant.caste === 'worker' ? Math.cbrt(ant.body / 0.04) : 1
   // Surface ants walk on the jar's ground, which is uneven in a poured jar.
@@ -88,7 +93,16 @@ function AntModel({ colony, ant, speed, selected, feeding, onPick, field, center
   const { camera, size } = useThree()
   useFrame((_, delta) => {
     if (!root.current) return
-    {
+    if (ant.location.kind === 'surface') {
+      const location = ant.location
+      if (!motor.current) motor.current = createMotor(motorId, root.current.position.x, root.current.position.z, location.heading)
+      const m = motor.current
+      if (speed > 0) stepMotor(m, motorId, 'ant', { x: location.x, z: location.z, heading: location.heading, activity: feeding ? 'feeding' : 'active' }, delta * Math.min(speed, 4), performance.now() / 1000)
+      root.current.position.set(m.x, target.y - groundShape.offset(target.x, target.z) + groundShape.offset(m.x, m.z), m.z)
+      moving.current = speed > 0 && m.speed > 0.05
+      root.current.quaternion.slerp(orientation(new Vector3(Math.sin(m.heading), 0, Math.cos(m.heading))), 1 - Math.exp(-delta * 20))
+    } else {
+      if (motor.current) { forgetMotor(motorId); motor.current = null }
       const before = previous.current.copy(root.current.position)
       // Settling to a changed fixed-step state also works with paused +1h.
       // Imported clip clocks still freeze at speed0, as with existing fauna.
