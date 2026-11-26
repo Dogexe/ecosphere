@@ -121,3 +121,25 @@ test('a courting male woodlouse keeps close behind his partner', () => {
   assert.ok(near > 100, `close behind her most of the time (${near}/149)`)
   forgetMotor(920); forgetMotor(921)
 })
+
+import { temperament, temperamentWords } from '../src/scene/behaviour.ts'
+
+test('each animal has its own lasting temperament, and shy woodlice sometimes freeze', () => {
+  assert.deepEqual(temperament(7), temperament(7))
+  const bolds = Array.from({ length: 200 }, (_, id) => temperament(id).bold)
+  assert.ok(Math.min(...bolds) < 0.1 && Math.max(...bolds) > 0.9, 'a spread of boldness')
+  assert.ok(temperamentWords(3).length >= 2)
+  // Across many shy woodlice tapped once, some freeze in place and some run.
+  let froze = 0, ran = 0
+  for (let id = 1000; id < 1200; id += 1) {
+    if (temperament(id).bold > 0.3) continue
+    const goal = { x: -1.5, z: -1.2, heading: 0, activity: 'active' }
+    const m = createMotor(id, goal.x, goal.z, 0)
+    stepMotor(m, id, 'woodlouse', goal, 1 / 30, 900 + id)
+    disturb(goal.x + 0.1, goal.z, 900 + id)
+    stepMotor(m, id, 'woodlouse', goal, 1 / 30, 900 + id)
+    if (m.state === 'startle') { if (m.frozen) froze += 1; else ran += 1 }
+    forgetMotor(id)
+  }
+  assert.ok(froze > 3 && ran > 3, `froze ${froze}, ran ${ran}`)
+})

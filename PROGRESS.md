@@ -1,5 +1,15 @@
 # ECOSPHERE development progress
 
+## Behaviour: individual temperament — 2026-11-26
+
+Fourth step of the behaviour layer (owner: "ลุย"). Each animal now has a lasting temperament fixed by its id (no save change), from consistent individual differences in animals (Réale et al. 2007, Biol Rev 82:291):
+
+- Bold to shy: how close a tap or a hunter can come before it reacts (0.65-1.35 x the species distance).
+- Restless to unhurried: longer walks and shorter pauses, or the reverse.
+- Quick to slow: walking pace within +-15%.
+- Shy woodlice sometimes freeze in tonic immobility for 2-6 s instead of running when tapped; bold ones run (Porcellio scaber personality, Tuf, Drábková & Šipoš 2015, ZooKeys 515:159).
+- The animal card shows it, for example "Temperament: bold · restless". 309 tests pass.
+
 ## Behaviour scenes: hunts and courtship — 2026-11-26
 
 Third step of the behaviour layer (owner: "ไปต่อ"). Still visual only.

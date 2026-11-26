@@ -36,6 +36,11 @@
  *   close by startles away. A chase that ends in a strike is a near miss here: kills stay with the ecology.
  * - Courting woodlice: the male follows his partner closely and taps her with his antennae before mating
  *   (general account of oniscidean courtship, Warburg 1993, Evolutionary Biology of Land Isopods, Springer).
+ * - Individuality: animals of one species differ consistently in boldness and activity (animal
+ *   personality; Réale et al. 2007, Biol Rev 82:291, https://doi.org/10.1111/j.1469-185X.2007.00010.x).
+ *   Woodlice in particular differ in how they meet a threat: some run, others freeze in tonic immobility
+ *   (Tuf, Drábková & Šipoš 2015, ZooKeys 515:159). Each animal's temperament comes from its id, so it is
+ *   the same every session and needs nothing in the save.
  * - Caterpillar (cabbage white larva): slow crawling with pauses, and side-to-side head casting while it
  *   searches for food (Dethier 1959, Can Entomol 91:554-561, on lepidopteran larval search).
  */
@@ -64,6 +69,22 @@ export interface Motor {
   restUntil: number
   /** Prey: last time it fled a hunter. */
   fled: number
+  /** This startle is tonic immobility (a shy woodlouse freezing instead of running). */
+  frozen: boolean
+  temper: Temperament
+}
+
+/** Consistent individual differences, 0..1 each, fixed by the animal's id. */
+export interface Temperament { bold: number; busy: number; quick: number }
+export function temperament(id: number): Temperament {
+  let h = (id + 0x9e3779b9) | 0
+  const next = () => { h = Math.imul(h ^ (h >>> 16), 0x45d9f3b); h = Math.imul(h ^ (h >>> 16), 0x45d9f3b); h ^= h >>> 16; return (h >>> 0) / 4294967296 }
+  return { bold: next(), busy: next(), quick: next() }
+}
+/** Words for the animal card. */
+export function temperamentWords(id: number) {
+  const t = temperament(id)
+  return [t.bold > 0.66 ? 'bold' : t.bold < 0.33 ? 'shy' : 'steady', t.busy > 0.66 ? 'restless' : t.busy < 0.33 ? 'unhurried' : 'even-paced', ...(t.quick > 0.8 ? ['quick'] : t.quick < 0.2 ? ['slow'] : [])]
 }
 
 export interface MotorProfile {
@@ -114,7 +135,7 @@ const between = (motor: Motor, [a, b]: [number, number]) => a + (b - a) * rand(m
 const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))
 
 export function createMotor(id: number, x: number, z: number, heading: number): Motor {
-  return { x, z, heading, speed: 0, state: 'pause', timer: 0.2 + (id % 7) * 0.15, aim: heading, seed: 1 + ((id * 7919) % 2147483646), sweep: 0, startled: -Infinity, greeted: -Infinity, chasing: false, restUntil: 0, fled: -Infinity }
+  return { x, z, heading, speed: 0, state: 'pause', timer: 0.2 + (id % 7) * 0.15, aim: heading, seed: 1 + ((id * 7919) % 2147483646), sweep: 0, startled: -Infinity, greeted: -Infinity, chasing: false, restUntil: 0, fled: -Infinity, frozen: false, temper: temperament(id) }
 }
 
 /* Taps on the ground disturb nearby animals. Kept outside React so every motor can read it cheaply. */
@@ -147,15 +168,20 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
   const dx = goal.x - motor.x, dz = goal.z - motor.z, far = Math.hypot(dx, dz)
   const towardGoal = Math.atan2(dx, dz)
   const dry = kind === 'woodlouse' ? goal.dryness ?? 0.3 : 0.3
-  const pace = 0.75 + dry * 0.6
+  const t = motor.temper
+  const pace = (0.75 + dry * 0.6) * (0.85 + t.quick * 0.3)
+  const scare = profile.scare * (1.35 - t.bold * 0.7)
+  const walkBout = profile.walkBout.map((v) => v * (0.7 + t.busy * 0.6)) as [number, number]
+  const pauseBout = profile.pauseBout.map((v) => v * (1.3 - t.busy * 0.6)) as [number, number]
 
   // A tap nearby: bolt away, or flinch and back off. Only once per tap.
   const tapAge = now - disturbance.at
-  if (tapAge < 0.4 && disturbance.at !== motor.startled && Math.hypot(disturbance.x - motor.x, disturbance.z - motor.z) < profile.scare) {
+  if (tapAge < 0.4 && disturbance.at !== motor.startled && Math.hypot(disturbance.x - motor.x, disturbance.z - motor.z) < scare) {
     motor.startled = disturbance.at
     motor.state = 'startle'
     motor.aim = Math.atan2(motor.x - disturbance.x, motor.z - disturbance.z) + (rand(motor) - 0.5) * 0.8
-    motor.timer = profile.scareStyle === 'bolt' ? between(motor, [0.6, 1.3]) : profile.scareStyle === 'freeze' ? between(motor, [2, 4]) : profile.scareStyle === 'backflip' ? between(motor, [0.2, 0.35]) : between(motor, [0.25, 0.5])
+    motor.frozen = kind === 'woodlouse' && rand(motor) < (1 - t.bold) * 0.6
+    motor.timer = motor.frozen ? between(motor, [2, 6]) : profile.scareStyle === 'bolt' ? between(motor, [0.6, 1.3]) : profile.scareStyle === 'freeze' ? between(motor, [2, 4]) : profile.scareStyle === 'backflip' ? between(motor, [0.2, 0.35]) : between(motor, [0.25, 0.5])
     if (profile.scareStyle === 'flinch') motor.heading = wrap(motor.heading + (rand(motor) - 0.5) * 0.6)
     // A shrimp faces the threat and shoots backwards, away from it.
     if (profile.scareStyle === 'backflip') { motor.heading = wrap(motor.aim + Math.PI); motor.aim = motor.heading }
@@ -164,8 +190,8 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
 
   // Prey that sees a hunter running at it close by bolts (or flinches) away from it.
   if (preyKinds.includes(kind) && motor.state !== 'startle' && now - motor.fled > 1.5) for (const [, at] of drawn) {
-    if (!at.hunting || Math.hypot(at.x - motor.x, at.z - motor.z) > profile.scare * 1.1) continue
-    motor.fled = now; motor.state = 'startle'
+    if (!at.hunting || Math.hypot(at.x - motor.x, at.z - motor.z) > scare * 1.1) continue
+    motor.fled = now; motor.state = 'startle'; motor.frozen = false
     motor.aim = Math.atan2(motor.x - at.x, motor.z - at.z) + (rand(motor) - 0.5) * 0.6
     motor.timer = profile.scareStyle === 'bolt' ? between(motor, [0.7, 1.4]) : between(motor, [0.3, 0.6])
     break
@@ -207,12 +233,12 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
     else { motor.state = 'probe'; motor.timer = 0.4; motor.sweep = motor.sweep || now; motor.aim = partner!.heading }
   } else if (motor.state === 'startle') {
     motor.chasing = false
-    if (motor.timer <= 0) { motor.state = 'pause'; motor.timer = between(motor, profile.pauseBout) * 1.5 }
+    if (motor.timer <= 0) { motor.state = 'pause'; motor.timer = between(motor, pauseBout) * 1.5 }
   } else if (goal.activity === 'fleeing' || far > profile.leash) {
     // Travel: the ecology moved it on (or it is fleeing). Walk there with short stops only when close.
     if ((motor.state !== 'walk' && motor.state !== 'pause') || motor.timer <= 0) {
       motor.state = far > profile.leash * 2 || goal.activity === 'fleeing' ? 'walk' : rand(motor) < 0.25 ? 'pause' : 'walk'
-      motor.timer = motor.state === 'walk' ? between(motor, profile.walkBout) : between(motor, profile.pauseBout) * 0.4
+      motor.timer = motor.state === 'walk' ? between(motor, walkBout) : between(motor, pauseBout) * 0.4
     }
     motor.aim = towardGoal + (rand(motor) - 0.5) * profile.wobble * dt * 6
   } else if (goal.activity === 'resting') {
@@ -232,11 +258,11 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
     // Idle or foraging around its spot: stop-go bouts, with probing during some pauses.
     if (motor.state === 'walk') {
       motor.state = rand(motor) < profile.probe ? 'probe' : 'pause'
-      motor.timer = between(motor, profile.pauseBout) / pace
+      motor.timer = between(motor, pauseBout) / pace
       motor.sweep = now
     } else {
       motor.state = 'walk'
-      motor.timer = between(motor, profile.walkBout) * pace
+      motor.timer = between(motor, walkBout) * pace
       // A new walking direction: mostly onward, pulled back toward the spot when it strays.
       const pull = Math.min(1, far / profile.wander)
       const onward = motor.heading + (rand(motor) - 0.5) * 2.2
@@ -271,8 +297,8 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
 
   // Speed eases up and down (no instant starts), faster when far behind or startled.
   const catchUp = far > profile.leash ? Math.min(3, far / profile.leash) : 1
-  const target = motor.state === 'startle' ? profile.scareStyle === 'freeze' ? 0 : profile.run : motor.state === 'walk' ? motor.chasing ? profile.run : profile.walk * pace * catchUp : 0
-  const ease = profile.coast && target < motor.speed ? profile.coast : profile.scareStyle === 'freeze' && motor.state === 'startle' ? 30 : 6
+  const target = motor.state === 'startle' ? profile.scareStyle === 'freeze' || motor.frozen ? 0 : profile.run : motor.state === 'walk' ? motor.chasing ? profile.run : profile.walk * pace * catchUp : 0
+  const ease = profile.coast && target < motor.speed ? profile.coast : (profile.scareStyle === 'freeze' || motor.frozen) && motor.state === 'startle' ? 30 : 6
   motor.speed += (Math.min(target, profile.run * 1.5) - motor.speed) * Math.min(1, dt * ease)
   // Turn on the spot first: barely creep forward until roughly facing the new direction.
   const facing = motor.state === 'startle' && profile.scareStyle === 'backflip' ? -1 : Math.cos(turn) > 0.3 ? 1 : 0.15

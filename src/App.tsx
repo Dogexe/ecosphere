@@ -43,6 +43,7 @@ import { oddObjectSize } from './scene/OddObjects'
 import type { DecorKind, JarShape } from './sim/substrate'
 import type { CareAdvice, CareAlert } from './sim/care'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
+import { temperamentWords } from './scene/behaviour'
 
 /**
  * Time pace (systems pass item 5, 2026-11-20). 1× is one model hour per 480 ms (a day in about
@@ -700,6 +701,7 @@ export function App() {
               : focusedPhase === 'butterfly' ? focusedCreatureFeeding ? 'Sipping nectar from a flower to fuel its flight.' : 'Flying between flowers and the leaves it lays its eggs on. A butterfly lives about ten model days.'
               : focusedCreature.energy < 24 ? 'Running low on energy. It needs living plants to survive.' : focusedCreatureFeeding ? 'Nibbling nearby leaves and storing energy from its meal.' : 'Searching the terrarium for its next meal.'}</p>
             <Meter label="Energy" value={focusedCreature.energy} display={`${Math.round(focusedCreature.energy)}%`} tone="gold" />
+            {focusedKind !== 'worm' && focusedPhase !== 'pupa' && focusedPhase !== 'butterfly' && <div className="patch-litter" data-testid="temperament">Temperament: {temperamentWords(focusedCreature.id).join(' · ')}</div>}
             {focusedLife && <><div className="patch-litter">{focusedLife.sex} · {resting ? 'resting' : focusedLife.activity}{focusedLife.gut > 0 ? ' · digesting' : ''}<br />Body {focusedLife.mass.toFixed(3)} units{focusedLife.parentId !== null ? ` · Mother #${focusedLife.parentId + 1}` : ''}{focusedLife.brood > 0 ? ` · Brood ${focusedLife.gestation} h to release` : ''}</div><Meter label="Hydration" value={focusedLife.hydration} display={`${Math.round(focusedLife.hydration)}%`} tone="blue" /></>}
             {focusedKind === 'woodlouse' && creatureSoil && <Meter label="Nearby moisture" value={creatureSoil.water} display={`${Math.round(creatureSoil.water)}%`} tone="blue" />}
             <button className="back-link" type="button" onClick={() => setFollowCreature(followCreature === focusedCreature.id ? null : focusedCreature.id)}>{followCreature === focusedCreature.id ? 'Stop following' : 'Follow this animal'}</button>
