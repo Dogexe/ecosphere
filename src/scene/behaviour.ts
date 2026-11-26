@@ -31,6 +31,11 @@
  * - Ramshorn snail: a slow continuous glide on its foot; when disturbed it withdraws and stays still.
  * - Cherry shrimp: short walks and long pauses picking at the film; escapes with a backward tail flip
  *   (caridean escape, Arnott, Neil & Ansell 1998, J Exp Biol 201:1771, https://doi.org/10.1242/jeb.201.11.1771).
+ * - Hunting tiger beetle: when the ecology says it is hunting, it sights the nearest prey and closes in
+ *   run-stop-run (Gilbert 1997, above); a woodlouse, springtail or caterpillar that sees a running hunter
+ *   close by startles away. A chase that ends in a strike is a near miss here: kills stay with the ecology.
+ * - Courting woodlice: the male follows his partner closely and taps her with his antennae before mating
+ *   (general account of oniscidean courtship, Warburg 1993, Evolutionary Biology of Land Isopods, Springer).
  * - Caterpillar (cabbage white larva): slow crawling with pauses, and side-to-side head casting while it
  *   searches for food (Dethier 1959, Can Entomol 91:554-561, on lepidopteran larval search).
  */
@@ -54,6 +59,11 @@ export interface Motor {
   startled: number
   /** When it last stopped to touch antennae. */
   greeted: number
+  /** Hunters: running down prey right now, and no new chase before this time. */
+  chasing: boolean
+  restUntil: number
+  /** Prey: last time it fled a hunter. */
+  fled: number
 }
 
 export interface MotorProfile {
@@ -104,7 +114,7 @@ const between = (motor: Motor, [a, b]: [number, number]) => a + (b - a) * rand(m
 const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle))
 
 export function createMotor(id: number, x: number, z: number, heading: number): Motor {
-  return { x, z, heading, speed: 0, state: 'pause', timer: 0.2 + (id % 7) * 0.15, aim: heading, seed: 1 + ((id * 7919) % 2147483646), sweep: 0, startled: -Infinity, greeted: -Infinity }
+  return { x, z, heading, speed: 0, state: 'pause', timer: 0.2 + (id % 7) * 0.15, aim: heading, seed: 1 + ((id * 7919) % 2147483646), sweep: 0, startled: -Infinity, greeted: -Infinity, chasing: false, restUntil: 0, fled: -Infinity }
 }
 
 /* Taps on the ground disturb nearby animals. Kept outside React so every motor can read it cheaply. */
@@ -112,7 +122,8 @@ let disturbance = { x: 0, z: 0, at: -Infinity }
 export function disturb(x: number, z: number, at = performance.now() / 1000) { disturbance = { x, z, at } }
 
 /* Where each animal is drawn, so picking and the follow camera aim at the body and not the ecology's point. */
-const drawn = new Map<number, { x: number; z: number; kind: MotorKind; resting: boolean }>()
+const drawn = new Map<number, { x: number; z: number; heading: number; kind: MotorKind; resting: boolean; hunting?: boolean }>()
+const preyKinds: MotorKind[] = ['woodlouse', 'springtail', 'grazer']
 export function drawnPosition(id: number) { return drawn.get(id) }
 export function forgetMotor(id: number) { drawn.delete(id) }
 if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug')) (window as unknown as { __motors: typeof drawn }).__motors = drawn
@@ -122,6 +133,11 @@ export interface MotorGoal {
   activity: 'feeding' | 'resting' | 'fleeing' | 'active'
   /** 0 damp .. 1 dry: woodlice walk more and faster in dry air (orthokinesis). */
   dryness?: number
+  /** Beetles: the ecology says it is hungry and hunting. */
+  hunting?: boolean
+  /** Courting woodlice: the partner's id, and whether this one is the male (who follows). */
+  partner?: number | null
+  male?: boolean
 }
 
 /** Advances one motor by `dt` seconds toward the ecology's goal. `now` is in seconds. Returns the motor. */
@@ -146,8 +162,51 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
     if (profile.scareStyle === 'freeze') motor.aim = motor.heading
   }
 
+  // Prey that sees a hunter running at it close by bolts (or flinches) away from it.
+  if (preyKinds.includes(kind) && motor.state !== 'startle' && now - motor.fled > 1.5) for (const [, at] of drawn) {
+    if (!at.hunting || Math.hypot(at.x - motor.x, at.z - motor.z) > profile.scare * 1.1) continue
+    motor.fled = now; motor.state = 'startle'
+    motor.aim = Math.atan2(motor.x - at.x, motor.z - at.z) + (rand(motor) - 0.5) * 0.6
+    motor.timer = profile.scareStyle === 'bolt' ? between(motor, [0.7, 1.4]) : between(motor, [0.3, 0.6])
+    break
+  }
+
+  // A hunting beetle sights the nearest prey within reach of its leash and runs it down in bursts.
+  let quarry: { x: number; z: number } | null = null
+  if (kind === 'beetle' && goal.hunting && goal.activity !== 'resting' && motor.state !== 'startle' && now >= motor.restUntil) {
+    let best = 1.4
+    for (const [, at] of drawn) {
+      if (!preyKinds.includes(at.kind)) continue
+      const d = Math.hypot(at.x - motor.x, at.z - motor.z)
+      if (d < best && Math.hypot(at.x - goal.x, at.z - goal.z) < profile.leash * 2.5) { best = d; quarry = at }
+    }
+  }
+  // A courting male keeps close behind his partner, tapping her with his antennae.
+  const partner = goal.male && goal.partner != null ? drawn.get(goal.partner) : undefined
+  const courting = !!partner && partner.kind === kind && Math.hypot(partner.x - goal.x, partner.z - goal.z) < profile.leash * 3
+
+  if (!quarry) motor.chasing = false
   motor.timer -= dt
-  if (motor.state === 'startle') {
+  if (quarry && motor.state !== 'startle') {
+    const qd = Math.hypot(quarry.x - motor.x, quarry.z - motor.z)
+    motor.chasing = true
+    if (qd < 0.14) {
+      // Strike: it lunges and bites at nothing; the prey is off. Rest a while before hunting again.
+      motor.state = 'feed'; motor.timer = between(motor, [0.8, 1.6]); motor.chasing = false
+      motor.restUntil = now + between(motor, [5, 10])
+    } else if (motor.timer <= 0 || (motor.state !== 'walk' && motor.state !== 'pause')) {
+      // Run-stop-run: a short burst, then a stop to look again.
+      motor.state = motor.state === 'walk' ? 'pause' : 'walk'
+      motor.timer = motor.state === 'walk' ? between(motor, [0.25, 0.55]) : between(motor, [0.12, 0.35])
+    }
+    motor.aim = Math.atan2(quarry.x - motor.x, quarry.z - motor.z)
+  } else if (courting && motor.state !== 'startle') {
+    motor.chasing = false
+    const bx = partner!.x - Math.sin(partner!.heading) * profile.spacing * 0.6, bz = partner!.z - Math.cos(partner!.heading) * profile.spacing * 0.6
+    if (Math.hypot(bx - motor.x, bz - motor.z) > profile.spacing * 0.25) { motor.state = 'walk'; motor.aim = Math.atan2(bx - motor.x, bz - motor.z); motor.timer = 0.2 }
+    else { motor.state = 'probe'; motor.timer = 0.4; motor.sweep = motor.sweep || now; motor.aim = partner!.heading }
+  } else if (motor.state === 'startle') {
+    motor.chasing = false
     if (motor.timer <= 0) { motor.state = 'pause'; motor.timer = between(motor, profile.pauseBout) * 1.5 }
   } else if (goal.activity === 'fleeing' || far > profile.leash) {
     // Travel: the ecology moved it on (or it is fleeing). Walk there with short stops only when close.
@@ -197,7 +256,7 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
   // Keep apart from same-kind neighbours unless resting together.
   let pushX = 0, pushZ = 0
   if (motor.state !== 'rest') for (const [other, at] of drawn) {
-    if (other === id || at.kind !== kind) continue
+    if (other === id || at.kind !== kind || (courting && other === goal.partner)) continue
     const ox = motor.x - at.x, oz = motor.z - at.z, d = Math.hypot(ox, oz)
     if (d > 1e-6 && d < profile.spacing) { pushX += ox / d * (profile.spacing - d); pushZ += oz / d * (profile.spacing - d) }
   }
@@ -212,7 +271,7 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
 
   // Speed eases up and down (no instant starts), faster when far behind or startled.
   const catchUp = far > profile.leash ? Math.min(3, far / profile.leash) : 1
-  const target = motor.state === 'startle' ? profile.scareStyle === 'freeze' ? 0 : profile.run : motor.state === 'walk' ? profile.walk * pace * catchUp : 0
+  const target = motor.state === 'startle' ? profile.scareStyle === 'freeze' ? 0 : profile.run : motor.state === 'walk' ? motor.chasing ? profile.run : profile.walk * pace * catchUp : 0
   const ease = profile.coast && target < motor.speed ? profile.coast : profile.scareStyle === 'freeze' && motor.state === 'startle' ? 30 : 6
   motor.speed += (Math.min(target, profile.run * 1.5) - motor.speed) * Math.min(1, dt * ease)
   // Turn on the spot first: barely creep forward until roughly facing the new direction.
@@ -226,7 +285,7 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
   const leashX = nx - goal.x, leashZ = nz - goal.z, leash = Math.hypot(leashX, leashZ), hard = profile.leash * 3
   if (leash > hard) { nx = goal.x + leashX / leash * hard; nz = goal.z + leashZ / leash * hard }
   motor.x = nx; motor.z = nz
-  drawn.set(id, { x: motor.x, z: motor.z, kind, resting: motor.state === 'rest' })
+  drawn.set(id, { x: motor.x, z: motor.z, heading: motor.heading, kind, resting: motor.state === 'rest', hunting: motor.chasing && motor.state === 'walk' })
   return motor
 }
 

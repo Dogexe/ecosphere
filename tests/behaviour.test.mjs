@@ -88,3 +88,36 @@ test('pond animals stay in the water and react to a tap in their own way', () =>
   assert.ok(Math.hypot(snail.x - still.x, snail.z - still.z) < 0.005, 'snail froze')
   forgetMotor(906)
 })
+
+test('a hunting beetle runs prey down in bursts and the prey bolts', () => {
+  const beetle = createMotor(910, -1.5, -1.2, Math.PI / 2), prey = createMotor(911, -0.9, -1.2, 0)
+  const bGoal = { x: -1.5, z: -1.2, heading: 0, activity: 'active', hunting: true }, pGoal = { x: -0.9, z: -1.2, heading: 0, activity: 'active' }
+  let chased = false, fled = false, closest = Infinity
+  for (let i = 0; i < 150; i += 1) {
+    const t = 500 + i / 30
+    stepMotor(prey, 911, 'woodlouse', pGoal, 1 / 30, t)
+    stepMotor(beetle, 910, 'beetle', bGoal, 1 / 30, t)
+    if (beetle.chasing && beetle.state === 'walk') chased = true
+    if (prey.state === 'startle') fled = true
+    closest = Math.min(closest, Math.hypot(beetle.x - prey.x, beetle.z - prey.z))
+  }
+  assert.ok(chased, 'beetle chased')
+  assert.ok(fled, 'prey fled')
+  assert.ok(closest < 0.4, `beetle closed in (${closest.toFixed(2)})`)
+  forgetMotor(910); forgetMotor(911)
+})
+
+test('a courting male woodlouse keeps close behind his partner', () => {
+  const her = createMotor(920, -1.6, -1.0, 0), him = createMotor(921, -1.2, -1.3, 0)
+  const herGoal = { x: -1.6, z: -1.0, heading: 0, activity: 'active', partner: 921, male: false }
+  const hisGoal = { x: -1.3, z: -1.2, heading: 0, activity: 'active', partner: 920, male: true }
+  let near = 0
+  for (let i = 0; i < 300; i += 1) {
+    const t = 700 + i / 30
+    stepMotor(her, 920, 'woodlouse', herGoal, 1 / 30, t)
+    stepMotor(him, 921, 'woodlouse', hisGoal, 1 / 30, t)
+    if (i > 150 && Math.hypot(her.x - him.x, her.z - him.z) < motorProfiles.woodlouse.spacing * 1.2) near += 1
+  }
+  assert.ok(near > 100, `close behind her most of the time (${near}/149)`)
+  forgetMotor(920); forgetMotor(921)
+})

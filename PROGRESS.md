@@ -1,5 +1,13 @@
 # ECOSPHERE development progress
 
+## Behaviour scenes: hunts and courtship — 2026-11-26
+
+Third step of the behaviour layer (owner: "ไปต่อ"). Still visual only.
+
+- Hunting tiger beetles (when the ecology's `beetleIsHunting` says so) sight the nearest woodlouse, springtail or caterpillar near their spot and run it down run-stop-run (Gilbert 1997). Prey that sees a running hunter close by bolts or flinches away. A chase that reaches the prey ends in a missed lunge and a 5-10 s rest; real kills stay with the ecology.
+- Courting woodlice (sim `life.activity === 'courting'`): the male keeps close behind his partner and taps her with his antennae (oniscidean courtship, Warburg 1993, Evolutionary Biology of Land Isopods).
+- Tests cover a beetle closing on bolting prey and a male staying behind his partner. 308 tests pass. The starter jar has no beetle, so chases were checked in tests only.
+
 ## Living behaviour, pond animals — 2026-11-26
 
 Second step of the behaviour layer (owner: "ไปกันต่อ"). The same motors (`src/scene/behaviour.ts`) now drive the pond animals, kept inside the water:

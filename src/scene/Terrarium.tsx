@@ -42,7 +42,7 @@ import type { Remains } from '../sim/life'
 import { AntRemainsScene } from './AntRemains'
 import type { SurfacePose } from './PondView'
 import { plantGeometry, propaguleGeometry } from './plantGeometry'
-import { creatureIsFeeding, creatureKind, habitatFit, nearestSoil } from '../sim/ecosystem'
+import { beetleIsHunting, creatureIsFeeding, creatureKind, habitatFit, nearestSoil } from '../sim/ecosystem'
 import type { Creature, Plant, SimulationEvent, SoilPatch, World } from '../sim/ecosystem'
 import type { SavedSubstrate } from '../sim/substrate'
 import { defaultPond, isAquatic, isPondPosition } from '../sim/pond'
@@ -62,8 +62,8 @@ function useLandMotor(creature: Creature) {
   useEffect(() => () => forgetMotor(creature.id), [creature.id])
   return motor as { current: Motor }
 }
-function driveMotor(group: Group, motor: Motor, creature: Creature, kind: MotorKind, activity: MotorGoal['activity'], delta: number, speed: number, dryness?: number) {
-  if (speed > 0) stepMotor(motor, creature.id, kind, { x: creature.x, z: creature.z, heading: creature.heading, activity, dryness }, delta * Math.min(speed, 4), performance.now() / 1000)
+function driveMotor(group: Group, motor: Motor, creature: Creature, kind: MotorKind, activity: MotorGoal['activity'], delta: number, speed: number, extra?: Partial<MotorGoal>) {
+  if (speed > 0) stepMotor(motor, creature.id, kind, { x: creature.x, z: creature.z, heading: creature.heading, activity, ...extra }, delta * Math.min(speed, 4), performance.now() / 1000)
   group.position.x = motor.x
   group.position.z = motor.z
   group.rotation.y = motor.heading
@@ -696,7 +696,7 @@ function Woodlouse({ creature, world, events, selected, onSelect, speed }: Creat
     const clock = animationClock.current
     if (!group.current) return
     const factor = 1 - Math.exp(-delta * 8)
-    const at = driveMotor(group.current, motor.current, creature, 'woodlouse', activity, delta, speed, dryness)
+    const at = driveMotor(group.current, motor.current, creature, 'woodlouse', activity, delta, speed, { dryness, partner: life.activity === 'courting' ? life.partnerId : null, male: life.sex === 'male' })
     const moving = speed > 0 && motor.current.speed > 0.03
     isMoving.current = moving
     yaw.current = group.current.rotation.y
@@ -761,13 +761,14 @@ function Beetle({ creature, world, events, selected, onSelect, speed }: Creature
   const meal = events.find((event): event is Extract<SimulationEvent, { type: 'predation' }> => event.type === 'predation' && event.predatorId === creature.id)
   const shell = new Color('#999a89').lerp(new Color('#526774'), MathUtils.clamp(creature.energy / 50, 0, 1))
   const resting = scheduledRest(world, creature)
+  const hunting = beetleIsHunting(world, creature)
   const motor = useLandMotor(creature)
   useFrame((_, delta) => {
     const clock = animationClock.current
     if (!group.current) return
     const factor = 1 - Math.exp(-delta * 8)
     group.current.scale.setScalar(MathUtils.lerp(group.current.scale.x, size, factor))
-    const at = driveMotor(group.current, motor.current, creature, 'beetle', restOrFeed(resting, !!meal), delta, speed)
+    const at = driveMotor(group.current, motor.current, creature, 'beetle', restOrFeed(resting, !!meal), delta, speed, { hunting })
     const moving = speed > 0 && motor.current.speed > 0.05
     motion.current = moving
     group.current.position.y = animalGroundY(at) + (moving ? Math.sin(clock.elapsedTime * 20) * 0.007 * size : 0)
