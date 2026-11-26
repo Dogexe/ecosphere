@@ -60,3 +60,31 @@ test('two ants meeting on a trail stop briefly face to face (antennal contact)',
   assert.ok(met)
   forgetMotor(1_000_001); forgetMotor(1_000_002)
 })
+
+import { pondCenter, pondShape } from '../src/sim/pondShape.ts'
+
+test('pond animals stay in the water and react to a tap in their own way', () => {
+  const goal = { x: pondCenter.x, z: pondCenter.z, heading: 0, activity: 'active' }
+  run(904, 'flea', goal, 30, goal, (m) => assert.ok(pondShape().signedDistance(m.x, m.z) <= 0, 'flea in water'))
+  forgetMotor(904)
+
+  // Shrimp: tail-flip backwards, away from the tap.
+  const shrimp = createMotor(905, goal.x, goal.z, 0)
+  for (let i = 0; i < 15; i += 1) stepMotor(shrimp, 905, 'shrimp', goal, 1 / 30, 300 + i / 30)
+  const before = { x: shrimp.x, z: shrimp.z }, tap = { x: goal.x + 0.3, z: goal.z }
+  disturb(tap.x, tap.z, 301)
+  for (let i = 0; i < 5; i += 1) stepMotor(shrimp, 905, 'shrimp', goal, 1 / 30, 301 + i / 30)
+  assert.equal(shrimp.state, 'startle')
+  assert.ok(Math.hypot(shrimp.x - tap.x, shrimp.z - tap.z) > Math.hypot(before.x - tap.x, before.z - tap.z) + 0.05, 'shot away from the tap')
+  forgetMotor(905)
+
+  // Snail: withdraws and stays put.
+  const snail = createMotor(906, goal.x, goal.z, 0)
+  for (let i = 0; i < 30; i += 1) stepMotor(snail, 906, 'snail', goal, 1 / 30, 400 + i / 30)
+  disturb(goal.x + 0.1, goal.z, 401)
+  stepMotor(snail, 906, 'snail', goal, 1 / 30, 401)
+  const still = { x: snail.x, z: snail.z }
+  for (let i = 0; i < 30; i += 1) stepMotor(snail, 906, 'snail', goal, 1 / 30, 401 + i / 30)
+  assert.ok(Math.hypot(snail.x - still.x, snail.z - still.z) < 0.005, 'snail froze')
+  forgetMotor(906)
+})

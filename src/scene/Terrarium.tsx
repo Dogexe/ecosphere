@@ -411,7 +411,7 @@ function AnimalInteraction({ scale, y, selected, markerRadius = 0.24 }: { scale:
   </group>
 }
 
-function AquaticAnimal({ creature, events, selected, onSelect, speed }: CreatureProps) {
+function AquaticAnimal({ creature, world, events, selected, onSelect, speed }: CreatureProps) {
   const animationClock = useAnimalClock(speed)
   const group = useRef<Group>(null)
   const tail = useRef<Group>(null)
@@ -423,16 +423,36 @@ function AquaticAnimal({ creature, events, selected, onSelect, speed }: Creature
   const rotation = useRef<[number, number, number]>([0, creature.heading, 0])
   const motion = useRef(false)
   const fed = events.some((event) => event.type === 'predation' ? event.predatorId === creature.id : event.type === 'feeding' && event.id === creature.id)
+  const motor = useLandMotor(creature)
+  const depth = useRef({ y, vy: 0, hop: 0 })
   useFrame((_, delta) => {
     const clock = animationClock.current
     if (!group.current) return
-    const moving = Math.hypot(group.current.position.x - creature.x, group.current.position.z - creature.z) > 0.01
-    motion.current = moving
     const factor = 1 - Math.exp(-delta * 9)
     group.current.scale.setScalar(MathUtils.lerp(group.current.scale.x, size, factor))
-    group.current.position.x = MathUtils.lerp(group.current.position.x, creature.x, factor)
-    group.current.position.z = MathUtils.lerp(group.current.position.z, creature.z, factor)
-    group.current.rotation.y += Math.atan2(Math.sin(creature.heading - group.current.rotation.y), Math.cos(creature.heading - group.current.rotation.y)) * factor
+    const m = motor.current
+    driveMotor(group.current, m, creature, fish ? 'fish' : 'flea', fed ? 'feeding' : 'active', delta, speed)
+    const moving = speed > 0 && (m.speed > (fish ? 0.3 : 0.03) || (!fish && depth.current.vy > 0))
+    motion.current = moving
+    // Depth: fleas hop and sink (each antenna stroke lifts them, they sink between strokes); fish drift
+    // slowly up and down through the water. Kept between the pond bed and just under the surface.
+    const d = depth.current, bed = environmentScale.soilSurfaceY + groundShape.offset(m.x, m.z)
+    // The surface drops as the pond dries (same rule as PondWater's waterLook).
+    const surface = environmentScale.pondSurfaceY - Math.max(0, (60 - (world.pond?.water ?? 60)) / 60) * environmentScale.pondVisualDepth * 0.8
+    const top = Math.min(fish ? -0.05 : -0.015, surface - 0.05), bottom = Math.min(top, bed + (fish ? 0.09 : 0.04))
+    if (speed > 0) {
+      const dt = Math.min(0.1, delta * Math.min(speed, 4))
+      if (fish) d.y += (top - (top - bottom) * (0.5 + 0.5 * Math.sin(clock.elapsedTime * 0.15 + creature.id * 1.7)) - d.y) * Math.min(1, dt * 0.8)
+      else {
+        const aim = top - (top - bottom) * (0.35 + 0.3 * Math.sin(clock.elapsedTime * 0.1 + creature.id))
+        d.hop -= dt
+        if (d.hop <= 0) { d.vy = 0.35; d.hop = (d.y < aim ? 0.2 : 0.55) + Math.random() * 0.2 }
+        d.vy += (-0.09 - d.vy) * Math.min(1, dt * 8)
+        d.y += d.vy * dt
+      }
+    }
+    d.y = MathUtils.clamp(d.y, bottom, top)
+    group.current.position.y = d.y
     if (tail.current) tail.current.rotation.y = moving ? Math.sin(clock.elapsedTime * 18) * 0.35 : 0
   })
   return <group ref={group} position={start.current} rotation={rotation.current} scale={initialScale.current} onClick={(event) => { if (event.delta > 5) return; event.stopPropagation(); onSelect(event.ray) }}>
@@ -459,16 +479,15 @@ function BenthicAnimal({ creature, events, selected, onSelect, speed }: Creature
   const initialScale = useRef(size)
   const shrimp = creature.kind === 'shrimp'
   const fed = events.some((event) => event.type === 'feeding' && event.id === creature.id)
+  const motor = useLandMotor(creature)
   useFrame((_, delta) => {
     if (!group.current) return
     const g = group.current
-    motion.current = speed > 0 && Math.hypot(g.position.x - creature.x, g.position.z - creature.z) > 0.004
-    // The snail glides; the shrimp walks in quicker spurts.
+    // The snail glides and withdraws when disturbed; the shrimp walks in spurts and tail-flips away.
     const factor = 1 - Math.exp(-delta * (shrimp ? 6 : 2.5))
-    g.position.x = MathUtils.lerp(g.position.x, creature.x, factor)
-    g.position.z = MathUtils.lerp(g.position.z, creature.z, factor)
+    driveMotor(g, motor.current, creature, shrimp ? 'shrimp' : 'snail', fed ? 'feeding' : 'active', delta, speed)
+    motion.current = speed > 0 && motor.current.speed > 0.01
     g.position.y = bedY(g.position.x, g.position.z)
-    g.rotation.y += Math.atan2(Math.sin(creature.heading - g.rotation.y), Math.cos(creature.heading - g.rotation.y)) * factor
     yaw.current = g.rotation.y
     g.scale.setScalar(MathUtils.lerp(g.scale.x, size, factor))
   })
@@ -1080,7 +1099,7 @@ export function Terrarium({ world, events, worldRevision, selectedPlant, selecte
       {underwater && <PondAtmosphere world={world} />}
       {underground && <><UndergroundBackdrop /><ambientLight intensity={0.85} /><hemisphereLight args={['#fff4de', '#b39b78', 1.3]} /><directionalLight position={[4, 3, -6]} intensity={2} color="#ffebc4" /></>}
       {!underground && <>
-      <Terrain fog={fogLevel(world)} sealed={!!world.sealed} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; disturb(x, z); if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
+      <Terrain fog={fogLevel(world)} sealed={!!world.sealed} underwater={underwater} substrate={paperLook ? world.substrate : undefined} swimmers={world.creatures.filter((creature) => isAquatic(creature.kind))} pond={world.pond ?? defaultPond()} soil={world.soil ?? []} selectedSoil={selectedSoil} onPondClick={(x, z) => { disturb(x, z); if (placing) onPlace(x, z); else onSelectPond() }} onGroundClick={(x, z) => { if (underwater) return; disturb(x, z); if (placing) onPlace(x, z); else if (world.soil?.length) onSelectSoil(nearestSoil(world.soil, x, z).id) }} />
       {!underwater && (world.soil ?? []).map((patch) => <FungalPatch key={patch.id} patch={patch} />)}
       <RemainsField world={viewWorld} />
       {naturalLook && <RootsOnGlass plants={viewWorld.plants} />}

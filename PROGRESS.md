@@ -1,5 +1,16 @@
 # ECOSPHERE development progress
 
+## Living behaviour, pond animals — 2026-11-26
+
+Second step of the behaviour layer (owner: "ไปกันต่อ"). The same motors (`src/scene/behaviour.ts`) now drive the pond animals, kept inside the water:
+
+- Water fleas swim "hop and sink": each antenna stroke lifts them and they sink between strokes, with short sideways darts, drifting through mid-water instead of sitting at one depth (Dodson & Ramcharan 1991, J Plankton Res 13:1367).
+- Fish swim burst-and-coast, a few tail beats then a glide to a hover, and drift slowly up and down; a tap makes them dart off (Videler & Weihs 1982, J Exp Biol 97:169).
+- Ramshorn snails glide slowly and withdraw, staying still for a few seconds, when the water near them is tapped.
+- Cherry shrimp walk in short spurts with long picking pauses and escape a tap with a backward tail flip (Arnott, Neil & Ansell 1998, J Exp Biol 201:1771).
+- Tapping the pond now disturbs pond animals as tapping the ground does land animals. Swim depth follows the water level when the pond dries.
+- Measured at 1x in the starter jar over 30 s: water fleas still 42-63% of the time with 4-8 swimming bouts; shrimp 64-68% still with 4-5 bouts; surface ants 53-68% still with 7-8 runs (they stop at each meeting).
+
 ## Living behaviour, land animals — 2026-11-26
 
 Owner asked for creature behaviour that is "realistic and very dynamic, nice to just watch", and picked land animals first. The ecology still decides once per model hour where an animal is and what it is doing; a new per-frame layer (`src/scene/behaviour.ts`) gives each woodlouse, springtail, tiger beetle, caterpillar and surface ant a "motor" that moves like the real animal while staying leashed to that point. Visual only: no change to the sim, the food web or the save.

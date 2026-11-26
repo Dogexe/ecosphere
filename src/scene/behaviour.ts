@@ -23,10 +23,19 @@
  *   trail the colony model lays, and stops for brief antennal contacts when it meets a nestmate; those
  *   contacts are how workers read each other's task (Greene & Gordon 2003, Nature 423:32,
  *   https://doi.org/10.1038/423032a; Gordon 2010, Ant Encounters, Princeton UP).
+ * - Water flea (Daphnia): "hop and sink" swimming, a stroke of the second antennae lifts it and it sinks
+ *   between strokes, with short horizontal darts (Dodson & Ramcharan 1991, J Plankton Res 13:1367,
+ *   https://doi.org/10.1093/plankt/13.6.1367). The vertical part lives in the scene (flea depth).
+ * - Small pond fish: burst-and-coast swimming, a few tail beats then a glide (Videler & Weihs 1982,
+ *   J Exp Biol 97:169, https://doi.org/10.1242/jeb.97.1.169); a fast-start dart when startled.
+ * - Ramshorn snail: a slow continuous glide on its foot; when disturbed it withdraws and stays still.
+ * - Cherry shrimp: short walks and long pauses picking at the film; escapes with a backward tail flip
+ *   (caridean escape, Arnott, Neil & Ansell 1998, J Exp Biol 201:1771, https://doi.org/10.1242/jeb.201.11.1771).
  * - Caterpillar (cabbage white larva): slow crawling with pauses, and side-to-side head casting while it
  *   searches for food (Dethier 1959, Can Entomol 91:554-561, on lepidopteran larval search).
  */
 import { isLand } from '../sim/land.ts'
+import { pondShape } from '../sim/pondShape.ts'
 
 export type MotorState = 'walk' | 'pause' | 'probe' | 'feed' | 'rest' | 'startle'
 export interface Motor {
@@ -62,21 +71,29 @@ export interface MotorProfile {
   wobble: number
   /** Reaction distance to a tap and how it reacts. */
   scare: number
-  scareStyle: 'bolt' | 'flinch'
+  scareStyle: 'bolt' | 'flinch' | 'freeze' | 'backflip'
   /** Distance kept from same-kind neighbours unless resting together. */
   spacing: number
   /** Rest touching others of the same kind. */
   huddle: boolean
   /** Stop for a brief antennal contact on meeting another of its kind (ants). */
   greet?: boolean
+  /** Lives in the pond instead of on land. */
+  medium?: 'water'
+  /** Glides to a stop instead of halting (fish coast between tail-beat bursts): speed decay per second. */
+  coast?: number
 }
 
 // 1 unit is about 19 mm (SCALE_BIBLE.md), so 1 cm/s is about 0.53 units/s.
-export const motorProfiles: Record<'woodlouse' | 'springtail' | 'beetle' | 'grazer' | 'ant', MotorProfile> = {
+export const motorProfiles: Record<'woodlouse' | 'springtail' | 'beetle' | 'grazer' | 'ant' | 'flea' | 'fish' | 'snail' | 'shrimp', MotorProfile> = {
   woodlouse: { walk: 0.5, run: 1.3, turn: 4, walkBout: [1.2, 4], pauseBout: [0.6, 3], probe: 0.55, wander: 0.35, leash: 0.45, wobble: 1.1, scare: 0.9, scareStyle: 'bolt', spacing: 0.32, huddle: true },
   springtail: { walk: 0.05, run: 0.1, turn: 5, walkBout: [0.8, 2.5], pauseBout: [0.8, 3.5], probe: 0.4, wander: 0.08, leash: 0.1, wobble: 2, scare: 0.25, scareStyle: 'flinch', spacing: 0.035, huddle: true },
   beetle: { walk: 0.9, run: 3.2, turn: 7, walkBout: [0.25, 0.7], pauseBout: [0.3, 1.2], probe: 0.3, wander: 0.5, leash: 0.6, wobble: 0.5, scare: 1.1, scareStyle: 'bolt', spacing: 0.45, huddle: false },
   ant: { walk: 1.3, run: 2.4, turn: 9, walkBout: [1.5, 4], pauseBout: [0.15, 0.5], probe: 0.7, wander: 0.1, leash: 0.14, wobble: 1.4, scare: 0.7, scareStyle: 'bolt', spacing: 0.06, huddle: false, greet: true },
+  flea: { walk: 0.18, run: 0.5, turn: 6, walkBout: [0.6, 2], pauseBout: [0.3, 1.2], probe: 0, wander: 0.2, leash: 0.3, wobble: 2.5, scare: 0.6, scareStyle: 'bolt', spacing: 0.05, huddle: false, medium: 'water' },
+  fish: { walk: 1.2, run: 4, turn: 6, walkBout: [0.15, 0.4], pauseBout: [0.6, 2], probe: 0.2, wander: 0.8, leash: 1, wobble: 0.6, scare: 1.4, scareStyle: 'bolt', spacing: 0.4, huddle: false, medium: 'water', coast: 1.2 },
+  snail: { walk: 0.07, run: 0.07, turn: 1.2, walkBout: [4, 10], pauseBout: [1, 4], probe: 0.3, wander: 0.15, leash: 0.25, wobble: 0.3, scare: 0.4, scareStyle: 'freeze', spacing: 0.12, huddle: false, medium: 'water' },
+  shrimp: { walk: 0.25, run: 2.5, turn: 5, walkBout: [0.3, 1], pauseBout: [0.5, 2.5], probe: 0.6, wander: 0.3, leash: 0.4, wobble: 1, scare: 0.8, scareStyle: 'backflip', spacing: 0.15, huddle: false, medium: 'water' },
   grazer: { walk: 0.12, run: 0.2, turn: 1.6, walkBout: [2, 5], pauseBout: [1, 4], probe: 0.6, wander: 0.25, leash: 0.35, wobble: 0.4, scare: 0.5, scareStyle: 'flinch', spacing: 0.4, huddle: false },
 }
 
@@ -122,8 +139,11 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
     motor.startled = disturbance.at
     motor.state = 'startle'
     motor.aim = Math.atan2(motor.x - disturbance.x, motor.z - disturbance.z) + (rand(motor) - 0.5) * 0.8
-    motor.timer = profile.scareStyle === 'bolt' ? between(motor, [0.6, 1.3]) : between(motor, [0.25, 0.5])
+    motor.timer = profile.scareStyle === 'bolt' ? between(motor, [0.6, 1.3]) : profile.scareStyle === 'freeze' ? between(motor, [2, 4]) : profile.scareStyle === 'backflip' ? between(motor, [0.2, 0.35]) : between(motor, [0.25, 0.5])
     if (profile.scareStyle === 'flinch') motor.heading = wrap(motor.heading + (rand(motor) - 0.5) * 0.6)
+    // A shrimp faces the threat and shoots backwards, away from it.
+    if (profile.scareStyle === 'backflip') { motor.heading = wrap(motor.aim + Math.PI); motor.aim = motor.heading }
+    if (profile.scareStyle === 'freeze') motor.aim = motor.heading
   }
 
   motor.timer -= dt
@@ -192,15 +212,17 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
 
   // Speed eases up and down (no instant starts), faster when far behind or startled.
   const catchUp = far > profile.leash ? Math.min(3, far / profile.leash) : 1
-  const target = motor.state === 'startle' ? profile.run : motor.state === 'walk' ? profile.walk * pace * catchUp : 0
-  motor.speed += (Math.min(target, profile.run * 1.5) - motor.speed) * Math.min(1, dt * 6)
+  const target = motor.state === 'startle' ? profile.scareStyle === 'freeze' ? 0 : profile.run : motor.state === 'walk' ? profile.walk * pace * catchUp : 0
+  const ease = profile.coast && target < motor.speed ? profile.coast : profile.scareStyle === 'freeze' && motor.state === 'startle' ? 30 : 6
+  motor.speed += (Math.min(target, profile.run * 1.5) - motor.speed) * Math.min(1, dt * ease)
   // Turn on the spot first: barely creep forward until roughly facing the new direction.
-  const facing = Math.cos(turn) > 0.3 ? 1 : 0.15
+  const facing = motor.state === 'startle' && profile.scareStyle === 'backflip' ? -1 : Math.cos(turn) > 0.3 ? 1 : 0.15
   let nx = motor.x + Math.sin(motor.heading) * motor.speed * facing * dt + pushX * dt * 2
   let nz = motor.z + Math.cos(motor.heading) * motor.speed * facing * dt + pushZ * dt * 2
   // Never into the pond or through the glass, and never far from where the ecology says it is.
   const rim = kind === 'ant' ? 3.79 : 3.3
-  if (!isLand(nx, nz, 0, rim) && isLand(motor.x, motor.z, 0, rim)) { nx = motor.x; nz = motor.z; motor.aim = towardGoal; motor.speed *= 0.5 }
+  const inside = profile.medium === 'water' ? (x: number, z: number) => pondShape().signedDistance(x, z) <= -0.05 : (x: number, z: number) => isLand(x, z, 0, rim)
+  if (!inside(nx, nz) && inside(motor.x, motor.z)) { nx = motor.x; nz = motor.z; motor.aim = towardGoal; motor.speed *= 0.5 }
   const leashX = nx - goal.x, leashZ = nz - goal.z, leash = Math.hypot(leashX, leashZ), hard = profile.leash * 3
   if (leash > hard) { nx = goal.x + leashX / leash * hard; nz = goal.z + leashZ / leash * hard }
   motor.x = nx; motor.z = nz
