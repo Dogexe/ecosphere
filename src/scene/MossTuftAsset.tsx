@@ -141,8 +141,8 @@ const fadeTime = 0.5, hysteresis = 1.08
 /**
  * Draws a set of tuft spots with per-instance level of detail chosen by on-screen size (world width
  * over camera distance): a 0.5-wide tuft uses full real shoots (lod0) within near/1.7, fewer
- * real shoots (lod1) within `near`, baked shoot cards (lod2) within 1.7x near, and the far textured
- * body (lod3) beyond. Small outlying tufts so drop sooner. Matrices are rebuilt only when the camera moves.
+ * real shoots (lod1) within `near`, baked shoot cards (lod2) out to about 17x near (the whole jar overview),
+ * and the far textured body (lod3) only beyond that. Small outlying tufts so drop sooner. Matrices are rebuilt only when the camera moves.
  */
 export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: TuftSpot[]; near?: number; shadows?: boolean }) {
   const geometries = useMossTufts()
@@ -183,7 +183,9 @@ export function MossTuftField({ spots, near = 3.8, shadows = false }: { spots: T
     if (s.spots === spots && !lod.fading && local.distanceToSquared(s.camera) < 0.0025) return
     s.camera.copy(local); s.spots = spots
     const counts = new Array(tuftVariants * levels * 2).fill(0)
-    const scale = origin.getMaxScaleOnAxis(), close = 0.5 / near, nearest = close * 1.7, mid = close * 0.6   // measured (GPU timer): shingled lod1 costs more than cards beyond this
+    // Baked shoot cards (lod2) reach almost to the jar overview: the far textured body read as smooth green
+    // blobs, not moss, in the overview (owner, 2026-11-26). lod3 is kept for a far-zoomed-out jar only.
+    const scale = origin.getMaxScaleOnAxis(), close = 0.5 / near, nearest = close * 1.7, mid = close * 0.06   // measured (GPU timer): shingled lod1 costs more than cards beyond close
     const thresholds = [nearest, close, mid]
     const p = new Vector3(), tint = new Color()
     const place = (level: number, variant: number, i: number, fade: number) => {
