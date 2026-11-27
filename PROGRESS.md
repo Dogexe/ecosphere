@@ -1,5 +1,19 @@
 # ECOSPHERE development progress
 
+## A tiger beetle in the starter jar, and behaviour moments — 2026-11-27
+
+Owner's pick ("ใส่ด้วงในโถ"): the starter jar now has one tiger beetle so hunts can be watched from the start.
+
+Balance, measured with the sealed starter jar (6 seeds x 3 years):
+- Before: the beetle ate both woodlice in 7-10 days, then starved by day 21.
+- Woodlice and springtails resting through the day are hidden under litter and in the soil, out of a visual hunter's reach; only a starving beetle (energy under 30) digs after them.
+- Caterpillars feeding on their food plant and chrysalises are off the ground, out of a ground hunter's reach.
+- Beetle upkeep 0.32 -> 0.1 energy an hour (`beetleUpkeep`): ground beetles are often food-limited and tolerate long fasts (Lövei & Sunderland 1996, Annu Rev Entomol 41:231).
+- After: the beetle lives its natural 77-150 days (sometimes it breeds), then the jar goes on without it. Every other kind was present after 3 years in 6 of 6 runs, except woodlice lost at day 772 in one run (none lost in the same 6 runs without a beetle). A 1-year beetle lifespan was tried and rejected: it emptied the jar of prey.
+- The closed-jar test now expects the beetle to live at least 70 days instead of three years; predator tests updated for the new upkeep and the caterpillar refuge.
+
+Behaviour moments: when a beetle starts a chase, a male woodlouse courts, or a shy woodlouse freezes, a note appears with a Watch button that selects and follows the animal, and the field journal records it. At most one of each kind per 90 s.
+
 ## Behaviour: individual temperament — 2026-11-26
 
 Fourth step of the behaviour layer (owner: "ลุย"). Each animal now has a lasting temperament fixed by its id (no save change), from consistent individual differences in animals (Réale et al. 2007, Biol Rev 82:291):

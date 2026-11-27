@@ -167,7 +167,7 @@ test('nocturnal woodlice rest without suspending digestion, gestation or aging; 
 
 test('prey detect a night hunter that wakes after paying basal maintenance', () => {
   const world = phase({ ...createWorld(), plants: [], creatures: [
-    { id: 1, kind: 'beetle', x: 1.6, z: 1.3, heading: 0, energy: 25.2, age: 100, stage: 'adult', materialReserve: 0 },
+    { id: 1, kind: 'beetle', x: 1.6, z: 1.3, heading: 0, energy: 25.05, age: 100, stage: 'adult', materialReserve: 0 },
     { id: 2, kind: 'grazer', x: 1.98, z: 1.3, heading: 0, energy: 58, age: 100, stage: 'adult', materialReserve: 0 },
   ] }, 0)
   assert.ok(predatorThreat(world, world.creatures[1]))

@@ -835,3 +835,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid #8cbcab; outline-
 @media (max-width: 760px) { .sill-spots { display: none; } }
 /* Four speeds share the time box on phones (item 5, 2026-11-20). */
 @media (max-width: 760px) { .app-shell .speed-buttons button { min-width: 0; padding: 0 2px; } }
+/* Behaviour moments: a hunt, courtship or a freezing woodlouse, with a button to go and watch. */
+.notice.moment { bottom: 205px; pointer-events: auto; display: flex; gap: 10px; align-items: center; }
+.notice.moment button { flex: none; border: 0; border-radius: 12px; padding: 4px 12px; background: #f9fff6; color: #315d48; font: inherit; font-weight: 800; cursor: pointer; }
+.cozy .notice.moment button { background: #315d48; color: #fff6dc; }
+@media (max-width: 760px) { .notice.moment { bottom: 64px; } }

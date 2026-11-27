@@ -43,7 +43,7 @@ import { oddObjectSize } from './scene/OddObjects'
 import type { DecorKind, JarShape } from './sim/substrate'
 import type { CareAdvice, CareAlert } from './sim/care'
 import type { Intervention, Lifeform, PlantKind, SoilInput, StepResult, World } from './sim/ecosystem'
-import { temperamentWords } from './scene/behaviour'
+import { onMoment, temperamentWords } from './scene/behaviour'
 
 /**
  * Time pace (systems pass item 5, 2026-11-20). 1× is one model hour per 480 ms (a day in about
@@ -182,6 +182,23 @@ export function App() {
   // The field notebook belongs to the player and outlives any one jar.
   const [notebook, setNotebook] = useState<Notebook>(() => stress ? readNotebook(null) : readNotebook(browserStore()))
   const notebookRef = useRef(notebook)
+  const tickRef = useRef(world.tick)
+  tickRef.current = world.tick
+  // Behaviour moments (behaviour.ts): point out a hunt, courtship or a freezing woodlouse, with a Watch button.
+  const [moment, setMoment] = useState<{ text: string; id: number } | null>(null)
+  useEffect(() => onMoment((m) => {
+    const prey = m.otherKind === 'grazer' ? 'caterpillar' : m.otherKind ?? 'small animal'
+    const text = m.kind === 'chase' ? `A ground beetle is running down a ${prey}, in short bursts with stops to look again.`
+      : m.kind === 'courtship' ? 'A male woodlouse is courting: he keeps close behind her, tapping her with his antennae.'
+      : 'A shy woodlouse froze in place instead of running. Some woodlice play dead when startled.'
+    setMoment({ text, id: m.id })
+    note(writeEntry(notebookRef.current, { tick: tickRef.current }, 'event', text))
+  }), [])
+  useEffect(() => {
+    if (!moment) return
+    const timer = window.setTimeout(() => setMoment(null), 9000)
+    return () => window.clearTimeout(timer)
+  }, [moment])
   notebookRef.current = notebook
   const [notebookOpen, setNotebookOpen] = useState(false)
   const [notebookFocus, setNotebookFocus] = useState<string | null>(null)
@@ -813,6 +830,7 @@ export function App() {
         </div>
       </section>
       {notice && <div className="notice" role="status">{notice}</div>}
+      {moment && <div className="notice moment" role="status" data-testid="moment">{moment.text} <button type="button" onClick={() => { const id = moment.id; setMoment(null); if (!world.creatures.some((creature) => creature.id === id)) return; clearSelection(); setSelectedCreature(id); setFollowCreature(id) }}>Watch</button></div>}
       {catchingUp && <div className="away-catchup" role="status" aria-live="polite"><div><span className="eyebrow">WELCOME BACK</span><strong>The jar is catching up on the time you were away…</strong><div className="seal-progress"><i className="running" style={{ width: `${Math.round(catchingUp.done / catchingUp.total * 100)}%` }} /></div></div></div>}
       <AwayPanel report={awayReport} onClose={() => setAwayReport(null)} onWatch={() => { setAwayReport(null); setSpeed(1) }} onObserve={() => { setAwayReport(null); setObservatoryOpen(true) }} />
       <SealPanel open={sealOpen} world={world} onClose={() => setSealOpen(false)} onSeal={(goalDays) => { setWorld((current) => sealWorld(current, goalDays)); setSealOpen(false); setNurseryOpen(false); setTool(null); setNotice(`Sealed for ${goalDays} days. Press 1× or 3× to let time run.`) }} onUnseal={() => { setWorld((current) => unsealWorld(current)); setSealOpen(false); setNotice('The seal is open. You can tend the world again.') }} onAir={() => { setWorld((current) => airJar(current)); setNotice('You lifted the lid for a moment. Fresh room air is inside; the seal is back on.') }} onObserve={() => { setSealOpen(false); setObservatoryOpen(true) }} />

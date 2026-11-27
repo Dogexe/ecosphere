@@ -26,14 +26,19 @@ test('a sealed starter jar keeps every kind of plant and animal it began with fo
   let world = sealedStarter()
   const kinds = new Set([...world.plants.map((plant) => plant.kind), ...world.creatures.map((creature) => creature.kind)])
   assert.ok(kinds.has('springtail') && kinds.has('flea') && kinds.has('worm'), 'the starter jar has its micro-fauna and earthworms')
-  let colonyDays = 0
+  // The tiger beetle is a single adult that lives out its natural life (80 days) and is then gone;
+  // it must not starve early or take another kind with it (2026-11-27).
+  kinds.delete('beetle')
+  let colonyDays = 0, beetleDays = 0
   for (let day = 1; day <= 3 * 365; day += 1) {
     while (world.tick < day * 24 + 8) world = simulateStep(world).world
     if (world.colony?.queen) colonyDays = day
+    if (world.creatures.some((creature) => creature.kind === 'beetle')) beetleDays = day
     if (day === 400) assert.deepEqual(parseSave(serializeSave(world)), world, 'resting eggs and seed bank save and load')
   }
   const present = new Set([...world.plants.map((plant) => plant.kind), ...world.creatures.map((creature) => creature.kind)])
   for (const kind of kinds) assert.ok(present.has(kind), `${kind} is still in the jar after three years`)
+  assert.ok(beetleDays >= 70, `the beetle lived ${beetleDays} days`)
   assert.ok(colonyDays >= 2 * 365, `the ant colony lasted ${colonyDays} days`)
   assert.ok(world.pond.algae > 0.1 && world.pond.algae < 3, 'the pond neither starves nor turns to green soup')
 })

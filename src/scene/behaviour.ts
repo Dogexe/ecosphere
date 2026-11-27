@@ -145,6 +145,18 @@ export function disturb(x: number, z: number, at = performance.now() / 1000) { d
 /* Where each animal is drawn, so picking and the follow camera aim at the body and not the ecology's point. */
 const drawn = new Map<number, { x: number; z: number; heading: number; kind: MotorKind; resting: boolean; hunting?: boolean }>()
 const preyKinds: MotorKind[] = ['woodlouse', 'springtail', 'grazer']
+
+/* Behaviour moments worth pointing out to the player (a hunt starting, courtship, a woodlouse freezing).
+   At most one of each kind per 90 s, so they stay special. */
+export type Moment = { kind: 'chase' | 'courtship' | 'freeze'; id: number; other?: number; otherKind?: MotorKind; at: number }
+const momentListeners = new Set<(moment: Moment) => void>()
+const lastMoment = new Map<Moment['kind'], number>()
+export function onMoment(listener: (moment: Moment) => void) { momentListeners.add(listener); return () => { momentListeners.delete(listener) } }
+function emit(moment: Moment) {
+  if (moment.at - (lastMoment.get(moment.kind) ?? -Infinity) < 90) return
+  lastMoment.set(moment.kind, moment.at)
+  for (const listener of momentListeners) listener(moment)
+}
 export function drawnPosition(id: number) { return drawn.get(id) }
 export function forgetMotor(id: number) { drawn.delete(id) }
 if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug')) (window as unknown as { __motors: typeof drawn }).__motors = drawn
@@ -181,6 +193,7 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
     motor.state = 'startle'
     motor.aim = Math.atan2(motor.x - disturbance.x, motor.z - disturbance.z) + (rand(motor) - 0.5) * 0.8
     motor.frozen = kind === 'woodlouse' && rand(motor) < (1 - t.bold) * 0.6
+    if (motor.frozen) emit({ kind: 'freeze', id, at: now })
     motor.timer = motor.frozen ? between(motor, [2, 6]) : profile.scareStyle === 'bolt' ? between(motor, [0.6, 1.3]) : profile.scareStyle === 'freeze' ? between(motor, [2, 4]) : profile.scareStyle === 'backflip' ? between(motor, [0.2, 0.35]) : between(motor, [0.25, 0.5])
     if (profile.scareStyle === 'flinch') motor.heading = wrap(motor.heading + (rand(motor) - 0.5) * 0.6)
     // A shrimp faces the threat and shoots backwards, away from it.
@@ -198,13 +211,15 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
   }
 
   // A hunting beetle sights the nearest prey within reach of its leash and runs it down in bursts.
-  let quarry: { x: number; z: number } | null = null
+  let quarry: { x: number; z: number; kind: MotorKind } | null = null, quarryId = -1
   if (kind === 'beetle' && goal.hunting && goal.activity !== 'resting' && motor.state !== 'startle' && now >= motor.restUntil) {
     let best = 1.4
-    for (const [, at] of drawn) {
+    for (const [other, at] of drawn) {
+      // Any prey can be flushed and chased; on screen a chase always ends in a missed lunge, and what is
+      // really caught stays with the ecology (which keeps resting and plant-borne prey out of reach).
       if (!preyKinds.includes(at.kind)) continue
       const d = Math.hypot(at.x - motor.x, at.z - motor.z)
-      if (d < best && Math.hypot(at.x - goal.x, at.z - goal.z) < profile.leash * 2.5) { best = d; quarry = at }
+      if (d < best && Math.hypot(at.x - goal.x, at.z - goal.z) < profile.leash * 2.5) { best = d; quarry = at; quarryId = other }
     }
   }
   // A courting male keeps close behind his partner, tapping her with his antennae.
@@ -215,6 +230,7 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
   motor.timer -= dt
   if (quarry && motor.state !== 'startle') {
     const qd = Math.hypot(quarry.x - motor.x, quarry.z - motor.z)
+    if (!motor.chasing) emit({ kind: 'chase', id, other: quarryId, otherKind: quarry.kind, at: now })
     motor.chasing = true
     if (qd < 0.14) {
       // Strike: it lunges and bites at nothing; the prey is off. Rest a while before hunting again.
@@ -230,7 +246,7 @@ export function stepMotor(motor: Motor, id: number, kind: MotorKind, goal: Motor
     motor.chasing = false
     const bx = partner!.x - Math.sin(partner!.heading) * profile.spacing * 0.6, bz = partner!.z - Math.cos(partner!.heading) * profile.spacing * 0.6
     if (Math.hypot(bx - motor.x, bz - motor.z) > profile.spacing * 0.25) { motor.state = 'walk'; motor.aim = Math.atan2(bx - motor.x, bz - motor.z); motor.timer = 0.2 }
-    else { motor.state = 'probe'; motor.timer = 0.4; motor.sweep = motor.sweep || now; motor.aim = partner!.heading }
+    else { if (motor.state !== 'probe') emit({ kind: 'courtship', id, other: goal.partner!, at: now }); motor.state = 'probe'; motor.timer = 0.4; motor.sweep = motor.sweep || now; motor.aim = partner!.heading }
   } else if (motor.state === 'startle') {
     motor.chasing = false
     if (motor.timer <= 0) { motor.state = 'pause'; motor.timer = between(motor, pauseBout) * 1.5 }

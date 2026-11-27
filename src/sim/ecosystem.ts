@@ -459,6 +459,13 @@ function grazerTarget(plants: Plant[], creature: Creature): Plant | null {
   }, null)
 }
 
+/**
+ * Beetle energy upkeep per model hour. Ground beetles are often food-limited in the field and tolerate
+ * long fasts (Lövei & Sunderland 1996, Annu Rev Entomol 41:231, https://doi.org/10.1146/annurev.en.41.010196.001311);
+ * 0.32 starved a lone beetle in under two weeks (2026-11-27).
+ */
+export const beetleUpkeep = 0.1
+
 export function predatorThreat(world: World, creature: Creature): Creature | null {
   if (creatureKind(creature) === 'beetle' || creatureKind(creature) === 'worm' || isAquatic(creatureKind(creature))) return null
   const radius = creatureKind(creature) === 'woodlouse' ? 0.85 : creatureKind(creature) === 'springtail' ? 0.65 : 1.05
@@ -468,7 +475,7 @@ export function predatorThreat(world: World, creature: Creature): Creature | nul
     if (creatureKind(hunter) !== 'beetle') continue
     // Hunters pay basal maintenance before deciding to wake. Prey must see
     // that same upcoming hunger threshold, not an earlier reserve value.
-    const intentEnergy = world.climate?.photoperiod ? hunter.energy - 0.32 * rateAt(environmentAt(world).temperatureC) : hunter.energy
+    const intentEnergy = world.climate?.photoperiod ? hunter.energy - beetleUpkeep * rateAt(environmentAt(world).temperatureC) : hunter.energy
     if (intentEnergy <= (world.climate?.photoperiod ? 0 : 0.32) || scheduledRest(world, { ...hunter, energy: intentEnergy })) continue
     const next = Math.hypot(hunter.x - creature.x, hunter.z - creature.z)
     if (next < distance) { nearest = hunter; distance = next }
@@ -481,12 +488,19 @@ export function beetleIsHunting(world: World, creature: Creature): boolean {
   return creature.energy <= 66 || (creature.stage !== 'juvenile' && creature.energy >= 82 && creatureCounts(world.creatures).beetle < creatureLimits.beetle && world.creatures.filter((prey) => creatureKind(prey) !== 'beetle' && !isAquatic(creatureKind(prey)) && prey.energy > 0).length >= 4)
 }
 
-function preyTarget(prey: Creature[], hunter: Creature): Creature | null {
+function preyTarget(prey: Creature[], hunter: Creature, world?: World): Creature | null {
   let best: Creature | null = null
   let score = Infinity
   for (const creature of prey) {
     const kind = creatureKind(creature)
     if (kind === 'beetle' || kind === 'worm' || isAquatic(kind) || creature.energy <= 0 || (kind === 'grazer' && grazerPhase(creature) === 'butterfly')) continue
+    // Woodlice and springtails spend their resting hours hidden under litter and in the soil, out of a
+    // visual hunter's reach (2026-11-27, so a beetle can share the starter jar).
+    // Caterpillars up on their food plant are off the ground, out of a ground hunter's reach, and
+    // chrysalises hang on the plants too (2026-11-27: without this one beetle ended the butterflies).
+    if (world && kind === 'grazer' && (grazerPhase(creature) === 'pupa' || creatureIsFeeding(world, creature))) continue
+    // Only a starving beetle digs into the litter after them.
+    if (world && hunter.energy >= 30 && (kind === 'woodlouse' || kind === 'springtail') && scheduledRest(world, creature)) continue
     const distance = Math.hypot(creature.x - hunter.x, creature.z - hunter.z)
     if (distance > 2.6) continue
     const next = distance ** 2 / bodyStock(creature, bodyMaterial[kind])
@@ -973,7 +987,7 @@ export function simulateStep(world: World): StepResult {
   const newborns: Creature[] = []
   const hunters: Creature[] = []
   for (const hunter of world.creatures.filter((creature) => creatureKind(creature) === 'beetle')) {
-    const maintenance = 0.32 * rate * (1 + 2 * (1 - breath)) * (scheduledRest(world, { ...hunter, energy: hunter.energy - 0.32 * rate }) ? 0.5 : 1)
+    const maintenance = beetleUpkeep * rate * (1 + 2 * (1 - breath)) * (scheduledRest(world, { ...hunter, energy: hunter.energy - beetleUpkeep * rate }) ? 0.5 : 1)
     if (hunter.energy > maintenance) hunters.push({ ...hunter, energy: hunter.energy - maintenance })
     else {
       depositBody(hunter)
@@ -987,7 +1001,7 @@ export function simulateStep(world: World): StepResult {
   for (const hunter of hunters) {
     const livingPrey = creatures.filter((prey) => !consumed.has(prey.id))
     const active = beetleIsHunting({ ...world, creatures: [...livingPrey, ...hunters.filter((other) => other.energy > 0), ...newborns] }, hunter)
-    const target = active ? preyTarget(livingPrey, hunter) : null
+    const target = active ? preyTarget(livingPrey, hunter, world) : null
     if (target) {
       const distance = Math.hypot(target.x - hunter.x, target.z - hunter.z)
       if (distance > 0.28) {

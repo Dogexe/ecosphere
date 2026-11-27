@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWorld, creatureCounts, creatureIsFeeding, introduceLife, intervene, isLand, predatorThreat, simulateStep, stepWorld } from '../src/sim/ecosystem.ts'
+import { beetleUpkeep, createWorld, creatureCounts, creatureIsFeeding, introduceLife, intervene, isLand, predatorThreat, simulateStep, stepWorld } from '../src/sim/ecosystem.ts'
 import { parseSave, serializeSave } from '../src/sim/saves.ts'
 
 const animal = (id, kind, x, z, energy = 55) => ({ id, kind, x, z, heading: 0, energy })
@@ -18,11 +18,15 @@ test('hungry hunters close distance, flee responses stop grazing, and catching r
   const prey = animal(0, 'grazer', 1.7, -1.7)
   const hunter = animal(1, 'beetle', 0.7, -1.7)
   const plant = { id: 0, kind: 'clover', x: prey.x, z: prey.z, biomass: 5, capacity: 8.8 }
+  // On open ground the hunter closes in on fleeing prey (a caterpillar up on its food plant is out of
+  // a ground hunter's reach, 2026-11-27, so the chase is checked without the plant).
+  const chase = simulateStep(habitat([prey, hunter]))
+  assert.ok(chase.world.creatures[0].x > prey.x)
+  assert.ok(chase.world.creatures[1].x > hunter.x)
+  assert.ok(chase.world.creatures[0].x - chase.world.creatures[1].x < prey.x - hunter.x)
   const initial = habitat([prey, hunter], [plant])
   const { world, events } = simulateStep(initial)
   assert.ok(world.creatures[0].x > prey.x)
-  assert.ok(world.creatures[1].x > hunter.x)
-  assert.ok(world.creatures[0].x - world.creatures[1].x < prey.x - hunter.x)
   assert.equal(events.some((event) => event.type === 'feeding' || event.type === 'predation'), false)
   assert.equal(world.grazed, 0)
   assert.ok(predatorThreat(initial, prey))
@@ -40,7 +44,7 @@ test('fed beetles rest and do not kill nearby prey; hunting does not have unlimi
   const wandering = stepWorld(far)
   // With no perceived target, heading follows seeded exploration, not distant prey.
   assert.ok(wandering.creatures[1].z > -1)
-  assert.ok(wandering.creatures[1].energy < 55 - 0.32)
+  assert.ok(wandering.creatures[1].energy < 55 - beetleUpkeep)
 })
 
 test('one capture partitions the prey body and cannot duplicate a corpse or feed two hunters', () => {
@@ -77,7 +81,7 @@ test('predator young require sufficient catch material and split the existing re
   assert.ok(birth)
   near(catchEvent.offspringMaterial, 0.34)
   near(catchEvent.preyMaterial, catchEvent.offspringMaterial + catchEvent.litter + catchEvent.metabolized)
-  near(result.world.creatures.filter((creature) => creature.kind === 'beetle').reduce((sum, creature) => sum + creature.energy, 0), 95 - 0.32 + (0.42 - 0.34) * 60)
+  near(result.world.creatures.filter((creature) => creature.kind === 'beetle').reduce((sum, creature) => sum + creature.energy, 0), 95 - beetleUpkeep + (0.42 - 0.34) * 60)
   assert.equal(result.world.creatures.some((creature) => creature.id === 0), false)
   const tinyCatch = simulateStep(habitat(brood.map((creature) => creature.id === 0 ? { ...creature, kind: 'woodlouse' } : creature)))
   assert.equal(creatureCounts(tinyCatch.world.creatures).beetle, 1)
@@ -90,7 +94,7 @@ test('carnivorous beetles cannot live on plants, litter, or one another', () => 
   let world = habitat([animal(0, 'beetle', 1.7, -1.7), animal(1, 'beetle', 1.65, -1.7)], base.plants)
   assert.deepEqual(stepWorld(world).plants, stepWorld({ ...world, creatures: [] }).plants)
   let catches = 0
-  for (let tick = 0; tick < 240; tick += 1) {
+  for (let tick = 0; tick < 1200; tick += 1) {
     const result = simulateStep(world)
     world = result.world
     catches += result.events.filter((event) => event.type === 'predation').length

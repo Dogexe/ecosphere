@@ -40,7 +40,9 @@ const pondCrew: ['snail' | 'shrimp', number, number][] = [
   ['snail', -0.6, 2.15],
 ]
 
-const microFauna: ['springtail' | 'flea' | 'worm', number, number][] = [
+const microFauna: ['springtail' | 'flea' | 'worm' | 'beetle', number, number][] = [
+  // One tiger beetle, the jar's land predator, so hunts can be watched from the start (owner's pick, 2026-11-27).
+  ['beetle', 1.9, -0.4],
   // Two red earthworms (owner's pick, 2026-11-21): they pair to lay cocoons.
   ['worm', 2.7, -0.6],
   ['worm', 2.4, 1.2],
