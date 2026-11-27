@@ -1,5 +1,14 @@
 # ECOSPHERE development progress
 
+## Behaviour: earthworms, butterflies, ants in the nest — 2026-11-27
+
+Owner: "สัตว์ตัวอื่นๆ ล่ะ". The animals the behaviour layer had not reached yet:
+
+- Butterflies fly in short jinking legs with brief glides between bursts of wing beats, face the way they fly, bask perched in daylight with wings part-open in a V (pierid reflectance basking, Kingsolver 1987, Evolution 41:472), keep wings closed while sipping or resting with an occasional flick, and are flushed into the air for a few seconds by a tap nearby.
+- Earthworms crawl in bouts with short pauses, and a tap near them sets off the giant-fibre escape reflex: the body shortens and thickens at once, then slowly relaxes (Drewes 1984, in Neural Mechanisms of Startle Behavior).
+- Ants in the nest stop for a moment of antennal contact when two meet in a tunnel, as surface ants already do.
+- Checked in the game for runtime errors (surface and underground); butterflies were not on screen in the 2-day test save, so their flight was not seen.
+
 ## A tiger beetle in the starter jar, and behaviour moments — 2026-11-27
 
 Owner's pick ("ใส่ด้วงในโถ"): the starter jar now has one tiger beetle so hunts can be watched from the start.

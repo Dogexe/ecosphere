@@ -141,6 +141,8 @@ export function createMotor(id: number, x: number, z: number, heading: number): 
 /* Taps on the ground disturb nearby animals. Kept outside React so every motor can read it cheaply. */
 let disturbance = { x: 0, z: 0, at: -Infinity }
 export function disturb(x: number, z: number, at = performance.now() / 1000) { disturbance = { x, z, at } }
+/** The last tap, for animals drawn outside the motors (earthworm, butterfly). Times in seconds. */
+export function lastDisturbance() { return disturbance }
 
 /* Where each animal is drawn, so picking and the follow camera aim at the body and not the ecology's point. */
 const drawn = new Map<number, { x: number; z: number; heading: number; kind: MotorKind; resting: boolean; hunting?: boolean }>()

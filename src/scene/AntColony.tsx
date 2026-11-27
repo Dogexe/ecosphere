@@ -58,6 +58,10 @@ function BroodModel({ colony, cohort, index, rotation, selected, center, onPick,
   </group>
 }
 
+/* Ants in the nest: where each is drawn, so two that meet in a tunnel stop for a moment of antennal
+   contact (Greene & Gordon 2003, Nature 423:32), as surface ants do in behaviour.ts. */
+const nestAnts = new Map<number, Vector3>()
+
 function AntModel({ colony, ant, speed, selected, feeding, onPick, field, center }: { colony: Colony; ant: Ant; speed: number; selected: boolean; feeding: boolean; onPick: (ray: Ray) => void; field: ReturnType<typeof prepareField>; center: Vector3 }) {
   const root = useRef<Group>(null), hit = useRef<Group>(null), moving = useRef(false)
   const body = useRef<Group>(null), marker = useRef<Group>(null), envelope = useRef<Box3 | null>(null)
@@ -65,7 +69,8 @@ function AntModel({ colony, ant, speed, selected, feeding, onPick, field, center
   const lastPose = useRef('')
   // Surface ants get a behaviour motor (behaviour.ts): trail running with brief antennal contacts.
   const motor = useRef<Motor | null>(null), motorId = 1_000_000 + ant.id
-  useEffect(() => () => forgetMotor(motorId), [motorId])
+  useEffect(() => () => { forgetMotor(motorId); nestAnts.delete(ant.id) }, [motorId, ant.id])
+  const meeting = useRef({ until: 0, next: 0 })
   const measure = useCallback((bounds: Box3) => { envelope.current = bounds.clone().expandByScalar(0.012); bounds.getCenter(localCenter.current); lastPose.current = '' }, [])
   const bornScale = ant.caste === 'worker' ? Math.cbrt(ant.body / 0.04) : 1
   // Surface ants walk on the jar's ground, which is uneven in a poured jar.
@@ -103,10 +108,16 @@ function AntModel({ colony, ant, speed, selected, feeding, onPick, field, center
       root.current.quaternion.slerp(orientation(new Vector3(Math.sin(m.heading), 0, Math.cos(m.heading))), 1 - Math.exp(-delta * 20))
     } else {
       if (motor.current) { forgetMotor(motorId); motor.current = null }
+      const now = performance.now() / 1000, meet = meeting.current
+      if (speed > 0 && now >= meet.next) for (const [other, at] of nestAnts) {
+        if (other !== ant.id && at.distanceTo(root.current.position) < 0.06) { meet.until = now + 0.4 + Math.random() * 0.6; meet.next = meet.until + 2.5; break }
+      }
+      nestAnts.set(ant.id, (nestAnts.get(ant.id) ?? new Vector3()).copy(root.current.position))
       const before = previous.current.copy(root.current.position)
       // Settling to a changed fixed-step state also works with paused +1h.
       // Imported clip clocks still freeze at speed0, as with existing fauna.
-      root.current.position.lerp(new Vector3(target.x, target.y, target.z), 1 - Math.exp(-delta * 14 * Math.max(1, speed)))
+      // Held still for a brief antennal contact, then it catches up along its tunnel.
+      if (now >= meet.until) root.current.position.lerp(new Vector3(target.x, target.y, target.z), 1 - Math.exp(-delta * 14 * Math.max(1, speed)))
       const dx = root.current.position.x - before.x, dz = root.current.position.z - before.z
       moving.current = speed > 0 && Math.hypot(dx, dz, root.current.position.y - before.y) > 0.00003
       const direction = root.current.position.clone().sub(before)

@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { lastDisturbance } from './behaviour'
 import type { ThreeEvent } from '@react-three/fiber'
 import { DoubleSide, LatheGeometry, MathUtils, Shape, ShapeGeometry, Vector2 } from 'three'
 import type { Group } from 'three'
@@ -44,6 +45,16 @@ const hindwing = wingShape([[0, -0.03], [0.26, -0.02], [0.4, -0.12], [0.4, -0.3]
 
 export type PieridPhase = 'pupa' | 'butterfly'
 
+/*
+ * Butterfly behaviour (2026-11-27, owner: realistic, lively behaviour):
+ * - Flight is the jinking, up-and-down flutter of small whites: short legs of flight in changing
+ *   directions with brief glides between bursts of wing beats.
+ * - Perched in the light it basks with its wings held part-open in a V, which reflects sunlight onto
+ *   its body (reflectance basking of pierids, Kingsolver 1987, Evolution 41:472-490); while sipping or resting the wings close
+ *   upright, with now and then a quick flick.
+ * - A tap close by puts it up into the air for a few seconds.
+ */
+
 export function Pierid3D({ id, x, z, heading, phase, flying, feeding, resting, emerging, speed, children, onClick }: {
   id: number; x: number; z: number; heading: number; phase: PieridPhase
   flying: boolean; feeding: boolean; resting: boolean; emerging: number; speed: number
@@ -53,6 +64,7 @@ export function Pierid3D({ id, x, z, heading, phase, flying, feeding, resting, e
   const left = useRef<Group>(null)
   const right = useRef<Group>(null)
   const clock = useRef(id * 1.7)
+  const flight = useRef({ ox: 0, oz: 0, oy: 0, leg: 0, glide: 0, flick: 0, scared: 0, startled: -Infinity })
   const female = id % 2 === 0
   const green = id % 3 !== 0
   const caseColor = useMemo(() => {
@@ -66,22 +78,49 @@ export function Pierid3D({ id, x, z, heading, phase, flying, feeding, resting, e
     if (!node) return
     const t = clock.current
     const ground = 0.05 + groundShape.offset(node.position.x, node.position.z)
-    const factor = 1 - Math.exp(-delta * 3)
-    node.position.x = MathUtils.lerp(node.position.x, x, factor)
-    node.position.z = MathUtils.lerp(node.position.z, z, factor)
+    const f = flight.current
+    // A tap nearby flushes a perched butterfly for a few seconds.
+    const tap = lastDisturbance(), now = performance.now() / 1000
+    if (phase === 'butterfly' && speed > 0 && tap.at !== f.startled && now - tap.at < 0.4 && Math.hypot(tap.x - node.position.x, tap.z - node.position.z) < 1.3) { f.startled = tap.at; f.scared = 2.5 + Math.random() * 2; f.leg = 0 }
+    const dt = Math.min(delta, 0.05) * (speed > 0 ? Math.min(speed, 3) : 0)
+    f.scared = Math.max(0, f.scared - dt)
+    const airborne = flying || f.scared > 0
+    // Flight: a new short leg in a new direction every half second or so, with glides between bursts.
+    f.leg -= dt; f.glide -= dt; f.flick -= dt
+    if (airborne && f.leg <= 0) {
+      const a = Math.random() * Math.PI * 2, r = 0.25 + Math.random() * 0.6
+      f.ox = Math.sin(a) * r; f.oz = Math.cos(a) * r; f.oy = (Math.random() - 0.4) * 0.5
+      f.leg = 0.35 + Math.random() * 0.8
+      if (Math.random() < 0.35) f.glide = 0.2 + Math.random() * 0.3
+    }
+    if (!airborne) { f.ox *= 0.9; f.oz *= 0.9; f.oy *= 0.9 }
+    const factor = 1 - Math.exp(-delta * (airborne ? 4.5 : 3))
+    const before = { x: node.position.x, z: node.position.z }
+    node.position.x = MathUtils.lerp(node.position.x, x + f.ox, factor)
+    node.position.z = MathUtils.lerp(node.position.z, z + f.oz, factor)
+    // Keep inside the glass.
+    const r = Math.hypot(node.position.x, node.position.z)
+    if (r > 3.2) { node.position.x *= 3.2 / r; node.position.z *= 3.2 / r }
     if (phase === 'pupa') {
       node.position.y = ground
       node.rotation.set(0, heading, 0.18)
       return
     }
     // Perched on a flower or leaf when still; up in the jar air, weaving, while flying.
-    const height = flying ? 1.05 + Math.sin(t * 1.3 + id) * 0.25 : resting ? 0.32 : 0.42
-    node.position.y = MathUtils.lerp(node.position.y, ground + height + (flying ? Math.sin(t * 9) * 0.04 : 0), 1 - Math.exp(-delta * 2.5))
-    const turn = Math.atan2(Math.sin(heading - node.rotation.y), Math.cos(heading - node.rotation.y))
-    node.rotation.y += turn * factor
-    node.rotation.x = flying ? -0.18 : 0
-    // Wing angle from flat: closed upright at rest, a slow open-close while sipping, fast beats in flight.
-    const open = flying ? 0.55 + Math.sin(t * 26) * 0.95 : resting ? 1.45 : 1.15 + Math.sin(t * 2.2) * 0.3 * (feeding ? 1 : 0.4)
+    const height = airborne ? 1.05 + f.oy + Math.sin(t * 1.3 + id) * 0.2 : resting ? 0.32 : 0.42
+    node.position.y = MathUtils.lerp(node.position.y, ground + height + (airborne ? Math.sin(t * 9) * 0.05 : 0), 1 - Math.exp(-delta * (airborne ? 4 : 2.5)))
+    // Face the way it is flying; perched, face the ecology's heading.
+    const mx = node.position.x - before.x, mz = node.position.z - before.z
+    const want = airborne && Math.hypot(mx, mz) > 1e-4 ? Math.atan2(mx, mz) : heading
+    const turn = Math.atan2(Math.sin(want - node.rotation.y), Math.cos(want - node.rotation.y))
+    node.rotation.y += turn * (1 - Math.exp(-delta * (airborne ? 8 : 3)))
+    node.rotation.x = airborne ? -0.18 : 0
+    // Wing angle from flat (1.45 = closed upright): beats in flight with short glides; basking part-open
+    // in a V when perched in daylight; closed while sipping or resting, with an occasional flick.
+    if (!airborne && f.flick <= 0 && Math.random() < dt * 0.25) f.flick = 0.25
+    const flick = f.flick > 0 ? Math.sin(f.flick / 0.25 * Math.PI) * 0.9 : 0
+    const open = airborne ? f.glide > 0 ? 0.35 + Math.sin(t * 3) * 0.05 : 0.55 + Math.sin(t * 26) * 0.95
+      : resting ? 1.45 - flick * 0.3 : feeding ? 1.35 - flick + Math.sin(t * 2.2) * 0.1 : 0.85 + Math.sin(t * 0.7 + id) * 0.08 - flick * 0.4
     if (right.current) right.current.rotation.z = open
     if (left.current) left.current.rotation.z = -open
   })

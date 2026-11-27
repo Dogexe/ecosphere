@@ -6,6 +6,7 @@ import { BufferAttribute, BufferGeometry, Color, MeshStandardMaterial } from 'th
 import type { Group, Mesh } from 'three'
 import { wallRadius } from './soilRoots'
 import { environmentScale, groundShape } from './scale'
+import { lastDisturbance } from './behaviour'
 
 /*
  * 3D red earthworm (Eisenia fetida), owner's pick 2026-11-21. No free model with a licence the
@@ -20,6 +21,11 @@ import { environmentScale, groundShape } from './scale'
  *   back, where the cocoon forms (https://en.wikipedia.org/wiki/Clitellum).
  * - It moves by peristalsis: waves of contraction run back along the body while the body follows
  *   the path the head has burrowed (https://en.wikipedia.org/wiki/Earthworm#Locomotion).
+ *
+ * - It crawls in bouts with short pauses, and a tap close by sets off the giant-fibre escape
+ *   reflex: the whole body shortens and thickens in a moment, then slowly relaxes (Drewes 1984,
+ *   "Escape reflexes in earthworms and other annelids", in Eaton (ed.), Neural Mechanisms of
+ *   Startle Behavior, Plenum, pp. 43-91).
  *
  * Like a real worm jar, the worm is shown where people see them: in a burrow pressed against the
  * glass. The sim keeps its position in the soil; the drawing moves it straight out to the wall at the
@@ -65,11 +71,11 @@ export function Earthworm3D({ id, x, z, tick, inSoil = false, length, adult, fee
     // Feeding worms come up under the litter; otherwise they rest deeper, a centimetre or so down.
     return { s: angle * wallRadius, y: surface - (feeding ? 0.22 : 0.62) }
   }
-  const state = useRef<{ path: Point[]; t: number; heading: number; away: number; z: number } | null>(null)
+  const state = useRef<{ path: Point[]; t: number; heading: number; away: number; z: number; bout: number; paused: boolean; shrink: number; startled: number } | null>(null)
   if (!state.current) {
     const start = target()
     // Lay the body out level behind the head at first, as if it had come along its burrow.
-    state.current = { path: Array.from({ length: 24 }, (_, i) => ({ s: start.s - i * length / 20, y: start.y + Math.sin(i * 0.5) * 0.04 })), t: 0, heading: 0, away: inSoil || wormAtGlass(id, tick) ? 0 : 1, z }
+    state.current = { path: Array.from({ length: 24 }, (_, i) => ({ s: start.s - i * length / 20, y: start.y + Math.sin(i * 0.5) * 0.04 })), t: 0, heading: 0, away: inSoil || wormAtGlass(id, tick) ? 0 : 1, z, bout: 2 + (id % 5), paused: false, shrink: 0, startled: -Infinity }
   }
   const radius = Math.max(0.025, length * 0.045)
   const geometry = useMemo(() => {
@@ -107,7 +113,16 @@ export function Earthworm3D({ id, x, z, tick, inSoil = false, length, adult, fee
     const lead = path[0]
     // The head burrows toward the sim's spot at a few millimetres a second of play.
     const gap = Math.hypot(goal.s - lead.s, goal.y - lead.y)
-    const moving = speed > 0 && gap > 0.04
+    // Crawling comes in bouts of a few seconds with short pauses between them.
+    if (speed > 0) {
+      memory.bout -= delta * Math.min(speed, 3)
+      if (memory.bout <= 0) { memory.paused = !memory.paused; memory.bout = memory.paused ? 0.8 + Math.random() * 2 : 3 + Math.random() * 6 }
+    }
+    // Escape reflex: a tap near where it lives makes it shorten at once, then relax over a few seconds.
+    const tap = lastDisturbance(), now = performance.now() / 1000
+    if (tap.at !== memory.startled && now - tap.at < 0.4 && Math.hypot(tap.x - x, tap.z - z) < 0.9) { memory.startled = tap.at; memory.shrink = 1 }
+    memory.shrink = Math.max(0, memory.shrink - delta * 0.35)
+    const moving = speed > 0 && gap > 0.04 && !memory.paused && memory.shrink < 0.3
     if (moving) {
       // The head turns gradually toward where it is going, so the burrow curves instead of kinking back.
       const pace = Math.max(1, Math.min(speed, 3))
@@ -132,7 +147,7 @@ export function Earthworm3D({ id, x, z, tick, inSoil = false, length, adult, fee
     const flat: [number, number][] = []
     let segment = 0, along = 0
     for (let ring = 0; ring <= rings; ring += 1) {
-      const want = ring / rings * length
+      const want = ring / rings * length * (1 - 0.35 * memory.shrink)
       while (segment < path.length - 2 && along + Math.hypot(path[segment + 1].s - path[segment].s, path[segment + 1].y - path[segment].y) < want) {
         along += Math.hypot(path[segment + 1].s - path[segment].s, path[segment + 1].y - path[segment].y); segment += 1
       }
@@ -163,7 +178,7 @@ export function Earthworm3D({ id, x, z, tick, inSoil = false, length, adult, fee
       const u = ring / rings
       // Peristalsis: a wave of thickening runs back along the body while it moves.
       const wave = moving ? 1 + 0.13 * Math.sin(u * 16 - t) : 1 + 0.03 * Math.sin(u * 9 - t)
-      const rr = radius * profile(u, adult) * wave
+      const rr = radius * profile(u, adult) * wave * (1 + 0.3 * memory.shrink)
       for (let k = 0; k < sides; k += 1) {
         const a = k / sides * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a)
         // Slightly flattened toward the tail, as in lumbricids.
